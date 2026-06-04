@@ -31,5 +31,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "worker.ts", "open-source/overrides"]
+  "exclude": [
+    "node_modules",
+    "worker.ts",
+    "open-source/overrides",
+    "ecosystem/obsidian-publisher/**"
+  ]
 }
