@@ -37,3 +37,12 @@ export {
   updateCategory,
 } from '@/lib/repositories/categories'
 export { getSetting, setSetting } from '@/lib/repositories/settings'
+export {
+  appendAiArticleMessage,
+  getOrCreateAiArticleThread,
+  listAiArticleMessages,
+  normalizeArticleKey,
+  resetAiArticleThread,
+  type AiArticleMessageRow,
+  type AiArticleThreadRow,
+} from '@/lib/repositories/ai-article-threads'

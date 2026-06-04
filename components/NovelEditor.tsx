@@ -36,6 +36,8 @@ import { InputModal } from '@/components/InputModal'
 import { CategorySelector } from '@/components/CategorySelector'
 import { ImageGenerationModal } from '@/components/ImageGenerationModal'
 import { ImageCropModal } from '@/components/ImageCropModal'
+import { AIPanel } from '@/components/editor/AIPanel'
+import { EditorRightRail } from '@/components/editor/EditorRightRail'
 import { WeChatPublishModal } from '@/components/WeChatPublishModal'
 import { useToast } from '@/components/Toast'
 import { startBackgroundTask } from '@/lib/client-background-task'
@@ -75,9 +77,12 @@ type PublishStatus = 'public' | 'draft' | 'encrypted' | 'unlisted'
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error'
 
 const SIDEBAR_KEY = 'qmblog:sidebar-open'
+const SIDEBAR_TAB_KEY = 'qmblog:sidebar-tab'
+const SIDEBAR_WIDTH_KEY = 'qmblog:sidebar-width'
 const AUTOSAVE_DEBOUNCE_MS = 1500
 const AUTOSAVE_MAX_RETRY_DELAY_MS = 10000
 const SITE_DISPLAY_URL = getSiteDisplayUrl()
+const DEFAULT_SIDEBAR_WIDTH = 360
 
 const EMPTY_DOCUMENT = {
   type: 'doc',
@@ -121,6 +126,7 @@ type DraftMetaState = {
 }
 
 type MetaGenerationTarget = 'summary' | 'tags' | 'slug' | 'cover'
+type SidebarTab = 'settings' | 'ai'
 
 export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   // ── Core state ──
@@ -148,6 +154,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
   // ── UI state ──
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('settings')
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [publishPanelOpen, setPublishPanelOpen] = useState(false)
   const [wechatPublishOpen, setWechatPublishOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -196,6 +204,14 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     // Load sidebar preference
     if (typeof window !== 'undefined') {
       setSidebarOpen(window.localStorage.getItem(SIDEBAR_KEY) === 'true')
+      const storedTab = window.localStorage.getItem(SIDEBAR_TAB_KEY)
+      if (storedTab === 'settings' || storedTab === 'ai') {
+        setSidebarTab(storedTab)
+      }
+      const storedWidth = Number(window.localStorage.getItem(SIDEBAR_WIDTH_KEY))
+      if (Number.isFinite(storedWidth) && storedWidth >= 320 && storedWidth <= 560) {
+        setSidebarWidth(storedWidth)
+      }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -203,8 +219,10 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(SIDEBAR_KEY, String(sidebarOpen))
+      window.localStorage.setItem(SIDEBAR_TAB_KEY, sidebarTab)
+      window.localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth))
     }
-  }, [sidebarOpen])
+  }, [sidebarOpen, sidebarTab, sidebarWidth])
 
   useEffect(() => {
     latestMetaRef.current = {
@@ -953,10 +971,194 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     saveState === 'error' ? 'text-orange-500' : 'text-[var(--stone-gray)]'
 
   const showSidebar = sidebarOpen
+  const currentDocumentJson = editorRef.current?.getJSON() || initialContent
+  const currentDocumentText = editorRef.current?.getText({ blockSeparator: '\n\n' }).trim() || ''
+  const articleKey = editSlug
+    ? `post:${editSlug}`
+    : slug
+      ? `draft:${slug}`
+      : 'draft:new-post'
   const wechatSourceUrl = useMemo(() => {
     const currentSlug = normalizePostSlug(editSlug || slug)
     return currentSlug ? `https://${SITE_DISPLAY_URL}/${currentSlug}` : ''
   }, [editSlug, slug])
+
+  const settingsPanel = (
+    <div className="h-full overflow-y-auto px-5 py-6 space-y-6">
+      <div className="text-xs font-semibold text-[var(--stone-gray)] uppercase tracking-wider">文章设置</div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <label className="block text-xs font-semibold tracking-wider text-[var(--stone-gray)]">标签</label>
+          <button
+            type="button"
+            onClick={() => void handleGenerateMetadata('tags')}
+            disabled={isMetadataTargetPending('tags')}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+            title="AI 生成标签"
+            aria-label="AI 生成标签"
+          >
+            {isMetadataTargetPending('tags') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {tags.map((tag, idx) => (
+            <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-[var(--editor-accent)]/8 px-2 py-0.5 text-xs text-[var(--editor-accent)]">
+              {tag}
+              <button type="button" onClick={() => removeTag(idx)} className="hover:text-[var(--editor-ink)]">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+        {tags.length < 10 && (
+          <input
+            type="text"
+            value={tagInput}
+            onChange={e => setTagInput(e.target.value)}
+            onKeyDown={e => {
+              if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                e.preventDefault(); addTag(tagInput)
+              }
+              if (e.key === 'Backspace' && !tagInput && tags.length > 0) removeTag(tags.length - 1)
+            }}
+            placeholder="添加标签…"
+            className="w-full rounded-md border border-[var(--editor-line)] bg-[var(--editor-panel)] px-2.5 py-1.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+          />
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <label className="block text-xs font-semibold tracking-wider text-[var(--stone-gray)]">摘要</label>
+          <button
+            type="button"
+            onClick={() => void handleGenerateMetadata('summary')}
+            disabled={isMetadataTargetPending('summary')}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+            title="AI 生成摘要"
+            aria-label="AI 生成摘要"
+          >
+            {isMetadataTargetPending('summary') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+        <textarea
+          rows={4}
+          value={description}
+          onChange={e => {
+            const nextDescription = e.target.value
+            setDescription(nextDescription)
+            markDirty({ description: nextDescription })
+          }}
+          placeholder="文章摘要（建议 ≤ 160 字）"
+          className="w-full rounded-md border border-[var(--editor-line)] bg-[var(--editor-panel)] px-2.5 py-2 text-sm text-[var(--editor-ink)] outline-none resize-none focus:border-[var(--editor-accent)]"
+        />
+        <div className="mt-1 text-right text-[10px] text-[var(--stone-gray)]">{description.length}/160</div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <label className="block text-xs font-semibold tracking-wider text-[var(--stone-gray)]">封面图</label>
+          <button
+            type="button"
+            onClick={() => void handleGenerateMetadata('cover')}
+            disabled={isMetadataTargetPending('cover')}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+            title="AI 生成封面"
+            aria-label="AI 生成封面"
+          >
+            {isMetadataTargetPending('cover') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+        {coverImage ? (
+          <div className="group relative overflow-hidden rounded-md border border-[var(--editor-line)]" style={{ height: 120 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={coverImage} alt="封面预览" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--editor-panel)] text-[var(--editor-ink)] transition hover:bg-[var(--editor-soft)]"
+                title="重新上传"
+              >
+                <ImageIcon className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCoverImage('')
+                  markDirty({ coverImage: '' })
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--editor-panel)] text-rose-600 transition hover:bg-[var(--editor-soft)]"
+                title="删除封面"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => coverInputRef.current?.click()}
+            onDrop={e => {
+              e.preventDefault()
+              const f = e.dataTransfer.files[0]
+              if (f?.type.startsWith('image/')) void handleCoverUpload(f)
+            }}
+            onDragOver={e => e.preventDefault()}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-[var(--editor-line)] py-8 text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)]"
+          >
+            <ImageIcon className="h-6 w-6" />
+            <span className="text-xs">点击或拖拽上传封面</span>
+          </button>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <label className="block text-xs font-semibold tracking-wider text-[var(--stone-gray)]">链接</label>
+          <button
+            type="button"
+            onClick={() => void handleGenerateMetadata('slug')}
+            disabled={isMetadataTargetPending('slug')}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+            title="AI 生成 slug"
+            aria-label="AI 生成 slug"
+          >
+            {isMetadataTargetPending('slug') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-xs text-[var(--stone-gray)]">slug:</span>
+          <input
+            type="text"
+            value={slug}
+            onFocus={() => {
+              slugInputFocusedRef.current = true
+            }}
+            onChange={e => {
+              const nextSlug = sanitizePostSlugInput(e.target.value)
+              setSlug(nextSlug)
+              markDirty({ slug: nextSlug })
+            }}
+            onBlur={e => {
+              slugInputFocusedRef.current = false
+              const normalizedSlug = normalizePostSlug(e.target.value)
+              if (normalizedSlug !== slug) {
+                setSlug(normalizedSlug)
+                markDirty({ slug: normalizedSlug })
+              }
+            }}
+            placeholder={editSlug || 'auto-generated'}
+            className="flex-1 rounded-md border border-[var(--editor-line)] bg-[var(--editor-panel)] px-2 py-1.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+          />
+        </div>
+        <div className="mt-1 text-[10px] text-[var(--stone-gray)]">
+          {SITE_DISPLAY_URL}/{normalizePostSlug(slug) || editSlug || '自动生成'}
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-[var(--editor-app-bg)]">
@@ -1268,202 +1470,25 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
             )}
           </div>
         </main>
-
-        {/* ── Right Sidebar ── */}
-        <aside
-          className={`shrink-0 border-l border-[var(--editor-line)] bg-[var(--background)] overflow-y-auto overflow-x-hidden transition-all duration-200 ease-in-out ${
-            showSidebar ? 'w-[280px]' : 'w-0 border-l-0'
-          }`}
-          style={{ position: 'sticky', top: '3.5rem', height: 'calc(100vh - 3.5rem)' }}
-        >
-          {showSidebar && (
-            <div className="w-[280px] px-5 py-6 space-y-6">
-              {/* Close button */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[var(--stone-gray)] uppercase tracking-wider">文章设置</span>
-                <button type="button" onClick={() => setSidebarOpen(false)} className="text-[var(--stone-gray)] hover:text-[var(--editor-ink)]">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Tags */}
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <label className="block text-xs font-semibold tracking-wider text-[var(--stone-gray)]">标签</label>
-                  <button
-                    type="button"
-                    onClick={() => void handleGenerateMetadata('tags')}
-                    disabled={isMetadataTargetPending('tags')}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                    title="AI 生成标签"
-                    aria-label="AI 生成标签"
-                  >
-                    {isMetadataTargetPending('tags') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {tags.map((tag, idx) => (
-                    <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-[var(--editor-accent)]/8 px-2 py-0.5 text-xs text-[var(--editor-accent)]">
-                      {tag}
-                      <button type="button" onClick={() => removeTag(idx)} className="hover:text-[var(--editor-ink)]">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                {tags.length < 10 && (
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={e => {
-                      if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
-                        e.preventDefault(); addTag(tagInput)
-                      }
-                      if (e.key === 'Backspace' && !tagInput && tags.length > 0) removeTag(tags.length - 1)
-                    }}
-                    placeholder="添加标签…"
-                    className="w-full rounded-md border border-[var(--editor-line)] bg-[var(--editor-panel)] px-2.5 py-1.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
-                  />
-                )}
-              </div>
-
-              {/* Description / Excerpt */}
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <label className="block text-xs font-semibold tracking-wider text-[var(--stone-gray)]">摘要</label>
-                  <button
-                    type="button"
-                    onClick={() => void handleGenerateMetadata('summary')}
-                    disabled={isMetadataTargetPending('summary')}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                    title="AI 生成摘要"
-                    aria-label="AI 生成摘要"
-                  >
-                    {isMetadataTargetPending('summary') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-                <textarea
-                  rows={4}
-                  value={description}
-                  onChange={e => {
-                    const nextDescription = e.target.value
-                    setDescription(nextDescription)
-                    markDirty({ description: nextDescription })
-                  }}
-                  placeholder="文章摘要（建议 ≤ 160 字）"
-                  className="w-full rounded-md border border-[var(--editor-line)] bg-[var(--editor-panel)] px-2.5 py-2 text-sm text-[var(--editor-ink)] outline-none resize-none focus:border-[var(--editor-accent)]"
-                />
-                <div className="mt-1 text-right text-[10px] text-[var(--stone-gray)]">{description.length}/160</div>
-              </div>
-
-              {/* Cover Image */}
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <label className="block text-xs font-semibold tracking-wider text-[var(--stone-gray)]">封面图</label>
-                  <button
-                    type="button"
-                    onClick={() => void handleGenerateMetadata('cover')}
-                    disabled={isMetadataTargetPending('cover')}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                    title="AI 生成封面"
-                    aria-label="AI 生成封面"
-                  >
-                    {isMetadataTargetPending('cover') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-                {coverImage ? (
-                  <div className="relative rounded-md overflow-hidden border border-[var(--editor-line)] group" style={{ height: 120 }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={coverImage} alt="封面预览" className="w-full h-full object-cover" />
-                    {/* 悬停时显示的操作按钮 */}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => coverInputRef.current?.click()}
-                        className="flex items-center justify-center w-9 h-9 rounded-full bg-[var(--editor-panel)] text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition"
-                        title="重新上传"
-                      >
-                        <ImageIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCoverImage('')
-                          markDirty({ coverImage: '' })
-                        }}
-                        className="flex items-center justify-center w-9 h-9 rounded-full bg-[var(--editor-panel)] text-rose-600 hover:bg-[var(--editor-soft)] transition"
-                        title="删除封面"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => coverInputRef.current?.click()}
-                    onDrop={e => {
-                      e.preventDefault()
-                      const f = e.dataTransfer.files[0]
-                      if (f?.type.startsWith('image/')) void handleCoverUpload(f)
-                    }}
-                    onDragOver={e => e.preventDefault()}
-                    className="flex w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-[var(--editor-line)] py-8 text-[var(--stone-gray)] hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] transition"
-                  >
-                    <ImageIcon className="h-6 w-6" />
-                    <span className="text-xs">点击或拖拽上传封面</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Slug */}
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <label className="block text-xs font-semibold tracking-wider text-[var(--stone-gray)]">链接</label>
-                  <button
-                    type="button"
-                    onClick={() => void handleGenerateMetadata('slug')}
-                    disabled={isMetadataTargetPending('slug')}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] text-[var(--stone-gray)] transition hover:border-[var(--editor-accent)]/40 hover:text-[var(--editor-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                    title="AI 生成 slug"
-                    aria-label="AI 生成 slug"
-                  >
-                    {isMetadataTargetPending('slug') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[var(--stone-gray)] shrink-0">slug:</span>
-                  <input
-                    type="text"
-                    value={slug}
-                    onFocus={() => {
-                      slugInputFocusedRef.current = true
-                    }}
-                    onChange={e => {
-                      const nextSlug = sanitizePostSlugInput(e.target.value)
-                      setSlug(nextSlug)
-                      markDirty({ slug: nextSlug })
-                    }}
-                    onBlur={e => {
-                      slugInputFocusedRef.current = false
-                      const normalizedSlug = normalizePostSlug(e.target.value)
-                      if (normalizedSlug !== slug) {
-                        setSlug(normalizedSlug)
-                        markDirty({ slug: normalizedSlug })
-                      }
-                    }}
-                    placeholder={editSlug || 'auto-generated'}
-                    className="flex-1 rounded-md border border-[var(--editor-line)] bg-[var(--editor-panel)] px-2 py-1.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
-                  />
-                </div>
-                <div className="mt-1 text-[10px] text-[var(--stone-gray)]">
-                  {SITE_DISPLAY_URL}/{normalizePostSlug(slug) || editSlug || '自动生成'}
-                </div>
-              </div>
-            </div>
+        <EditorRightRail
+          open={showSidebar}
+          width={sidebarWidth}
+          activeTab={sidebarTab}
+          onActiveTabChange={setSidebarTab}
+          onClose={() => setSidebarOpen(false)}
+          onWidthChange={setSidebarWidth}
+          settingsContent={settingsPanel}
+          aiContent={(
+            <AIPanel
+              articleKey={articleKey}
+              postSlug={editSlug || normalizePostSlug(slug) || null}
+              title={title}
+              editor={editorRef.current}
+              documentJson={currentDocumentJson}
+              documentText={currentDocumentText}
+            />
           )}
-        </aside>
+        />
       </div>
 
       <WeChatPublishModal
