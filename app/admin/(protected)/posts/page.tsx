@@ -2,7 +2,11 @@ import { getPosts, searchPosts, getCategories } from '@/lib/db'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import Link from 'next/link'
 import { FilterBar } from './FilterBar'
-import { PostsTableClient } from './PostsTableClient'
+import dynamic from 'next/dynamic'
+
+const PostsTableClient = dynamic(
+  () => import('./PostsTableClient').then((m) => m.PostsTableClient)
+)
 
 export const metadata = { title: '文章管理' }
 
@@ -40,7 +44,7 @@ export default async function AdminPostsPage({
 
   // 从文章数据提取分类（用于 FilterBar 筛选）
   const postCategories = Array.from(
-    new Set(sourcePosts.map((p) => p.category).filter(Boolean))
+    new Set(sourcePosts.map((p) => p.category).filter((category) => category && category !== '未分类'))
   ) as string[]
 
   const stats = {

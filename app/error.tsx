@@ -16,7 +16,7 @@ export default function Error({
   }, [error])
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center bg-[#f5f4ed] text-[#141413]">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4 text-center bg-[#f5f4ed] text-[#141413]">
       <div className="max-w-md space-y-6">
         <div className="space-y-2">
           <span className="inline-block px-3 py-1 text-xs font-medium bg-[#e8e6dc] rounded-full text-[#5e5d59]">

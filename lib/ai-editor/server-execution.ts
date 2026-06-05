@@ -26,15 +26,12 @@ export interface FinalizedEditorAiResponse {
   action: EditorAiAction
   error?: string
   tool: Record<string, unknown>
-  generatedImages: Array<{
-    blockIndex: number
-    reason: string
+  generatedImage?: {
+    url: string
     alt: string
-    image: {
-      url: string
-      alt: string
-    }
-  }>
+    usage: 'inline' | 'cover'
+    anchorBlockIndex?: number
+  }
 }
 
 interface FinalizeEditorAiCompletionOptions {
@@ -76,39 +73,32 @@ export async function finalizeEditorAiCompletion({
     message: completed.message,
     tool: legacyTool,
   }
-  let generatedImages: FinalizedEditorAiResponse['generatedImages'] = []
+  let generatedImage: FinalizedEditorAiResponse['generatedImage'] | undefined
 
-  if (completed.action.type === 'plan_article_images') {
+  if (completed.action.type === 'generate_image') {
     if (!images) {
       responsePayload = {
         ...responsePayload,
         error: '图片存储未配置，无法自动插图',
       }
     } else {
-      const plannedImages = Array.isArray(completed.action.images)
-        ? completed.action.images
-        : []
+      const generated = await generateEditorImage({
+        action: 'custom',
+        userPrompt: completed.action.prompt,
+        articleTitle,
+        contextText: completed.message,
+        aspectRatio: completed.action.aspectRatio || (completed.action.usage === 'cover' ? '5:2' : undefined),
+        resolution: completed.action.resolution,
+        db,
+        env,
+        images,
+      })
 
-      generatedImages = []
-      for (const item of plannedImages.slice(0, 6)) {
-        const generated = await generateEditorImage({
-          action: 'custom',
-          userPrompt: item.prompt,
-          articleTitle,
-          contextText: item.reason,
-          aspectRatio: item.aspectRatio,
-          resolution: item.resolution,
-          db,
-          env,
-          images,
-        })
-
-        generatedImages.push({
-          blockIndex: item.blockIndex,
-          reason: item.reason,
-          alt: item.alt || generated.alt,
-          image: generated,
-        })
+      generatedImage = {
+        url: generated.url,
+        alt: completed.action.alt || generated.alt,
+        usage: completed.action.usage,
+        anchorBlockIndex: completed.action.anchorBlockIndex,
       }
 
       responsePayload = {
@@ -117,7 +107,12 @@ export async function finalizeEditorAiCompletion({
           ...legacyTool,
           payload: {
             ...(legacyTool.payload as Record<string, unknown> || {}),
-            generatedImages,
+            generatedImage: generatedImage
+              ? {
+                  url: generatedImage.url,
+                  alt: generatedImage.alt,
+                }
+              : undefined,
           },
         },
       }
@@ -155,7 +150,7 @@ export async function finalizeEditorAiCompletion({
     action: completed.action,
     error: typeof responsePayload.error === 'string' ? responsePayload.error : undefined,
     tool: (responsePayload.tool as Record<string, unknown>) || { name: 'reply_only', payload: null },
-    generatedImages,
+    generatedImage,
   }
 }
 
@@ -164,12 +159,12 @@ export async function* buildEditorAiRouteEvents(
   completion: Promise<FinalizedEditorAiResponse>,
 ) {
   for await (const event of stream) {
-    if (event.type === 'action_ready' && event.action.type === 'plan_article_images') {
+    if (event.type === 'action_ready' && event.action.type === 'generate_image') {
       yield {
         type: 'tool_pending' as const,
-        tool: 'plan_article_images',
+        tool: 'generate_image',
         payload: {
-          count: event.action.images.length,
+          usage: event.action.usage,
         },
       }
       yield event
@@ -179,12 +174,12 @@ export async function* buildEditorAiRouteEvents(
     if (event.type === 'assistant_done') {
       try {
         const finalized = await completion
-        if (finalized.generatedImages.length > 0) {
+        if (finalized.generatedImage) {
           yield {
             type: 'tool_result' as const,
-            tool: 'plan_article_images',
+            tool: 'generate_image',
             payload: {
-              generatedImages: finalized.generatedImages,
+              generatedImage: finalized.generatedImage,
             },
           }
         }

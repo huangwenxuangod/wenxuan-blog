@@ -15,15 +15,20 @@ export interface AIImageProviderPreset {
 
 export const AI_IMAGE_PROVIDER_PRESETS: AIImageProviderPreset[] = [
   {
-    id: 'tuzi',
-    name: '兔子 API',
+    id: 'workers_ai',
+    name: 'Cloudflare Workers AI',
     providerType: 'openai_images',
-    category: '自定义兼容',
-    baseUrl: 'https://api.tu-zi.com/v1',
-    defaultModel: 'gemini-2.5-flash-image',
-    quickModels: ['gemini-2.5-flash-image', 'gpt-image-1', 'dall-e-3'],
-    apiKeyUrl: 'https://api.tu-zi.com/register?aff=yyaz',
-    description: 'TuZi / 兔子 OpenAI 兼容生图接口',
+    category: '官方',
+    baseUrl: 'https://api.cloudflare.com/client/v4/accounts/【您的ACCOUNT_ID】/ai/run/',
+    defaultModel: '@cf/black-forest-labs/flux-1-schnell',
+    quickModels: [
+      '@cf/black-forest-labs/flux-1-schnell',
+      '@cf/bytedance/stable-diffusion-xl-lightning',
+      '@cf/stabilityai/stable-diffusion-xl-base-1.0',
+      '@cf/lykon/dreamshaper-8-lcm',
+    ],
+    apiKeyUrl: 'https://dash.cloudflare.com/',
+    description: 'Cloudflare 官方 Workers AI 边缘端生图接口（每日含免费额度）',
     recommended: true,
   },
   {

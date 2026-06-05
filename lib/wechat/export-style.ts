@@ -1,3 +1,5 @@
+import type { WechatStylePresetId } from './style-presets'
+
 export interface WechatExportStyleTokens {
   background: string
   panelBackground: string
@@ -31,18 +33,252 @@ export function normalizeWechatExportHtml(html: string) {
     .replace(/<p(?![^>]*data-wechat-empty="true")([^>]*)>\s*&nbsp;\s*<\/p>/gi, '<p$1 data-wechat-empty="true">&nbsp;</p>')
 }
 
-export function buildWechatExportCss(tokens: WechatExportStyleTokens) {
-  return `
-.wechat-export-root {
-  color: ${tokens.articleBodyColor};
-  font-family: ${tokens.bodyFontFamily};
+function buildPresetCss(tokens: WechatExportStyleTokens, preset: WechatStylePresetId) {
+  switch (preset) {
+    case 'claude':
+      return `
+.wechat-export-article {
+  padding: 0;
+}
+
+.wechat-export-title {
+  margin: 0 0 1.2em;
+  color: ${tokens.articleHeadingColor};
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.62;
+  letter-spacing: 0;
+}
+
+.wechat-export-content {
+  font-size: 16px;
+  line-height: 1.86;
+}
+
+.wechat-export-content h1,
+.wechat-export-content h2,
+.wechat-export-content h3,
+.wechat-export-content h4,
+.wechat-export-content h5,
+.wechat-export-content h6 {
+  margin: 1.65em 0 0.72em;
+  color: ${tokens.articleHeadingColor};
+  font-weight: 650;
+  line-height: 1.32;
+}
+
+.wechat-export-content h1 { font-size: 1.3rem; }
+.wechat-export-content h2 { font-size: 1.16rem; }
+.wechat-export-content h3 { font-size: 1.04rem; }
+
+.wechat-export-content p {
+  margin: 1.16em 0;
+  letter-spacing: 0;
+}
+
+.wechat-export-content blockquote {
+  margin: 1.2em 0;
+  padding: 0.02em 0 0.02em 0.95em;
+  border-left: 2px solid color-mix(in srgb, ${tokens.articleQuoteBorderColor} 52%, transparent);
+  color: ${tokens.articleQuoteColor};
   background: transparent;
 }
 
+.wechat-export-content hr {
+  margin: 1.45em 0;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+`.trim()
+    case 'nyt':
+      return `
 .wechat-export-article {
-  color: ${tokens.articleBodyColor};
-  font-family: ${tokens.bodyFontFamily};
-  box-sizing: border-box;
+  padding: 0 6px;
+}
+
+.wechat-export-title {
+  margin: 0 0 1.6em;
+  color: ${tokens.articleHeadingColor};
+  font-family: ${tokens.titleFontFamily};
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.72;
+  letter-spacing: 0.01em;
+}
+
+.wechat-export-content {
+  font-size: 16px;
+  line-height: 1.95;
+}
+
+.wechat-export-content h1,
+.wechat-export-content h2,
+.wechat-export-content h3,
+.wechat-export-content h4,
+.wechat-export-content h5,
+.wechat-export-content h6 {
+  margin: 2.1em 0 0.85em;
+  color: ${tokens.articleHeadingColor};
+  font-family: ${tokens.titleFontFamily};
+  font-weight: 700;
+  line-height: 1.28;
+}
+
+.wechat-export-content h1 { font-size: 1.5rem; }
+.wechat-export-content h2 { font-size: 1.3rem; }
+.wechat-export-content h3 { font-size: 1.14rem; }
+
+.wechat-export-content p {
+  margin: 1.5em 0;
+  letter-spacing: 0.02em;
+}
+
+.wechat-export-content blockquote {
+  margin: 1.45em 0;
+  padding: 0.35em 1em;
+  border-left: 3px solid ${tokens.articleQuoteBorderColor};
+  background: ${tokens.articleQuoteNestedBackground};
+  color: ${tokens.articleQuoteColor};
+  border-radius: 0 10px 10px 0;
+}
+
+.wechat-export-content hr {
+  margin: 2em 0 1.75em;
+  width: 100%;
+  border-color: rgba(0, 0, 0, 0.18);
+  transform: none;
+}
+`.trim()
+    case 'financial-times':
+      return `
+.wechat-export-article {
+  padding: 0 8px;
+}
+
+.wechat-export-title {
+  margin: 0 0 1.45em;
+  color: ${tokens.articleHeadingColor};
+  font-family: ${tokens.titleFontFamily};
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.68;
+  letter-spacing: 0.02em;
+}
+
+.wechat-export-content {
+  font-size: 16px;
+  line-height: 1.82;
+}
+
+.wechat-export-content h1,
+.wechat-export-content h2,
+.wechat-export-content h3,
+.wechat-export-content h4,
+.wechat-export-content h5,
+.wechat-export-content h6 {
+  margin: 1.9em 0 0.72em;
+  color: ${tokens.articleHeadingColor};
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.wechat-export-content h1,
+.wechat-export-content h2 {
+  padding-bottom: 0.42em;
+  border-bottom: 1px solid color-mix(in srgb, ${tokens.articleQuoteBorderColor} 54%, transparent);
+}
+
+.wechat-export-content h1 { font-size: 1.34rem; }
+.wechat-export-content h2 { font-size: 1.18rem; }
+.wechat-export-content h3 { font-size: 1.06rem; }
+
+.wechat-export-content p {
+  margin: 1.28em 0;
+  letter-spacing: 0.015em;
+}
+
+.wechat-export-content blockquote {
+  margin: 1.32em 0;
+  padding: 0.15em 0 0.15em 1em;
+  border-left: 3px solid ${tokens.articleQuoteBorderColor};
+  color: ${tokens.articleQuoteColor};
+  background: transparent;
+}
+
+.wechat-export-content hr {
+  margin: 1.7em 0;
+  border-color: color-mix(in srgb, ${tokens.articleQuoteBorderColor} 44%, transparent);
+}
+`.trim()
+    case 'bold':
+      return `
+.wechat-export-article {
+  padding: 0 4px;
+}
+
+.wechat-export-title {
+  margin: 0 0 1.3em;
+  color: ${tokens.articleHeadingColor};
+  font-size: 1.06rem;
+  font-weight: 700;
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+}
+
+.wechat-export-content {
+  font-size: 16px;
+  line-height: 1.82;
+}
+
+.wechat-export-content h1,
+.wechat-export-content h2,
+.wechat-export-content h3,
+.wechat-export-content h4,
+.wechat-export-content h5,
+.wechat-export-content h6 {
+  margin: 1.8em 0 0.85em;
+  color: ${tokens.articleHeadingColor};
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.wechat-export-content h1,
+.wechat-export-content h2 {
+  position: relative;
+  padding-left: 0.8em;
+}
+
+.wechat-export-content h1::before,
+.wechat-export-content h2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.2em;
+  width: 0.26em;
+  height: 1.05em;
+  border-radius: 999px;
+  background: ${tokens.accentColor};
+}
+
+.wechat-export-content h1 { font-size: 1.44rem; }
+.wechat-export-content h2 { font-size: 1.24rem; }
+.wechat-export-content h3 { font-size: 1.1rem; }
+
+.wechat-export-content p {
+  margin: 1.3em 0;
+}
+
+.wechat-export-content blockquote {
+  margin: 1.45em 0;
+  padding: 0.45em 1em;
+  border-left: 4px solid ${tokens.accentColor};
+  background: color-mix(in srgb, ${tokens.accentColor} 8%, transparent);
+  color: ${tokens.articleQuoteColor};
+}
+`.trim()
+    case 'default':
+    default:
+      return `
+.wechat-export-article {
   padding: 0 8px;
 }
 
@@ -61,16 +297,6 @@ export function buildWechatExportCss(tokens: WechatExportStyleTokens) {
   font-family: ${tokens.bodyFontFamily};
   font-size: 17px;
   line-height: 1.78;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.wechat-export-content > :first-child {
-  margin-top: 0;
-}
-
-.wechat-export-content > :last-child {
-  margin-bottom: 0;
 }
 
 .wechat-export-content h1,
@@ -94,6 +320,57 @@ export function buildWechatExportCss(tokens: WechatExportStyleTokens) {
   font-size: 1rem;
 }
 
+.wechat-export-content p {
+  margin: 1.45em 0;
+  color: inherit;
+  letter-spacing: 0.03em;
+}
+
+.wechat-export-content blockquote {
+  margin: 1.4em 0;
+  padding: 0.2em 0 0.2em 1em;
+  border-left: 3px solid ${tokens.articleQuoteBorderColor};
+  background: transparent;
+  color: ${tokens.articleQuoteColor};
+}
+`.trim()
+  }
+}
+
+export function buildWechatExportCss(tokens: WechatExportStyleTokens, preset: WechatStylePresetId = 'default') {
+  return `
+.wechat-export-root {
+  color: ${tokens.articleBodyColor};
+  font-family: ${tokens.bodyFontFamily};
+  background: transparent;
+}
+
+.wechat-export-article,
+.wechat-export-title,
+.wechat-export-content {
+  color: ${tokens.articleBodyColor};
+  font-family: ${tokens.bodyFontFamily};
+}
+
+.wechat-export-article {
+  box-sizing: border-box;
+}
+
+.wechat-export-content {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.wechat-export-content > :first-child {
+  margin-top: 0;
+}
+
+.wechat-export-content > :last-child {
+  margin-bottom: 0;
+}
+
+${buildPresetCss(tokens, preset)}
+
 .wechat-export-title,
 .wechat-export-content h1,
 .wechat-export-content h2,
@@ -115,9 +392,7 @@ export function buildWechatExportCss(tokens: WechatExportStyleTokens) {
 }
 
 .wechat-export-content p {
-  margin: 1.45em 0;
   color: inherit;
-  letter-spacing: 0.03em;
   orphans: 3;
   widows: 3;
 }
@@ -161,11 +436,6 @@ export function buildWechatExportCss(tokens: WechatExportStyleTokens) {
 }
 
 .wechat-export-content blockquote {
-  margin: 1.4em 0;
-  padding: 0.2em 0 0.2em 1em;
-  border-left: 3px solid ${tokens.articleQuoteBorderColor};
-  background: transparent;
-  color: ${tokens.articleQuoteColor};
   font-style: normal;
 }
 

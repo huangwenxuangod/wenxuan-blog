@@ -10,6 +10,7 @@ import {
   buildWechatBridgeCoverImageUrl,
   extractFirstWechatBridgeCoverImageUrl,
 } from '@/lib/wechat/copy'
+import type { WechatStylePresetId } from '@/lib/wechat/style-presets'
 import {
   WECHAT_DEFAULT_AUTHOR,
   WECHAT_DEFAULT_NEED_OPEN_COMMENT,
@@ -26,6 +27,7 @@ interface WeChatPublishModalProps {
   onClose: () => void
   title: string
   html: string
+  stylePreset?: WechatStylePresetId
   defaultDigest?: string
   defaultSourceUrl?: string
   defaultCoverImageUrl?: string
@@ -36,6 +38,7 @@ export function WeChatPublishModal({
   onClose,
   title,
   html,
+  stylePreset = 'default',
   defaultDigest = '',
   defaultSourceUrl = '',
   defaultCoverImageUrl = '',
@@ -104,7 +107,7 @@ export function WeChatPublishModal({
     setSubmitting(true)
 
     try {
-      const { normalizedTitle, exportedHtml } = buildWechatBridgeArticleExport(title, html)
+      const { normalizedTitle, exportedHtml } = buildWechatBridgeArticleExport(title, html, stylePreset)
       const finalCoverUrl =
         buildWechatBridgeCoverImageUrl(coverImageUrl) ||
         buildWechatBridgeCoverImageUrl(defaultCoverImageUrl) ||

@@ -1,21 +1,50 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Tabs } from '@/components/Tabs'
 import type { RuntimeCapabilities } from '@/lib/runtime-capabilities'
 import { normalizeTheme, type BodyFont, type Theme } from '@/lib/appearance'
 import { NavLinksEditor } from './NavLinksEditor'
 import { CustomJsEditor } from './CustomJsEditor'
-import { ThemeManager } from './ThemeManager'
-import { CategoryManager } from '../categories/CategoryManager'
-import { AiProviderManager } from './AiProviderManager'
-import { AiActionsManager } from './AiActionsManager'
-import { AiImageProviderManager } from './AiImageProviderManager'
-import { AiImageActionsManager } from './AiImageActionsManager'
-import { AiPostGeneratorsManager } from './AiPostGeneratorsManager'
 import { RuntimeCapabilitiesPanel } from './RuntimeCapabilitiesPanel'
-import { ThirdPartyPublishingManager } from './ThirdPartyPublishingManager'
-import { BackupManager } from './BackupManager'
+
+const ThemeManager = dynamic(
+  () => import('./ThemeManager').then((m) => m.ThemeManager),
+  { ssr: false }
+)
+const CategoryManager = dynamic(
+  () => import('../categories/CategoryManager').then((m) => m.CategoryManager),
+  { ssr: false }
+)
+const AiProviderManager = dynamic(
+  () => import('./AiProviderManager').then((m) => m.AiProviderManager),
+  { ssr: false }
+)
+const AiActionsManager = dynamic(
+  () => import('./AiActionsManager').then((m) => m.AiActionsManager),
+  { ssr: false }
+)
+const AiImageProviderManager = dynamic(
+  () => import('./AiImageProviderManager').then((m) => m.AiImageProviderManager),
+  { ssr: false }
+)
+const AiImageActionsManager = dynamic(
+  () => import('./AiImageActionsManager').then((m) => m.AiImageActionsManager),
+  { ssr: false }
+)
+const AiPostGeneratorsManager = dynamic(
+  () => import('./AiPostGeneratorsManager').then((m) => m.AiPostGeneratorsManager),
+  { ssr: false }
+)
+const ThirdPartyPublishingManager = dynamic(
+  () => import('./ThirdPartyPublishingManager').then((m) => m.ThirdPartyPublishingManager),
+  { ssr: false }
+)
+const BackupManager = dynamic(
+  () => import('./BackupManager').then((m) => m.BackupManager),
+  { ssr: false }
+)
 
 interface Category {
   name: string

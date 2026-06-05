@@ -62,6 +62,56 @@ export function getActiveBlockIndex(editor: EditorInstance) {
 export function applyLegacyToolResult(editor: EditorInstance, tool: LegacyEditorAiTool) {
   if (tool.name === 'reply_only') return
 
+  if (tool.name === 'edit_title') {
+    return
+  }
+
+  if (tool.name === 'edit_selection') {
+    if (typeof tool.payload.blockIndex === 'number') {
+      const range = findBlockRange(editor, tool.payload.blockIndex)
+      if (!range) return
+      replaceEditorRangeWithMarkdown(editor, tool.payload.markdown, range)
+      return
+    }
+
+    replaceEditorRangeWithMarkdown(editor, tool.payload.markdown)
+    return
+  }
+
+  if (tool.name === 'insert_block') {
+    const position = tool.payload.position || 'end'
+    const insertPos = position === 'end'
+      ? editor.state.doc.content.size
+      : Number.isFinite(tool.payload.anchorBlockIndex)
+        ? findInsertPosition(editor, Number(tool.payload.anchorBlockIndex), position)
+        : editor.state.selection.to
+
+    replaceEditorRangeWithMarkdown(editor, tool.payload.markdown, {
+      from: insertPos ?? editor.state.selection.to,
+      to: insertPos ?? editor.state.selection.to,
+    })
+    return
+  }
+
+  if (tool.name === 'generate_image') {
+    if (!tool.payload.generatedImage || tool.payload.usage === 'cover') {
+      return
+    }
+
+    const insertPos = Number.isFinite(tool.payload.anchorBlockIndex)
+      ? findInsertPosition(editor, Number(tool.payload.anchorBlockIndex), 'after')
+      : editor.state.selection.to
+
+    insertGeneratedImageAtPosition(
+      editor,
+      tool.payload.generatedImage.url,
+      tool.payload.alt || tool.payload.generatedImage.alt,
+      insertPos,
+    )
+    return
+  }
+
+  // Legacy compatibility
   if (tool.name === 'rewrite_selection') {
     replaceEditorRangeWithMarkdown(editor, tool.payload.markdown)
     return

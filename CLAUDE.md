@@ -7,7 +7,8 @@
 ## 1. 必须先遵守的事
 
 1. 涉及 UI、交互、编辑器、后台样式时，先读 `AGENTS.md`
-2. 不要手写复杂交互 DOM，优先使用 `@headlessui/react`
+2. 绝对禁止使用原生 `<select>` 控件或手搓下拉框，只要是从固定选项中选择，必须复用 `Dropdown` 或 `SelectDropdown` 组件。
+3. 不要手写复杂交互 DOM，优先使用 `@headlessui/react`
 3. 不要绕开现有组件库，优先使用：
    - `UiButton`
    - `UiIconButton`

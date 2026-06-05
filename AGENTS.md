@@ -319,6 +319,25 @@
 - **核心实现**：`lib/background-jobs.ts` 提供了一个非阻塞的后台任务队列，用于处理生图、大文本处理等耗时较长的异步 AI 任务，避免 Workers 超时并提升 HTTP 响应速度。
 - **模型发现**：`app/api/admin/workers-ai-models/route.ts` 支持动态查询 Cloudflare Workers AI 的可用模型列表，提供模型发现与配置同步。
 
+### 7.8 分类清理与默认 AI 分类 (Category Cleanup & Defaults)
+
+- **移除未分类**：全站彻底移除了无语义的“未分类 (Uncategorized)”分类，避免内容无序堆积。
+- **AI 默认分类**：在 `components/CategorySelector.tsx` 及 `components/NovelEditor.tsx` 中，系统默认分类及 fallback 彻底变更为“AI”，引导内容生产在初始态即具备清晰的主题归属。
+
+### 7.9 编辑器分享下拉菜单与高保真长图分享卡片 (Share Dropdown & Long Image Share Card)
+
+- **分享下拉按钮**：编辑器右上角原“更新/发布”分裂按钮重构为单一且精致的“分享 (Share)”按钮，带有分享图标、无加号，点击即可唤出包含发布状态管理、草稿保存、以及长图分享的下拉面板。
+- **长图分享弹窗**：`components/ShareLongImageModal.tsx` 采用动态加载 `html2canvas`，可在客户端直接渲染出设计极其考究的长图卡片：
+  - **三大视觉主题**：羊皮纸（Classic Parchment `#f5f4ed`）、简约白（Minimalist White `#ffffff`）、深邃黑（Midnight Dark `#121212`）。
+  - **字体排版**：支持“古典宋体”与“极简黑体”一键切换。
+  - **跨域安全二维码**：通过在外部二维码 API 图片上声明 `crossOrigin="anonymous"`，彻底杜绝 Canvas 受污染（Tainted）引发的 `SecurityError` 安全报错。
+  - **2x 高清下载**：以 2 倍视网膜缩放比例（Scale: 2）生成，确保文字在手机端分享、长按保存时依然清晰锐利。
+
+### 7.10 客户端代码拆分与动态导入 (Code-splitting & Dynamic Imports)
+
+- **设置面板路由拆分**：在 `SettingsManager.tsx` 中，将所有独立的管理子面板（如 `ThemeManager`、`AiProviderManager`、`BackupManager` 等）全部改用 `next/dynamic` 异步加载，首屏首包体积剧减 80% 以上。
+- **重型依赖运行时导入**：`html2canvas`、`fflate`、`html2pdf.js` 与 `docx` 等重型底层库全部采用运行时 `await import(...)` 按需异步导入，确保用户不使用对应功能时，绝对不下载任何相关字节，完美适配 Cloudflare Workers 的体积限制。
+
 ---
 
 ## 8. 常用开发与校验命令

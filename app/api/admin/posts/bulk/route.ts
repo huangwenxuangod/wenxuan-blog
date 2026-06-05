@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
       switch (action) {
         case 'set-category':
-          await updatePostBySlug(db, slug, { category: typeof value === 'string' ? value : '未分类' })
+          await updatePostBySlug(db, slug, { category: typeof value === 'string' && value.trim() ? value : 'AI' })
           break
         case 'set-status':
           if (value !== 'draft' && value !== 'published') {

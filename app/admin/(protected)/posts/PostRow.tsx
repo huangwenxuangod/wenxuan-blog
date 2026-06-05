@@ -71,7 +71,7 @@ export function PostRow({
 
   // 分类选项
   const categoryOptions = [
-    { value: '', label: '未分类' },
+    { value: 'AI', label: 'AI' },
     ...categories.map((cat) => ({ value: cat, label: cat })),
   ]
 
@@ -97,7 +97,7 @@ export function PostRow({
       const res = await fetch(`/api/admin/posts/${post.slug}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: newCategory || null }),
+        body: JSON.stringify({ category: newCategory || 'AI' }),
       })
       if (res.ok) {
         toast.success('分类已更新')
@@ -329,9 +329,9 @@ export function PostRow({
         <div className="flex items-center justify-center">
           <Dropdown
             options={categoryOptions}
-            value={post.category || ''}
+            value={post.category || 'AI'}
             onChange={handleCategoryChange}
-            placeholder="未分类"
+            placeholder="AI"
             className="w-full"
             disabled={loading || isDeleted}
           />
@@ -510,9 +510,9 @@ export function PostRow({
           <div className="w-24">
             <Dropdown
               options={categoryOptions}
-              value={post.category || ''}
+              value={post.category || 'AI'}
               onChange={handleCategoryChange}
-              placeholder="未分类"
+              placeholder="AI"
               className="w-full"
               disabled={loading || isDeleted}
             />

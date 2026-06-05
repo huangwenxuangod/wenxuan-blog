@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useToast } from '@/components/Toast'
 import { Modal } from '@/components/Modal'
 import {
-  AI_IMAGE_PROVIDER_CATEGORIES,
-  AI_IMAGE_PROVIDER_MAP,
   AI_IMAGE_PROVIDER_PRESETS,
 } from '@/lib/ai-image/provider-presets'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
@@ -14,11 +12,9 @@ import {
   ProviderBasicFields,
   ProviderDialog,
   ProviderListTable,
-  ProviderTemplateModal,
   type BaseProviderFormState,
   type BaseProviderProfile,
   type ModelsResponse,
-  type ProviderTemplateGroup,
 } from '@/app/admin/(protected)/settings/provider-manager-shared'
 
 const CUSTOM_PROVIDER_ID = 'custom'
@@ -74,16 +70,7 @@ export function AiImageProviderManager() {
   const [models, setModels] = useState<Array<{ id: string; name: string }>>([])
   const [modelsSource, setModelsSource] = useState<'provider' | 'preset' | null>(null)
   const [modelsWarning, setModelsWarning] = useState('')
-  const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ProviderProfile | null>(null)
-
-  const groupedPresets = useMemo(
-    () => AI_IMAGE_PROVIDER_CATEGORIES.map((category) => ({
-      category,
-      presets: AI_IMAGE_PROVIDER_PRESETS.filter((preset) => preset.category === category),
-    })).filter((group) => group.presets.length > 0) as ProviderTemplateGroup[],
-    [],
-  )
 
   const modelOptions = useMemo(() => {
     return createModelOptions(models, editing?.model || '')
@@ -120,42 +107,6 @@ export function AiImageProviderManager() {
     setModels([])
     setModelsSource(null)
     setModelsWarning('')
-  }
-
-  const applyPreset = (presetId: string) => {
-    if (!editing) return
-
-    if (presetId === CUSTOM_PROVIDER_ID) {
-      setEditing({
-        ...editing,
-        provider: CUSTOM_PROVIDER_ID,
-        provider_name: '自定义',
-        provider_type: 'openai_images',
-        provider_category: '',
-        api_key_url: '',
-        base_url: '',
-        model: '',
-      })
-    } else {
-      const preset = AI_IMAGE_PROVIDER_MAP[presetId]
-      if (!preset) return
-      setEditing({
-        ...editing,
-        provider: preset.id,
-        provider_name: preset.name,
-        provider_type: preset.providerType,
-        provider_category: preset.category,
-        api_key_url: preset.apiKeyUrl || '',
-        base_url: preset.baseUrl,
-        model: preset.defaultModel,
-        name: editing.name.trim() ? editing.name : preset.name,
-      })
-    }
-
-    setModels([])
-    setModelsSource(null)
-    setModelsWarning('')
-    setTemplateModalOpen(false)
   }
 
   const handleFetchModels = async () => {
@@ -340,15 +291,6 @@ export function AiImageProviderManager() {
         <ProviderDialog
           title={editing.id ? '编辑图片模型' : '新增图片模型'}
           onClose={() => setEditing(null)}
-          headerAction={(
-            <button
-              type="button"
-              onClick={() => setTemplateModalOpen(true)}
-              className="rounded-md border border-[var(--editor-line)] px-2.5 py-1 text-xs text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]"
-            >
-              快捷模板
-            </button>
-          )}
         >
           <ProviderBasicFields
             editing={editing}
@@ -360,6 +302,8 @@ export function AiImageProviderManager() {
             onChange={updateEditing}
             onFetchModels={handleFetchModels}
             fetchModelsLabel="获取模型"
+            presets={AI_IMAGE_PROVIDER_PRESETS}
+            onClearModels={() => setModels([])}
           />
 
           <div className="mt-3">
@@ -393,15 +337,7 @@ export function AiImageProviderManager() {
         </ProviderDialog>
       )}
 
-      {templateModalOpen && editing && (
-        <ProviderTemplateModal
-          groups={groupedPresets}
-          customOptionLabel="自定义兼容接口"
-          customOptionDescription="适用于支持 OpenAI Images 风格接口的自定义服务。"
-          onClose={() => setTemplateModalOpen(false)}
-          onSelect={applyPreset}
-        />
-      )}
+
 
       {deleteTarget && (
         <Modal

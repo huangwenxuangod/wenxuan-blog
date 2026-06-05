@@ -33,24 +33,24 @@ describe('ai editor runtime helpers', () => {
 
   it('normalizes legacy tool calls into runtime actions and back', () => {
     const action = normalizeToolCallToAction({
-      name: 'rewrite_block',
+      name: 'edit_selection',
       payload: {
-        blockIndex: 3,
         markdown: '新的内容',
+        blockIndex: 3,
       },
     })
 
     expect(action).toEqual({
-      type: 'rewrite_block',
-      blockIndex: 3,
+      type: 'edit_selection',
       markdown: '新的内容',
+      blockIndex: 3,
     })
 
     expect(convertActionToLegacyTool(action)).toEqual({
-      name: 'rewrite_block',
+      name: 'edit_selection',
       payload: {
-        blockIndex: 3,
         markdown: '新的内容',
+        blockIndex: 3,
       },
     })
   })
@@ -59,7 +59,8 @@ describe('ai editor runtime helpers', () => {
     const events = buildEditorAiTextEvents({
       message: '这是给用户的解释文本',
       action: {
-        type: 'append_section',
+        type: 'insert_block',
+        position: 'end',
         markdown: '## 新章节',
       },
     })
@@ -71,41 +72,34 @@ describe('ai editor runtime helpers', () => {
       type: 'assistant_done',
       message: '这是给用户的解释文本',
       action: {
-        type: 'append_section',
+        type: 'insert_block',
+        position: 'end',
         markdown: '## 新章节',
       },
       error: undefined,
     })
   })
 
-  it('converts planned image action back to the legacy tool payload shape', () => {
+  it('converts generate_image action back to the legacy tool payload shape', () => {
     const tool = convertActionToLegacyTool({
-      type: 'plan_article_images',
-      images: [
-        {
-          blockIndex: 2,
-          reason: '用于解释第二节',
-          prompt: '一张极简插图',
-          alt: '第二节插图',
-          aspectRatio: '16:9',
-          resolution: '2k',
-        },
-      ],
+      type: 'generate_image',
+      prompt: '一张极简插图',
+      usage: 'inline',
+      anchorBlockIndex: 2,
+      alt: '第二节插图',
+      aspectRatio: '16:9',
+      resolution: '2k',
     })
 
     expect(tool).toEqual({
-      name: 'plan_article_images',
+      name: 'generate_image',
       payload: {
-        images: [
-          {
-            blockIndex: 2,
-            reason: '用于解释第二节',
-            prompt: '一张极简插图',
-            alt: '第二节插图',
-            aspectRatio: '16:9',
-            resolution: '2k',
-          },
-        ],
+        prompt: '一张极简插图',
+        usage: 'inline',
+        anchorBlockIndex: 2,
+        alt: '第二节插图',
+        aspectRatio: '16:9',
+        resolution: '2k',
       },
     })
   })

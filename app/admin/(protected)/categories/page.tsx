@@ -1,6 +1,10 @@
 import { getCategories } from '@/lib/db'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import { CategoryManager } from './CategoryManager'
+import dynamic from 'next/dynamic'
+
+const CategoryManager = dynamic(
+  () => import('./CategoryManager').then((m) => m.CategoryManager)
+)
 
 export const metadata = { title: '分类管理' }
 

@@ -101,6 +101,7 @@ async function ensureAiPostGeneratorsTable(db: D1Database) {
         !existing.prompt?.trim()
         || (LEGACY_PROMPT_VARIANTS[seed.target_key] || []).includes(existing.prompt)
       )
+      const shouldSyncBuiltinImageDefaults = existing.is_builtin === 1 && seed.target_key === 'cover'
 
       await db.prepare(`
         UPDATE ai_post_generators
@@ -109,8 +110,14 @@ async function ensureAiPostGeneratorsTable(db: D1Database) {
             prompt = ?,
             workers_model = COALESCE(NULLIF(workers_model, ''), ?),
             provider_mode = COALESCE(NULLIF(provider_mode, ''), ?),
-            aspect_ratio = COALESCE(NULLIF(aspect_ratio, ''), ?),
-            resolution = COALESCE(NULLIF(resolution, ''), ?),
+            aspect_ratio = CASE
+              WHEN ? THEN ?
+              ELSE COALESCE(NULLIF(aspect_ratio, ''), ?)
+            END,
+            resolution = CASE
+              WHEN ? THEN ?
+              ELSE COALESCE(NULLIF(resolution, ''), ?)
+            END,
             temperature = CASE WHEN temperature IS NULL OR temperature <= 0 THEN ? ELSE temperature END,
             max_tokens = CASE WHEN max_tokens IS NULL OR max_tokens <= 0 THEN ? ELSE max_tokens END,
             is_enabled = COALESCE(is_enabled, 1),
@@ -123,7 +130,11 @@ async function ensureAiPostGeneratorsTable(db: D1Database) {
         shouldSyncBuiltinPrompt ? seed.prompt : existing.prompt,
         seed.workers_model,
         seed.provider_mode,
+        shouldSyncBuiltinImageDefaults ? 1 : 0,
         seed.aspect_ratio,
+        seed.aspect_ratio,
+        shouldSyncBuiltinImageDefaults ? 1 : 0,
+        seed.resolution,
         seed.resolution,
         seed.temperature,
         seed.max_tokens,

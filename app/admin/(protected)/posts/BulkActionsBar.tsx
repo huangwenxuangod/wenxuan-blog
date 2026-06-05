@@ -37,7 +37,7 @@ export function BulkActionsBar({
 
   const categoryOptions = useMemo(() => [
     { value: '', label: '选择分类' },
-    { value: '未分类', label: '未分类' },
+    { value: 'AI', label: 'AI' },
     ...categories.map((cat) => ({ value: cat, label: cat })),
   ], [categories])
 

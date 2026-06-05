@@ -52,13 +52,13 @@ describe('ai editor client execution', () => {
     expect(getActiveBlockIndex(editor as never)).toBe(1)
   })
 
-  it('applies rewrite_block actions through markdown replacement', () => {
+  it('applies edit_selection actions through block replacement when blockIndex exists', () => {
     const editor = createMockEditor()
 
     applyEditorAiAction(editor as never, {
-      type: 'rewrite_block',
-      blockIndex: 1,
+      type: 'edit_selection',
       markdown: '新的中间段落',
+      blockIndex: 1,
     })
 
     expect(mocks.replaceEditorRangeWithMarkdown).toHaveBeenCalledWith(
@@ -68,11 +68,11 @@ describe('ai editor client execution', () => {
     )
   })
 
-  it('applies rewrite_selection actions to the current selection range', () => {
+  it('applies edit_selection actions to the current selection range', () => {
     const editor = createMockEditor()
 
     applyEditorAiAction(editor as never, {
-      type: 'rewrite_selection',
+      type: 'edit_selection',
       markdown: '替换选中的内容',
     })
 
@@ -82,12 +82,13 @@ describe('ai editor client execution', () => {
     )
   })
 
-  it('applies append_section tools at the document tail', () => {
+  it('applies insert_block tools at the document tail', () => {
     const editor = createMockEditor()
 
     applyLegacyToolResult(editor as never, {
-      name: 'append_section',
+      name: 'insert_block',
       payload: {
+        position: 'end',
         markdown: '## 新章节',
       },
     })
@@ -99,42 +100,42 @@ describe('ai editor client execution', () => {
     )
   })
 
-  it('inserts generated images after the target block in descending order', () => {
+  it('inserts a generated image after the target block', () => {
     const editor = createMockEditor()
 
     applyLegacyToolResult(editor as never, {
-      name: 'plan_article_images',
+      name: 'generate_image',
       payload: {
-        generatedImages: [
-          {
-            blockIndex: 0,
-            reason: 'opening visual',
-            alt: '首图',
-            image: { url: '/a.webp', alt: 'A' },
-          },
-          {
-            blockIndex: 2,
-            reason: 'closing visual',
-            alt: '尾图',
-            image: { url: '/c.webp', alt: 'C' },
-          },
-        ],
+        prompt: 'closing visual',
+        usage: 'inline',
+        anchorBlockIndex: 2,
+        alt: '尾图',
+        generatedImage: { url: '/c.webp', alt: 'C' },
       },
     })
 
-    expect(mocks.insertGeneratedImageAtPosition).toHaveBeenNthCalledWith(
-      1,
+    expect(mocks.insertGeneratedImageAtPosition).toHaveBeenCalledWith(
       editor,
       '/c.webp',
       '尾图',
       25,
     )
-    expect(mocks.insertGeneratedImageAtPosition).toHaveBeenNthCalledWith(
-      2,
-      editor,
-      '/a.webp',
-      '首图',
-      7,
-    )
+  })
+
+  it('does not insert cover-mode generated images into the editor body', () => {
+    const editor = createMockEditor()
+
+    applyLegacyToolResult(editor as never, {
+      name: 'generate_image',
+      payload: {
+        prompt: 'cover visual',
+        usage: 'cover',
+        alt: '封面图',
+        generatedImage: { url: '/cover.webp', alt: '封面图' },
+      },
+    })
+
+    expect(mocks.insertGeneratedImageAtPosition).not.toHaveBeenCalled()
+    expect(mocks.replaceEditorRangeWithMarkdown).not.toHaveBeenCalled()
   })
 })

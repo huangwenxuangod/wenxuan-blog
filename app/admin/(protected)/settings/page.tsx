@@ -1,7 +1,11 @@
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import { getSetting, getCategories } from '@/lib/db'
 import { detectRuntimeCapabilities } from '@/lib/runtime-capabilities'
-import { SettingsManager } from './SettingsManager'
+import dynamic from 'next/dynamic'
+
+const SettingsManager = dynamic(
+  () => import('./SettingsManager').then((m) => m.SettingsManager)
+)
 
 export const metadata = { title: '站点设置' }
 

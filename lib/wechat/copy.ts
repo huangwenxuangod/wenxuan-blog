@@ -1,7 +1,9 @@
 'use client'
 
 import juice from 'juice'
+import { saveBlobFile } from '@/lib/client-download'
 import { buildWechatExportCss, normalizeWechatExportHtml, type WechatExportStyleTokens } from './export-style'
+import type { WechatStylePresetId } from './style-presets'
 
 type ExportMode = 'clipboard' | 'pdf'
 
@@ -104,6 +106,24 @@ function readWechatExportStyleTokens(): WechatExportStyleTokens {
     bodyFontFamily: bodyFont,
     monoFontFamily: readCssVar(rootStyle, '--font-geist-mono', '"SFMono-Regular", Consolas, monospace'),
     titleFontFamily: bodyFont || 'Georgia, "Noto Serif SC", serif',
+  }
+}
+
+function readWechatPreviewStyleTokens() {
+  const tokens = readWechatExportStyleTokens()
+  const rootStyle = window.getComputedStyle(document.documentElement)
+
+  return {
+    ...tokens,
+    articleHeadingColor: readCssVar(rootStyle, '--preview-article-heading', tokens.articleHeadingColor),
+    articleBodyColor: readCssVar(rootStyle, '--preview-article-body', tokens.articleBodyColor),
+    articleQuoteColor: readCssVar(rootStyle, '--preview-article-quote', tokens.articleQuoteColor),
+    articleQuoteBorderColor: readCssVar(rootStyle, '--preview-article-quote-border', tokens.articleQuoteBorderColor),
+    articleQuoteNestedBorderColor: readCssVar(rootStyle, '--preview-article-quote-nested-border', tokens.articleQuoteNestedBorderColor),
+    articleQuoteNestedBackground: readCssVar(rootStyle, '--preview-article-quote-nested-bg', tokens.articleQuoteNestedBackground),
+    linkColor: readCssVar(rootStyle, '--preview-article-link', tokens.linkColor),
+    inkColor: readCssVar(rootStyle, '--preview-ink', tokens.inkColor),
+    mutedColor: readCssVar(rootStyle, '--preview-muted', tokens.mutedColor),
   }
 }
 
@@ -274,10 +294,10 @@ function createStageRoot(title: string, html: string, css: string) {
   return stage
 }
 
-async function prepareArticleExportStage(title: string, html: string) {
+async function prepareArticleExportStage(title: string, html: string, preset: WechatStylePresetId = 'default') {
   const normalizedTitle = title.trim() || '无标题'
   const normalizedHtml = normalizeExportMarkup(html, 'pdf')
-  const css = buildWechatExportCss(readWechatExportStyleTokens())
+  const css = buildWechatExportCss(readWechatExportStyleTokens(), preset)
   const stage = createStageRoot(normalizedTitle, normalizedHtml, css)
   const article = stage.querySelector('.wechat-export-article')
 
@@ -296,10 +316,10 @@ async function prepareArticleExportStage(title: string, html: string) {
   }
 }
 
-function buildWechatClipboardHtml(title: string, html: string) {
+function buildWechatClipboardHtml(title: string, html: string, preset: WechatStylePresetId = 'default') {
   const normalizedTitle = title.trim() || '无标题'
   const normalizedHtml = normalizeExportMarkup(html, 'clipboard')
-  const css = buildWechatExportCss(readWechatExportStyleTokens())
+  const css = buildWechatExportCss(readWechatExportStyleTokens(), preset)
   const fragment = buildWechatExportFragment(normalizedTitle, normalizedHtml)
 
   const exportedHtml = juice.inlineContent(fragment, css, {
@@ -351,17 +371,79 @@ function rewriteBridgeArticleHtml(exportedHtml: string) {
   return doc.body.innerHTML
 }
 
-export function buildWechatBridgeArticleExport(title: string, html: string) {
+export function buildWechatBridgeArticleExport(
+  title: string,
+  html: string,
+  preset: WechatStylePresetId = 'default',
+) {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     throw new Error('当前环境不支持公众号发布导出')
   }
 
-  const { exportedHtml, normalizedTitle } = buildWechatClipboardHtml(title, html)
+  const { exportedHtml, normalizedTitle } = buildWechatClipboardHtml(title, html, preset)
 
   return {
     normalizedTitle,
     exportedHtml: rewriteBridgeArticleHtml(exportedHtml),
   }
+}
+
+export function buildWechatPreviewHtml(
+  title: string,
+  html: string,
+  preset: WechatStylePresetId = 'default',
+) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    throw new Error('当前环境不支持公众号预览')
+  }
+
+  const normalizedTitle = title.trim() || '无标题'
+  const normalizedHtml = normalizeExportMarkup(html, 'clipboard')
+  const css = buildWechatExportCss(readWechatPreviewStyleTokens(), preset)
+  const fragment = buildWechatExportFragment(normalizedTitle, normalizedHtml)
+
+  return `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(normalizedTitle)}</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+
+      body {
+        margin: 0;
+        background: #ffffff;
+        color: #222222;
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      }
+
+      .wechat-preview-shell {
+        min-height: 100vh;
+        box-sizing: border-box;
+        padding: 0;
+      }
+
+      .wechat-preview-content {
+        box-sizing: border-box;
+        width: min(100%, 414px);
+        margin: 0 auto;
+        padding: 18px 16px 36px;
+      }
+
+      ${css}
+    </style>
+  </head>
+  <body>
+    <div class="wechat-preview-shell">
+      <div class="wechat-preview-content">
+        ${fragment}
+      </div>
+    </div>
+  </body>
+</html>`
 }
 
 export function buildWechatBridgeCoverImageUrl(input: string) {
@@ -442,12 +524,16 @@ async function writeClipboardHtml(html: string, plainText: string) {
   await copyUsingExecCommand(html, plainText)
 }
 
-export async function copyAsWechatArticleFormat(title: string, html: string) {
+export async function copyAsWechatArticleFormat(
+  title: string,
+  html: string,
+  preset: WechatStylePresetId = 'default',
+) {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     throw new Error('当前环境不支持复制')
   }
 
-  const { exportedHtml, normalizedTitle } = buildWechatClipboardHtml(title, html)
+  const { exportedHtml, normalizedTitle } = buildWechatClipboardHtml(title, html, preset)
   const plainText = new DOMParser()
     .parseFromString(exportedHtml, 'text/html')
     .body.textContent?.trim() || normalizedTitle
@@ -455,7 +541,11 @@ export async function copyAsWechatArticleFormat(title: string, html: string) {
   await writeClipboardHtml(exportedHtml, plainText)
 }
 
-export async function downloadArticleAsPdf(title: string, html: string) {
+export async function downloadArticleAsPdf(
+  title: string,
+  html: string,
+  preset: WechatStylePresetId = 'default',
+) {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     throw new Error('当前环境不支持导出 PDF')
   }
@@ -469,7 +559,7 @@ export async function downloadArticleAsPdf(title: string, html: string) {
     | undefined
 
   try {
-    prepared = await prepareArticleExportStage(title, html)
+    prepared = await prepareArticleExportStage(title, html, preset)
     const html2pdf = (await import('html2pdf.js')).default as Html2PdfFactory
     const pdfOptions = {
       margin: [16, 12, 16, 12],
@@ -492,11 +582,87 @@ export async function downloadArticleAsPdf(title: string, html: string) {
     }
 
     // html2pdf.js runtime supports `pagebreak`, but its bundled d.ts omits it.
-    await html2pdf()
+    const pdfBlob = await html2pdf()
       .set(pdfOptions as never)
       .from(prepared.article)
-      .save()
+      .outputPdf('blob')
+
+    await saveBlobFile(pdfBlob as Blob, `${prepared.normalizedTitle}.pdf`, {
+      types: [
+        {
+          description: 'PDF Document',
+          accept: {
+            'application/pdf': ['.pdf'],
+          },
+        },
+      ],
+    })
   } finally {
     prepared?.stage.remove()
   }
+}
+
+export async function downloadArticleAsDocx(
+  title: string,
+  html: string,
+  preset: WechatStylePresetId = 'default',
+) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    throw new Error('当前环境不支持导出 DOCX')
+  }
+
+  const normalizedTitle = title.trim() || '无标题'
+  const normalizedHtml = normalizeExportMarkup(html, 'clipboard')
+  const css = buildWechatExportCss(readWechatExportStyleTokens(), preset)
+  const fragment = buildWechatExportFragment(normalizedTitle, normalizedHtml)
+
+  const exportedHtml = `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <style>${css}</style>
+  </head>
+  <body>${fragment}</body>
+</html>`
+
+  const { Document, Packer, Paragraph, TextRun } = await import('docx')
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            spacing: { after: 240 },
+            children: [
+              new TextRun({
+                text: normalizedTitle,
+                bold: true,
+                size: 32,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun(
+                new DOMParser()
+                  .parseFromString(exportedHtml, 'text/html')
+                  .body.textContent?.trim() || '',
+              ),
+            ],
+          }),
+        ],
+      },
+    ],
+  })
+
+  const blob = await Packer.toBlob(doc)
+  await saveBlobFile(blob, `${normalizedTitle}.docx`, {
+    types: [
+      {
+        description: 'Word Document',
+        accept: {
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+        },
+      },
+    ],
+  })
 }

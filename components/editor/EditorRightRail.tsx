@@ -10,6 +10,7 @@ interface EditorRightRailProps {
   onClose: () => void
   width: number
   onWidthChange: (width: number) => void
+  headerAccessory?: ReactNode
   settingsContent?: ReactNode
   aiContent: ReactNode
 }
@@ -22,6 +23,7 @@ export function EditorRightRail({
   onClose,
   width,
   onWidthChange,
+  headerAccessory,
   aiContent,
 }: EditorRightRailProps) {
   const [isResizing, setIsResizing] = useState(false)
@@ -107,21 +109,22 @@ export function EditorRightRail({
           </div>
 
           <div className="flex h-full min-h-0 flex-col border-l border-[color-mix(in_srgb,var(--ui-line)_72%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_100%,transparent)] px-6 py-5">
-          <div className="flex items-center justify-end pb-3">
-            <Tooltip content="收起 AI 对话">
-              <UiIconButton
-                onClick={onClose}
-                className="h-10 w-10 opacity-78"
-                aria-label="收起 AI 对话"
-              >
-                <PanelRightClose className="h-[1.15rem] w-[1.15rem]" />
-              </UiIconButton>
-            </Tooltip>
-          </div>
+            <div className="flex items-center justify-end gap-1 pb-3">
+              {headerAccessory}
+              <Tooltip content="收起 AI 对话">
+                <UiIconButton
+                  onClick={onClose}
+                  className="h-10 w-10 opacity-78"
+                  aria-label="收起 AI 对话"
+                >
+                  <PanelRightClose className="h-[1.15rem] w-[1.15rem]" />
+                </UiIconButton>
+              </Tooltip>
+            </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden">
-            {aiContent}
-          </div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {aiContent}
+            </div>
           </div>
         </>
       ) : null}

@@ -22,7 +22,7 @@ const coverGenerator: AiPostGeneratorRow = {
   workers_model: '@cf/black-forest-labs/flux-1-schnell',
   temperature: 0.7,
   max_tokens: 2000,
-  aspect_ratio: '16:9',
+  aspect_ratio: '5:2',
   resolution: '2k',
   is_enabled: 1,
   is_builtin: 1,
@@ -101,7 +101,7 @@ describe('ai-post-generator/prompts', () => {
     expect(prompt).toContain('文章标题：Ask AI 如何让 Markdown 编辑更顺手')
     expect(prompt).toContain('分类：产品设计')
     expect(prompt).toContain('标签：编辑器、AI、写作')
-    expect(prompt).toContain('构图比例：16:9')
+    expect(prompt).toContain('构图比例：5:2')
     expect(prompt.length).toBeLessThanOrEqual(MAX_COVER_PROMPT_LENGTH)
   })
 })

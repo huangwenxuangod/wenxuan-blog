@@ -24,6 +24,7 @@ export function PostsTableClient({
   const selectedCount = selectedSlugs.length
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedSlugs((current) => current.filter((slug) => visibleSlugSet.has(slug)))
   }, [visibleSlugSet])
 

@@ -29,6 +29,7 @@ interface AIPanelProps {
   documentJson: JSONContent | null
   documentText: string
   onTitleApply?: (nextTitle: string) => void
+  onCoverImageApply?: (imageUrl: string) => void
 }
 
 type ChatEvent =
@@ -45,7 +46,7 @@ function createMessageId(prefix: string) {
 }
 
 function shouldApplyImmediately(action: EditorAiAction) {
-  return action.type !== 'plan_article_images'
+  return action.type !== 'generate_image'
 }
 
 export function AIPanel({
@@ -55,6 +56,8 @@ export function AIPanel({
   editor,
   documentJson,
   documentText,
+  onTitleApply,
+  onCoverImageApply,
 }: AIPanelProps) {
   const toast = useToast()
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -212,7 +215,10 @@ export function AIPanel({
 
           if (event.type === 'action_ready') {
             if (!actionApplied && shouldApplyImmediately(event.action)) {
-              if (editor) {
+              if (event.action.type === 'edit_title' && onTitleApply) {
+                onTitleApply(event.action.title)
+                actionApplied = true
+              } else if (editor) {
                 applyEditorAiAction(editor, event.action)
                 actionApplied = true
               }
@@ -221,23 +227,40 @@ export function AIPanel({
           }
 
           if (event.type === 'tool_pending') {
-            if (event.tool === 'plan_article_images') {
-              setToolStatus('AI 正在生成并插入配图…')
+            if (event.tool === 'generate_image') {
+              const usage = (
+                event.payload
+                && typeof event.payload === 'object'
+                && 'usage' in event.payload
+                && event.payload.usage === 'cover'
+              ) ? 'cover' : 'inline'
+              setToolStatus(usage === 'cover' ? 'AI 正在生成封面图…' : 'AI 正在生成并插入配图…')
             }
             continue
           }
 
           if (event.type === 'tool_result') {
-            if (event.tool === 'plan_article_images') {
-              setToolStatus('配图已生成，正在写入编辑器…')
+            if (event.tool === 'generate_image') {
+              const usage = (
+                event.payload
+                && typeof event.payload === 'object'
+                && 'generatedImage' in event.payload
+                && event.payload.generatedImage
+                && typeof event.payload.generatedImage === 'object'
+                && 'usage' in event.payload.generatedImage
+                && event.payload.generatedImage.usage === 'cover'
+              ) ? 'cover' : 'inline'
+              setToolStatus(usage === 'cover' ? '封面图已生成，正在写入文章设置…' : '配图已生成，正在写入编辑器…')
             }
             continue
           }
 
             if (event.type === 'assistant_done') {
               finalTool = event.tool || { name: 'reply_only', payload: null }
-              if (!actionApplied && finalTool.name !== 'plan_article_images') {
-                if (editor) {
+              if (!actionApplied && finalTool.name !== 'generate_image') {
+                if (finalTool.name === 'edit_title' && onTitleApply) {
+                  onTitleApply(finalTool.payload.title)
+                } else if (editor) {
                   applyLegacyToolResult(editor, finalTool)
                 }
                 actionApplied = true
@@ -257,8 +280,19 @@ export function AIPanel({
         }
       }
 
-      if ((!actionApplied || finalTool.name === 'plan_article_images') && editor) {
-        applyLegacyToolResult(editor, finalTool)
+      if (!actionApplied) {
+        if (finalTool.name === 'edit_title' && onTitleApply) {
+          onTitleApply(finalTool.payload.title)
+        } else if (
+          finalTool.name === 'generate_image'
+          && finalTool.payload.usage === 'cover'
+          && finalTool.payload.generatedImage
+          && onCoverImageApply
+        ) {
+          onCoverImageApply(finalTool.payload.generatedImage.url)
+        } else if (editor) {
+          applyLegacyToolResult(editor, finalTool)
+        }
       }
     } catch (error) {
       setMessages((current) => current.map((item) => (
@@ -285,7 +319,7 @@ export function AIPanel({
       setToolStatus(null)
       setLoading(false)
     }
-  }, [articleKey, documentJson, documentText, editor, input, loading, postSlug, title, toast])
+  }, [articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, postSlug, title, toast])
 
   if (!hydrated) {
     return (

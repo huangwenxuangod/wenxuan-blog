@@ -2,21 +2,33 @@
 
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import { Menu, MenuButton, MenuItem, MenuItems, Dialog, DialogBackdrop, DialogTitle, DialogPanel } from '@headlessui/react'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   ArrowLeft,
+  Bot,
   ChevronUp,
+  Palette,
   Globe,
-  Eye,
+  Eye as EyeIcon,
   Lock,
   Link2,
   Copy,
+  Smartphone,
   FileDown,
   Send,
   PanelRightOpen,
   PanelRightClose,
   PanelLeftOpen,
   PanelLeftClose,
+  Share2,
+  Image as ImageIcon,
+  Settings,
+  Sparkles,
+  Upload,
+  Trash2,
+  X,
+  Loader2,
 } from 'lucide-react'
 import {
   EditorContent,
@@ -61,9 +73,17 @@ import {
 import type { EditorImageActionTarget } from '@/lib/resizable-image'
 import { resolvePostCoverImage } from '@/lib/default-cover-images'
 import { buildAutoDescription, normalizePostSlug } from '@/lib/post-utils'
-import { getSiteDisplayUrl } from '@/lib/site-config'
+import { getSiteDisplayUrl, getSiteUrl } from '@/lib/site-config'
 import { resizeTextareaHeight, useAutoResizeTextarea } from '@/lib/textarea-autosize'
 import { UiButton, UiIconButton, UiPanel, UiTextarea, cx } from '@/components/ui/primitives'
+import { buildDocumentContextText, extractTitleCandidate } from '@/lib/ai-modal'
+import type { RuntimeCapabilities } from '@/lib/runtime-capabilities'
+import {
+  normalizeWechatStylePreset,
+  WECHAT_STYLE_PRESET_OPTIONS,
+  WECHAT_STYLE_STORAGE_KEY,
+  type WechatStylePresetId,
+} from '@/lib/wechat/style-presets'
 
 type PublishStatus = 'public' | 'draft' | 'encrypted' | 'unlisted'
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error'
@@ -119,6 +139,26 @@ const WeChatPublishModal = dynamic(
   },
 )
 
+const ShareLongImageModal = dynamic(
+  () => import('@/components/ShareLongImageModal').then((module) => ({ default: module.ShareLongImageModal })),
+  {
+    ssr: false,
+  },
+)
+
+const SettingsManager = dynamic(
+  () => import('@/app/admin/(protected)/settings/SettingsManager').then((module) => ({ default: module.SettingsManager })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-96 items-center justify-center text-sm text-[var(--editor-muted)]">
+        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+        加载设置中...
+      </div>
+    ),
+  },
+)
+
 const EMPTY_DOCUMENT = {
   type: 'doc',
   content: [{ type: 'paragraph' }],
@@ -155,6 +195,73 @@ type DraftMetaState = {
   coverImage: string
 }
 
+type RightRailMode = 'chat' | 'wechat-preview'
+
+type SettingsCategory = {
+  name: string
+  slug: string
+  post_count: number
+}
+
+function WechatPreviewRail({
+  title,
+  html,
+  stylePreset,
+}: {
+  title: string
+  html: string
+  stylePreset: WechatStylePresetId
+}) {
+  const [previewHtml, setPreviewHtml] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const buildPreview = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const { buildWechatPreviewHtml } = await import('@/lib/wechat/copy')
+      setPreviewHtml(buildWechatPreviewHtml(title, html, stylePreset))
+    } catch (buildError) {
+      setPreviewHtml('')
+      setError(buildError instanceof Error ? buildError.message : '生成公众号预览失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [html, stylePreset, title])
+
+  useEffect(() => {
+    void buildPreview()
+  }, [buildPreview])
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-[var(--editor-muted)]">
+        AI 面板加载中...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center px-5 text-center text-sm text-[var(--ui-danger)]">
+        {error}
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full min-h-0">
+      <iframe
+        title="公众号预览"
+        srcDoc={previewHtml}
+        className="h-full w-full border-0 bg-white"
+      />
+    </div>
+  )
+}
+
 export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   // ── Core state ──
   const [draftReady, setDraftReady] = useState(false)
@@ -169,7 +276,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [title, setTitle] = useState('')
   const latestTitleRef = useRef('')
   const [charCount, setCharCount] = useState(0)
-  const [category, setCategory] = useState(initialData?.category || '未分类')
+  const [category, setCategory] = useState(initialData?.category || 'AI')
   const [publishStatus, setPublishStatus] = useState<PublishStatus>(
     initialData?.status === 'draft' ? 'draft' :
     initialData?.password ? 'encrypted' :
@@ -181,14 +288,92 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [slug, setSlug] = useState(initialData?.slug || '')
 
   // ── UI state ──
-  const [tocOpen, setTocOpen] = useState(false)
+  const [tocOpen, setTocOpen] = useState(true)
   const [aiRailOpen, setAiRailOpen] = useState(true)
   const [aiRailWidth, setAiRailWidth] = useState(DEFAULT_AI_RAIL_WIDTH)
+  const [rightRailMode, setRightRailMode] = useState<RightRailMode>('chat')
+  const [wechatStylePreset, setWechatStylePreset] = useState<WechatStylePresetId>('default')
   const [publishPanelOpen, setPublishPanelOpen] = useState(false)
   const [wechatPublishOpen, setWechatPublishOpen] = useState(false)
+  const [shareLongImageOpen, setShareLongImageOpen] = useState(false)
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
+  const [categoryRefreshKey, setCategoryRefreshKey] = useState(0)
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsData, setSettingsData] = useState<{
+    navLinks: string
+    customJs: string
+    categories: SettingsCategory[]
+    bodyFont: string
+    defaultTheme: string
+    runtimeCapabilities: RuntimeCapabilities
+  } | null>(null)
+
+  const handleOpenSettings = async () => {
+    setSettingsModalOpen(true)
+    if (settingsData) return
+
+    setSettingsLoading(true)
+    try {
+      const [settingsRes, categoriesRes] = await Promise.all([
+        fetch('/api/admin/settings'),
+        fetch('/api/admin/categories')
+      ])
+
+      const settingsJson = await settingsRes.json()
+      const categoriesJson = await categoriesRes.json()
+
+      setSettingsData({
+        navLinks: settingsJson.nav_links || '',
+        customJs: settingsJson.custom_js || '',
+        categories: categoriesJson.categories || [],
+        bodyFont: settingsJson.body_font || '',
+        defaultTheme: settingsJson.default_theme || '',
+        runtimeCapabilities: {
+          bindings: {
+            d1: true,
+            cache: false,
+            images: true,
+            queue: false,
+            workersAI: true,
+            vectorize: false,
+          },
+          features: {
+            asyncJobs: {
+              enabled: false,
+              strategy: 'inline',
+              note: '',
+            },
+            aiInference: {
+              enabled: true,
+              strategy: 'workers-ai',
+              note: '',
+            },
+            mediaPipeline: {
+              enabled: true,
+              strategy: 'client',
+              note: '',
+            },
+            relatedContent: {
+              enabled: true,
+              strategy: 'fts',
+              note: '',
+            },
+          },
+        }
+      })
+    } catch (err) {
+      console.error('Failed to load settings', err)
+      toast.error('获取系统设置失败，请重试')
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [generatingCover, setGeneratingCover] = useState(false)
+  const [generatingTitle, setGeneratingTitle] = useState(false)
+  const [titleToolsVisible, setTitleToolsVisible] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [lastSavedAt, setLastSavedAt] = useState<number>(Date.now())
   const [referenceImageTarget, setReferenceImageTarget] = useState<EditorImageActionTarget | null>(null)
@@ -196,6 +381,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [, setTick] = useState(0) // force re-render for relative time
   const publishPanelRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLTextAreaElement>(null)
+  const titleToolsHideTimerRef = useRef<number | null>(null)
   const toast = useToast()
 
   // Draft save refs
@@ -209,7 +395,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const latestMetaRef = useRef<DraftMetaState>({
     editSlug: initialData?.slug ?? null,
     slug: initialData?.slug || '',
-    category: initialData?.category || '未分类',
+    category: initialData?.category || 'AI',
     tags: initialData?.tags || [],
     description: initialData?.description || '',
     coverImage: initialData?.cover_image || '',
@@ -230,9 +416,11 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     // Load rail preferences
     if (typeof window !== 'undefined') {
       const isDesktop = window.innerWidth >= DESKTOP_BREAKPOINT
-      setTocOpen(isDesktop && window.localStorage.getItem(TOC_KEY) === 'true')
+      const storedToc = window.localStorage.getItem(TOC_KEY)
+      setTocOpen(isDesktop ? (storedToc === null ? true : storedToc === 'true') : false)
       const storedAiRail = window.localStorage.getItem(AI_RAIL_KEY)
       setAiRailOpen(isDesktop ? (storedAiRail === null ? true : storedAiRail === 'true') : false)
+      setWechatStylePreset(normalizeWechatStylePreset(window.localStorage.getItem(WECHAT_STYLE_STORAGE_KEY)))
       const storedAiRailWidth = Number(window.localStorage.getItem(AI_RAIL_WIDTH_KEY) || '')
       if (Number.isFinite(storedAiRailWidth) && storedAiRailWidth > 0) {
         setAiRailWidth(Math.min(MAX_AI_RAIL_WIDTH, Math.max(MIN_AI_RAIL_WIDTH, storedAiRailWidth)))
@@ -261,8 +449,9 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       window.localStorage.setItem(TOC_KEY, String(tocOpen))
       window.localStorage.setItem(AI_RAIL_KEY, String(aiRailOpen))
       window.localStorage.setItem(AI_RAIL_WIDTH_KEY, String(aiRailWidth))
+      window.localStorage.setItem(WECHAT_STYLE_STORAGE_KEY, wechatStylePreset)
     }
-  }, [aiRailOpen, aiRailWidth, tocOpen])
+  }, [aiRailOpen, aiRailWidth, tocOpen, wechatStylePreset])
 
   useEffect(() => {
     latestMetaRef.current = {
@@ -286,6 +475,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     return () => {
       if (draftSaveTimerRef.current !== null) window.clearTimeout(draftSaveTimerRef.current)
       if (retrySaveTimerRef.current !== null) window.clearTimeout(retrySaveTimerRef.current)
+      if (titleToolsHideTimerRef.current !== null) window.clearTimeout(titleToolsHideTimerRef.current)
       autosaveAbortRef.current?.abort()
     }
   }, [title])
@@ -687,6 +877,117 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     }
   }
 
+  const handleGenerateCover = useCallback(async () => {
+    const editor = editorRef.current
+    if (!title.trim() && !editor?.getText({ blockSeparator: '\n\n' }).trim()) {
+      toast.error('先写一点标题或正文。')
+      return
+    }
+
+    setGeneratingCover(true)
+    try {
+      const response = await fetch('/api/editor/ai-post-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: 'cover',
+          title: title.trim(),
+          content: editor?.getText({ blockSeparator: '\n\n' }).trim() || '',
+          category,
+          description,
+          tags,
+          currentSlug: editSlug || normalizePostSlug(slug) || '',
+        }),
+      })
+
+      const result = await response.json() as {
+        success?: boolean
+        error?: string
+        image?: {
+          url?: string
+        }
+      }
+
+      if (!response.ok || !result.success || !result.image?.url) {
+        throw new Error(result.error || '封面生成失败')
+      }
+
+      setCoverImage(result.image.url)
+      markDirty({ coverImage: result.image.url })
+      toast.success('封面已更新')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '封面生成失败')
+    } finally {
+      setGeneratingCover(false)
+    }
+  }, [category, description, editSlug, markDirty, slug, tags, title, toast])
+
+  const handleRemoveCover = useCallback(() => {
+    setCoverImage('')
+    markDirty({ coverImage: '' })
+    toast.success('封面已删除')
+  }, [markDirty, toast])
+
+  const handleGenerateTitle = useCallback(async () => {
+    const editor = editorRef.current
+    const documentText = editor?.getText({ blockSeparator: '\n\n' }).trim() || ''
+    const context = buildDocumentContextText(title, documentText)
+
+    if (!context.trim()) {
+      toast.error('先写一点标题或正文。')
+      return
+    }
+
+    setGeneratingTitle(true)
+    try {
+      const response = await fetch('/api/editor/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: '请基于下面的标题和正文，生成 5 个更好的中文标题，使用 Markdown 编号列表返回，直接返回结果，不要解释。',
+          text: context,
+        }),
+      })
+
+      const result = await response.json() as {
+        result?: string
+        error?: string
+      }
+
+      const nextTitle = extractTitleCandidate(result.result || '')
+      if (!response.ok || !nextTitle) {
+        throw new Error(result.error || '标题生成失败')
+      }
+
+      latestTitleRef.current = nextTitle
+      setTitle(nextTitle)
+      markDirty()
+      toast.success('标题已更新')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '标题生成失败')
+    } finally {
+      setGeneratingTitle(false)
+    }
+  }, [markDirty, title, toast])
+
+  const showTitleTools = useCallback(() => {
+    if (titleToolsHideTimerRef.current !== null) {
+      window.clearTimeout(titleToolsHideTimerRef.current)
+      titleToolsHideTimerRef.current = null
+    }
+    setTitleToolsVisible(true)
+  }, [])
+
+  const scheduleHideTitleTools = useCallback(() => {
+    if (titleToolsHideTimerRef.current !== null) {
+      window.clearTimeout(titleToolsHideTimerRef.current)
+    }
+    titleToolsHideTimerRef.current = window.setTimeout(() => {
+      setTitleToolsVisible(false)
+      titleToolsHideTimerRef.current = null
+    }, 260)
+  }, [])
+
   // ── Save ──
   const handleSave = async () => {
     const editor = editorRef.current
@@ -781,7 +1082,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     }
   }
 
-  const handleCopyWechat = async () => {
+  const handleCopyWechat = useCallback(async () => {
     const editor = editorRef.current
     const normalizedTitle = title.trim() || '无标题'
 
@@ -801,14 +1102,14 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
     try {
       const { copyAsWechatArticleFormat } = await import('@/lib/wechat/copy')
-      await copyAsWechatArticleFormat(normalizedTitle, html)
+      await copyAsWechatArticleFormat(normalizedTitle, html, wechatStylePreset)
       toast.success('已复制公众号格式')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '复制公众号格式失败')
     }
-  }
+  }, [title, toast, wechatStylePreset])
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = useCallback(async () => {
     const editor = editorRef.current
     const normalizedTitle = title.trim() || '无标题'
 
@@ -828,11 +1129,80 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
     try {
       const { downloadArticleAsPdf } = await import('@/lib/wechat/copy')
-      await downloadArticleAsPdf(normalizedTitle, html)
+      await downloadArticleAsPdf(normalizedTitle, html, wechatStylePreset)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '导出 PDF 失败')
     }
-  }
+  }, [title, toast, wechatStylePreset])
+
+  const handleDownloadMarkdown = useCallback(async () => {
+    const editor = editorRef.current
+    const normalizedTitle = title.trim() || '无标题'
+
+    if (!editor) {
+      toast.error('编辑器还没准备好。')
+      return
+    }
+
+    const content = editor.getText({ blockSeparator: '\n\n' }).trim()
+    const html = editor.getHTML()
+    const hasContent = content || /<(img|video|audio|iframe)\s/i.test(html)
+
+    if (!hasContent) {
+      toast.error('正文还是空的。')
+      return
+    }
+
+    try {
+      const { default: TurndownService } = await import('turndown')
+      const { saveBlobFile } = await import('@/lib/client-download')
+      const td = new TurndownService({
+        headingStyle: 'atx',
+        bulletListMarker: '-',
+        codeBlockStyle: 'fenced',
+      })
+      const markdown = td.turndown(html)
+      const blob = new Blob([`# ${normalizedTitle}\n\n${markdown}`], { type: 'text/markdown;charset=utf-8' })
+      await saveBlobFile(blob, `${normalizedTitle}.md`, {
+        types: [
+          {
+            description: 'Markdown',
+            accept: {
+              'text/markdown': ['.md'],
+            },
+          },
+        ],
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '导出 Markdown 失败')
+    }
+  }, [title, toast])
+
+  const handleDownloadDocx = useCallback(async () => {
+    const editor = editorRef.current
+    const normalizedTitle = title.trim() || '无标题'
+
+    if (!editor) {
+      toast.error('编辑器还没准备好。')
+      return
+    }
+
+    const content = editor.getText({ blockSeparator: '\n\n' }).trim()
+    const html = editor.getHTML()
+    const hasContent = content || /<(img|video|audio|iframe)\s/i.test(html)
+
+    if (!hasContent) {
+      toast.error('正文还是空的。')
+      return
+    }
+
+    try {
+      const { downloadArticleAsDocx } = await import('@/lib/wechat/copy')
+      await downloadArticleAsDocx(normalizedTitle, html, wechatStylePreset)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '导出 DOCX 失败')
+    }
+  }, [title, toast, wechatStylePreset])
 
   const handleOpenWechatPublish = () => {
     const editor = editorRef.current
@@ -868,7 +1238,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   // ── Status config ──
   const STATUS_CONFIG = [
     { key: 'public' as const, label: '公开访问', desc: '所有人可见，出现在首页和搜索', Icon: Globe },
-    { key: 'draft' as const, label: '草稿自见', desc: '仅自己可见，不会发布', Icon: Eye },
+    { key: 'draft' as const, label: '草稿自见', desc: '仅自己可见，不会发布', Icon: EyeIcon },
     { key: 'encrypted' as const, label: '加密访问', desc: '需要密码才能查看', Icon: Lock },
     { key: 'unlisted' as const, label: '链接访问', desc: '不在首页显示，但可通过链接访问', Icon: Link2 },
   ]
@@ -887,10 +1257,16 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     : slug
       ? `draft:${slug}`
       : 'draft:new-post'
+  const hasWechatPreviewContent = Boolean(
+    currentDocumentText || /<(img|video|audio|iframe)\s/i.test(editorRef.current?.getHTML() || ''),
+  )
+  const activeWechatStyle = WECHAT_STYLE_PRESET_OPTIONS.find((option) => option.id === wechatStylePreset)
+    || WECHAT_STYLE_PRESET_OPTIONS[1]
   const wechatSourceUrl = useMemo(() => {
     const currentSlug = normalizePostSlug(editSlug || slug)
     return currentSlug ? `https://${SITE_DISPLAY_URL}/${currentSlug}` : ''
   }, [editSlug, slug])
+  const hasCoverImage = coverImage.trim().length > 0
 
   return (
     <div className="backoffice-shell editor-shell flex h-[100dvh] flex-col overflow-hidden bg-[var(--ui-bg)] text-[var(--ui-ink)]">
@@ -942,15 +1318,67 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-1">
-            <Tooltip content="复制公众号格式">
-              <UiIconButton
-                onClick={handleCopyWechat}
-                aria-label="复制公众号格式"
-                className="h-10 w-10"
+            <Menu as="div" className="relative">
+              <Tooltip content={`公众号样式 · ${activeWechatStyle.label}`}>
+                <MenuButton
+                  as={UiIconButton}
+                  aria-label="公众号样式设置"
+                  className="h-10 w-10"
+                >
+                  <Palette className="h-[1.1rem] w-[1.1rem]" />
+                </MenuButton>
+              </Tooltip>
+
+              <MenuItems
+                anchor="bottom end"
+                transition
+                className="theme-dropdown-panel z-50 mt-2 w-[22rem] overflow-hidden rounded-[1.1rem] p-1.5 outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0"
               >
-                <Copy className="h-[1.15rem] w-[1.15rem]" />
-              </UiIconButton>
-            </Tooltip>
+                <div className="border-b border-[color-mix(in_srgb,var(--ui-line)_84%,transparent)] px-3 pb-2.5 pt-1.5">
+                  <div className="text-sm font-medium text-[var(--ui-ink)]">公众号样式</div>
+                  <div className="mt-0.5 text-xs leading-5 text-[var(--ui-muted)]">
+                    选择复制、预览和发布时共用的排版风格。
+                  </div>
+                </div>
+
+                <div className="max-h-[70vh] overflow-y-auto py-1">
+                  {WECHAT_STYLE_PRESET_OPTIONS.map((option) => {
+                    const active = option.id === wechatStylePreset
+                    return (
+                      <MenuItem key={option.id}>
+                        <button
+                          type="button"
+                          onClick={() => setWechatStylePreset(option.id)}
+                          className={cx(
+                            'group flex w-full cursor-pointer items-start gap-3 rounded-[0.9rem] px-3 py-2.5 text-left transition',
+                            active
+                              ? 'bg-[color-mix(in_srgb,var(--editor-accent)_12%,var(--editor-panel))] text-[var(--editor-ink)]'
+                              : 'text-[var(--editor-ink)] data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]',
+                          )}
+                        >
+                          <span
+                            className={cx(
+                              'mt-[0.35rem] h-2 w-2 shrink-0 rounded-full transition-colors',
+                              active
+                                ? 'bg-[var(--editor-accent)]'
+                                : 'bg-[color-mix(in_srgb,var(--editor-line-strong)_70%,transparent)] group-data-[focus]:bg-[color-mix(in_srgb,var(--editor-muted)_60%,transparent)]',
+                            )}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm leading-5 text-[var(--ui-ink)]">
+                              {option.label}
+                            </span>
+                            <span className="mt-0.5 block text-xs leading-5 text-[color-mix(in_srgb,var(--ui-muted)_90%,transparent)]">
+                              {option.description}
+                            </span>
+                          </span>
+                        </button>
+                      </MenuItem>
+                    )
+                  })}
+                </div>
+              </MenuItems>
+            </Menu>
 
             <Tooltip content="发布到公众号">
               <UiIconButton
@@ -962,17 +1390,63 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
               </UiIconButton>
             </Tooltip>
 
-            <Tooltip content="下载 PDF">
-              <UiIconButton
-                onClick={handleDownloadPdf}
-                aria-label="下载 PDF"
-                className="h-10 w-10"
+            <Menu as="div" className="relative">
+              <Tooltip content="下载导出">
+                <MenuButton
+                  as={UiIconButton}
+                  aria-label="下载导出"
+                  className="h-10 w-10"
+                >
+                  <FileDown className="h-[1.15rem] w-[1.15rem]" />
+                </MenuButton>
+              </Tooltip>
+
+              <MenuItems
+                anchor="bottom end"
+                transition
+                className="theme-dropdown-panel z-50 mt-2 min-w-[12rem] overflow-hidden rounded-[1rem] p-1.5 outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0"
               >
-                <FileDown className="h-[1.15rem] w-[1.15rem]" />
-              </UiIconButton>
-            </Tooltip>
+                <MenuItem>
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadMarkdown()}
+                    className="group flex w-full cursor-pointer items-center gap-3 rounded-[0.9rem] px-3 py-2.5 text-left text-[var(--ui-ink)] transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
+                  >
+                    <span className="text-sm font-medium">Markdown</span>
+                  </button>
+                </MenuItem>
+                <MenuItem>
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadPdf()}
+                    className="group flex w-full cursor-pointer items-center gap-3 rounded-[0.9rem] px-3 py-2.5 text-left text-[var(--ui-ink)] transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
+                  >
+                    <span className="text-sm font-medium">PDF</span>
+                  </button>
+                </MenuItem>
+                <MenuItem>
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadDocx()}
+                    className="group flex w-full cursor-pointer items-center gap-3 rounded-[0.9rem] px-3 py-2.5 text-left text-[var(--ui-ink)] transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
+                  >
+                    <span className="text-sm font-medium">DOCX</span>
+                  </button>
+                </MenuItem>
+              </MenuItems>
+            </Menu>
 
             <AdminThemeToggle />
+
+            <Tooltip content="系统设置">
+              <UiIconButton
+                onClick={handleOpenSettings}
+                aria-label="系统设置"
+                className="h-10 w-10"
+              >
+                <Settings className="h-[1.15rem] w-[1.15rem]" />
+              </UiIconButton>
+            </Tooltip>
 
             <Tooltip content={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}>
               <UiIconButton
@@ -987,31 +1461,20 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
             <div className="mx-0.5 h-5 w-px bg-[var(--editor-line)]" />
 
             {/* Category selector */}
-            <CategorySelector value={category} onChange={(val) => { setCategory(val); markDirty({ category: val }) }} />
+            <CategorySelector key={categoryRefreshKey} value={category} onChange={(val) => { setCategory(val); markDirty({ category: val }) }} />
 
             {/* Publish button + dropdown */}
             <div className="relative" ref={publishPanelRef}>
-              <div className="inline-flex items-center gap-px rounded-[1rem] bg-[var(--editor-accent)] p-0.5">
-                <UiButton
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving || uploadingImage}
-                  tone="solid"
-                  className="rounded-[0.9rem] bg-transparent px-3.5 text-[var(--ui-accent-ink)] hover:bg-white/8"
-                >
-                  <Globe className="h-[1.05rem] w-[1.05rem]" />
-                  {saving ? '保存中…' : editSlug ? '更新' : '发布'}
-                </UiButton>
-                <UiIconButton
-                  type="button"
-                  onClick={() => setPublishPanelOpen(!publishPanelOpen)}
-                  tone="solid"
-                  className="h-10 w-10 rounded-[0.9rem] bg-transparent text-[var(--ui-accent-ink)] hover:bg-white/8"
-                  aria-label="切换发布菜单"
-                >
-                  <ChevronUp className={`h-[1.05rem] w-[1.05rem] transition-transform ${publishPanelOpen ? 'rotate-180' : ''}`} />
-                </UiIconButton>
-              </div>
+              <UiButton
+                type="button"
+                onClick={() => setPublishPanelOpen(!publishPanelOpen)}
+                disabled={saving || uploadingImage}
+                tone="solid"
+                className="rounded-xl px-4.5 py-2 text-sm font-semibold flex items-center gap-2 bg-[var(--editor-accent)] hover:brightness-105 active:scale-[0.98] transition text-[var(--ui-accent-ink)] shadow-sm"
+              >
+                <Share2 className="h-[1.05rem] w-[1.05rem]" />
+                分享
+              </UiButton>
 
               {/* Publish panel dropdown */}
               {publishPanelOpen && (
@@ -1040,20 +1503,32 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                     )
                   })}
 
-                  <div className="mt-2 flex justify-end gap-2 border-t border-[var(--editor-line)] px-1 pt-3">
-                    <UiButton
-                      onClick={() => { setPublishStatus('draft'); handleSave() }}
-                      disabled={saving}
-                      tone="soft"
+                  {/* Share Long Image Option */}
+                  <div className="border-t border-[var(--editor-line)] my-1.5 pt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPublishPanelOpen(false)
+                        setShareLongImageOpen(true)
+                      }}
+                      className="flex w-full items-start gap-3 rounded-[1rem] px-3 py-3 text-left transition hover:bg-[color-mix(in_srgb,var(--ui-line)_44%,transparent)]"
                     >
-                      保存草稿
-                    </UiButton>
+                      <ImageIcon className="h-5 w-5 mt-0.5 shrink-0 text-[var(--editor-accent)]" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-[var(--editor-ink)]">长图分享</div>
+                        <div className="text-xs text-[var(--editor-muted)] mt-0.5">渲染为设计精美的长图卡片</div>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="mt-2 border-t border-[var(--editor-line)] px-1 pt-3">
                     <UiButton
                       onClick={handleSave}
                       disabled={saving}
                       tone="solid"
+                      className="w-full justify-center py-2.5 rounded-xl text-sm font-semibold"
                     >
-                      {saving ? '保存中…' : editSlug ? '更新文章' : '发布'}
+                      {saving ? '发布中…' : '发布'}
                     </UiButton>
                   </div>
                 </UiPanel>
@@ -1085,7 +1560,111 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         >
           <div className="mx-auto w-full max-w-[780px] px-4 pb-8 pt-10 sm:px-6">
             {/* Title input */}
-            <div className="pb-4">
+            <div
+              className="relative pb-4"
+              onMouseEnter={showTitleTools}
+              onMouseLeave={scheduleHideTitleTools}
+              onFocusCapture={showTitleTools}
+              onBlurCapture={(event) => {
+                const nextTarget = event.relatedTarget
+                if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
+                scheduleHideTitleTools()
+              }}
+            >
+              {!hasCoverImage ? (
+                <div
+                  className={cx(
+                    'absolute left-0 top-0 z-20 flex -translate-y-[calc(100%+6px)] items-center gap-5 transition-[opacity,transform] duration-200 ease-out',
+                    titleToolsVisible
+                      ? 'pointer-events-auto translate-y-[calc(-100%-8px)] opacity-100'
+                      : 'pointer-events-none translate-y-[calc(-100%-2px)] opacity-0',
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerateCover()}
+                    disabled={generatingCover || uploadingImage}
+                    className="inline-flex h-8 cursor-pointer items-center gap-1.5 pl-0 pr-0 text-[13px] text-[var(--ui-muted)] transition hover:text-[var(--ui-ink)] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {generatingCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                    <span>更换封面</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerateTitle()}
+                    disabled={generatingTitle}
+                    className="inline-flex h-8 cursor-pointer items-center gap-1.5 pl-0 pr-0 text-[13px] text-[var(--ui-muted)] transition hover:text-[var(--ui-ink)] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {generatingTitle ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    <span>生成标题</span>
+                  </button>
+                </div>
+              ) : null}
+
+              {hasCoverImage ? (
+                <div className="mb-5 overflow-hidden rounded-[1.35rem] bg-[color-mix(in_srgb,var(--ui-line)_22%,transparent)]">
+                  <div className="relative aspect-[5/2] w-full overflow-hidden bg-[color-mix(in_srgb,var(--ui-line)_18%,transparent)]">
+                    <img
+                      src={coverImage}
+                      alt={title.trim() || '文章封面'}
+                      className="h-full w-full object-cover"
+                    />
+
+                    {(generatingCover || uploadingImage) ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--ui-bg)_58%,transparent)]">
+                        <div className="flex items-center gap-2 text-[13px] text-[var(--ui-muted)]">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>{generatingCover ? '生成中' : '上传中'}</span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-center gap-1 px-1.5 py-1.5">
+                    <UiButton
+                      tone="quiet"
+                      size="sm"
+                      onClick={() => void handleGenerateCover()}
+                      disabled={generatingCover || uploadingImage}
+                      className="rounded-lg text-[12px]"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      更换封面
+                    </UiButton>
+                    <UiButton
+                      tone="quiet"
+                      size="sm"
+                      onClick={() => coverInputRef.current?.click()}
+                      disabled={generatingCover || uploadingImage}
+                      className="rounded-lg text-[12px]"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      上传
+                    </UiButton>
+                    <UiButton
+                      tone="quiet"
+                      size="sm"
+                      onClick={() => void handleGenerateTitle()}
+                      disabled={generatingTitle}
+                      className="rounded-lg text-[12px]"
+                    >
+                      {generatingTitle ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      生成标题
+                    </UiButton>
+                    <UiButton
+                      tone="quiet"
+                      size="sm"
+                      onClick={handleRemoveCover}
+                      disabled={generatingCover || uploadingImage}
+                      className="rounded-lg text-[12px]"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      删除
+                    </UiButton>
+                  </div>
+                </div>
+              ) : null}
+
               <UiTextarea
                 ref={titleRef}
                 placeholder="无标题"
@@ -1155,7 +1734,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                             title: initialData.title || '无标题',
                             html: initialData.html || '',
                             description: (initialData.description || '').trim(),
-                            category: initialData.category || '未分类',
+                            category: initialData.category || 'AI',
                             tags: initialData.tags || [],
                             coverImage: initialData.cover_image || '',
                           })
@@ -1202,15 +1781,94 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           onClose={() => setAiRailOpen(false)}
           width={aiRailWidth}
           onWidthChange={setAiRailWidth}
+          headerAccessory={(
+            <>
+              <Tooltip content="复制公众号格式">
+                <UiIconButton
+                  tone="quiet"
+                  onClick={() => void handleCopyWechat()}
+                  aria-label="复制公众号格式"
+                  className="h-10 w-10 opacity-78"
+                >
+                  <Copy className="h-[1.05rem] w-[1.05rem]" />
+                </UiIconButton>
+              </Tooltip>
+
+              <Tooltip content={rightRailMode === 'chat' ? '公众号预览' : 'AI 对话'}>
+                <UiIconButton
+                  tone="quiet"
+                  onClick={() => {
+                    if (rightRailMode === 'chat') {
+                      if (!hasWechatPreviewContent) return
+                      setRightRailMode('wechat-preview')
+                      return
+                    }
+
+                    setRightRailMode('chat')
+                  }}
+                  disabled={rightRailMode === 'chat' && !hasWechatPreviewContent}
+                  aria-label={rightRailMode === 'chat' ? '公众号预览' : 'AI 对话'}
+                  className="h-10 w-10 opacity-78"
+                >
+                  {rightRailMode === 'chat'
+                    ? <Smartphone className="h-[1.05rem] w-[1.05rem]" />
+                    : <Bot className="h-[1.05rem] w-[1.05rem]" />}
+                </UiIconButton>
+              </Tooltip>
+            </>
+          )}
           aiContent={aiRailOpen ? (
-            <AIPanel
-              articleKey={articleKey}
-              postSlug={editSlug || normalizePostSlug(slug) || null}
-              title={title}
-              editor={editorRef.current}
-              documentJson={currentDocumentJson}
-              documentText={currentDocumentText}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+                <div
+                  className={cx(
+                    'absolute inset-0 transition-all duration-180 ease-out',
+                    rightRailMode === 'chat'
+                      ? 'translate-x-0 opacity-100'
+                      : '-translate-x-2 pointer-events-none opacity-0',
+                  )}
+                >
+                  <AIPanel
+                    articleKey={articleKey}
+                    postSlug={editSlug || normalizePostSlug(slug) || null}
+                    title={title}
+                    editor={editorRef.current}
+                    documentJson={currentDocumentJson}
+                    documentText={currentDocumentText}
+                    onTitleApply={(nextTitle) => {
+                      latestTitleRef.current = nextTitle
+                      setTitle(nextTitle)
+                      markDirty()
+                    }}
+                    onCoverImageApply={(imageUrl) => {
+                      setCoverImage(imageUrl)
+                      markDirty({ coverImage: imageUrl })
+                    }}
+                  />
+                </div>
+
+                <div
+                  className={cx(
+                    'absolute inset-0 transition-all duration-180 ease-out',
+                    rightRailMode === 'wechat-preview'
+                      ? 'translate-x-0 opacity-100'
+                      : 'translate-x-2 pointer-events-none opacity-0',
+                  )}
+                >
+                  {hasWechatPreviewContent ? (
+                    <WechatPreviewRail
+                      title={title.trim() || '无标题'}
+                      html={editorRef.current?.getHTML() || ''}
+                      stylePreset={wechatStylePreset}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center px-5 text-center text-sm text-[var(--editor-muted)]">
+                      正文还是空的。
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : null}
         />
       </div>
@@ -1221,6 +1879,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           onClose={() => setWechatPublishOpen(false)}
           title={title.trim() || '无标题'}
           html={editorRef.current?.getHTML() || ''}
+          stylePreset={wechatStylePreset}
           defaultDigest={description}
           defaultSourceUrl={wechatSourceUrl}
           defaultCoverImageUrl={resolvePostCoverImage({
@@ -1298,6 +1957,81 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
             markDirty()
           }}
         />
+      ) : null}
+
+      {shareLongImageOpen ? (
+        <ShareLongImageModal
+          isOpen={shareLongImageOpen}
+          onClose={() => setShareLongImageOpen(false)}
+          title={title.trim() || '无标题'}
+          html={editorRef.current?.getHTML() || ''}
+          coverImage={coverImage}
+          category={category}
+          siteUrl={(() => {
+            const postSlug = normalizePostSlug(slug) || editSlug || ''
+            const base = getSiteUrl()
+            return postSlug ? `${base}/${postSlug}` : base
+          })()}
+        />
+      ) : null}
+
+      {settingsModalOpen ? (
+        <Dialog
+          open={settingsModalOpen}
+          onClose={() => {
+            setSettingsModalOpen(false)
+            setCategoryRefreshKey((prev) => prev + 1)
+          }}
+          className="relative z-50"
+        >
+          <DialogBackdrop className="fixed inset-0 bg-black/55 transition duration-200" />
+          <div className="fixed inset-0 flex items-center justify-center p-4 md:p-6">
+            <DialogPanel className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--ui-line)_84%,transparent)] bg-[var(--ui-panel)] shadow-[0_24px_64px_rgb(0_0_0/0.18)]">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[var(--editor-line)] px-6 py-4 shrink-0">
+                <DialogTitle as="h3" className="text-lg font-bold text-[var(--ui-ink)]" style={{ fontFamily: 'Georgia, serif' }}>
+                  系统设置
+                </DialogTitle>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettingsModalOpen(false)
+                    setCategoryRefreshKey((prev) => prev + 1)
+                  }}
+                  className="editor-quiet-icon-button h-8 w-8 shrink-0 outline-none focus:outline-none"
+                  aria-label="关闭"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-hidden p-6 min-h-0">
+                {settingsLoading ? (
+                  <div className="flex h-full items-center justify-center text-sm text-[var(--editor-muted)]">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    加载系统配置中...
+                  </div>
+                ) : settingsData ? (
+                  <div className="h-full overflow-y-auto pr-1">
+                    <SettingsManager
+                      initialNavLinks={settingsData.navLinks}
+                      initialCustomJs={settingsData.customJs}
+                      initialCategories={settingsData.categories}
+                      initialBodyFont={settingsData.bodyFont}
+                      initialDefaultTheme={settingsData.defaultTheme}
+                      initialRuntimeCapabilities={settingsData.runtimeCapabilities}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-[var(--ui-danger)]">
+                    加载配置失败，请刷新重试
+                  </div>
+                )}
+              </div>
+            </DialogPanel>
+          </div>
+        </Dialog>
       ) : null}
     </div>
   )

@@ -74,6 +74,18 @@ const DEFAULT_IMAGE_ACTIONS: DefaultImageActionSeed[] = [
     sort_order: 10,
   },
   {
+    action_key: 'blog_cover_banner',
+    label: '博客封面横幅',
+    description: '5:2 超宽博客封面或头图',
+    prompt:
+      '生成一张适合作为博客文章封面的超宽横幅图。画面要有明确主视觉、足够留白、可用于页面顶部裁切，主体尽量集中在中间安全区。整体完成度要像 editorial cover banner，不要堆砌元素。除非用户明确要求，不要出现可读文字、logo、水印。',
+    aspect_ratio: '5:2',
+    resolution: '2k',
+    size: '1536x1024',
+    quality: 'high',
+    sort_order: 15,
+  },
+  {
     action_key: 'mondo_portrait',
     label: 'Mondo 竖版海报',
     description: '9:16 强视觉封面或人物海报',
@@ -194,10 +206,18 @@ async function ensureAiImageActionsTable(db: D1Database): Promise<void> {
     }
   }
 
-  const countRow = await db.prepare('SELECT COUNT(*) as count FROM ai_image_actions').first<{ count: number }>()
-  if ((countRow?.count ?? 0) > 0) return
-
   for (const seed of DEFAULT_IMAGE_ACTIONS) {
+    const existing = await db.prepare(`
+      SELECT id
+      FROM ai_image_actions
+      WHERE action_key = ?
+      LIMIT 1
+    `).bind(seed.action_key).first<{ id: number }>()
+
+    if (existing?.id) {
+      continue
+    }
+
     await db.prepare(`
       INSERT INTO ai_image_actions (
         action_key, label, description, prompt, aspect_ratio, resolution, size, quality, sort_order, is_builtin

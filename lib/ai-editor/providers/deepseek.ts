@@ -141,7 +141,7 @@ export async function runDeepSeekEditorProvider(
             properties: {
               name: {
                 type: 'string',
-                enum: ['reply_only', 'insert_text', 'rewrite_block', 'append_section', 'plan_article_images'],
+                enum: ['reply_only', 'edit_title', 'edit_selection', 'insert_block', 'generate_image'],
               },
               payload: {
                 anyOf: [

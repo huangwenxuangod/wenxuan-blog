@@ -34,6 +34,19 @@ export async function createCategory(db: Database, name: string, slug: string): 
   await db.prepare('INSERT OR IGNORE INTO categories (name, slug) VALUES (?, ?)').bind(name, slug).run()
 }
 
+export async function migratePostsToCategory(
+  db: Database,
+  fromName: string,
+  toName: string,
+  toSlug: string,
+): Promise<void> {
+  if (fromName === toName) return
+
+  await createCategory(db, toName, toSlug)
+  await db.prepare('UPDATE posts SET category = ? WHERE category = ?').bind(toName, fromName).run()
+  await db.prepare('DELETE FROM categories WHERE name = ?').bind(fromName).run()
+}
+
 // 更新分类
 export async function updateCategory(db: Database, oldSlug: string, name: string, newSlug: string): Promise<void> {
   const cat = await db
@@ -50,5 +63,8 @@ export async function updateCategory(db: Database, oldSlug: string, name: string
 
 // 删除分类
 export async function deleteCategory(db: Database, slug: string): Promise<void> {
+  if (slug === 'ai') {
+    throw new Error('AI 是默认分类，不能删除')
+  }
   await db.prepare('DELETE FROM categories WHERE slug = ?').bind(slug).run()
 }

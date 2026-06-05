@@ -134,7 +134,7 @@ export async function createPost(
   },
 ): Promise<number> {
   await ensureSchema(db)
-  const category = data.category || '未分类'
+  const category = data.category || 'AI'
 
   const result = await db
     .prepare(

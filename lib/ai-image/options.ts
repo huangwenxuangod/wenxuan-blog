@@ -1,6 +1,7 @@
 export type AIImageAspectRatio =
   | 'auto'
   | '21:9'
+  | '5:2'
   | '16:9'
   | '3:2'
   | '4:3'
@@ -17,6 +18,7 @@ type LegacyImageQuality = 'auto' | 'low' | 'medium' | 'high'
 export const AI_IMAGE_ASPECT_RATIO_OPTIONS: Array<{ value: AIImageAspectRatio; label: string }> = [
   { value: 'auto', label: '智能' },
   { value: '21:9', label: '21:9' },
+  { value: '5:2', label: '5:2' },
   { value: '16:9', label: '16:9' },
   { value: '3:2', label: '3:2' },
   { value: '4:3', label: '4:3' },
@@ -142,6 +144,8 @@ export function buildAspectRatioPromptHint(aspectRatio?: string) {
   switch (normalizeAiImageAspectRatio(aspectRatio)) {
     case '21:9':
       return '画面比例倾向为 21:9 超宽横幅，左右延展更充分，主体保持在中部安全区域。'
+    case '5:2':
+      return '画面比例倾向为 5:2 超宽封面横幅，适合作为博客头图或文章封面，主体要集中在中间安全区，左右可以展开氛围与留白。'
     case '16:9':
       return '画面比例倾向为 16:9 横版主视觉，构图舒展，适合章节头图或封面横幅。'
     case '3:2':

@@ -16,13 +16,24 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const key = req.nextUrl.searchParams.get('key')
-    if (!key) {
-      return jsonError('Missing key', 400)
-    }
-
     const route = await getRouteEnvWithDb('No DB')
     if (!route.ok) return route.response
+
+    const key = req.nextUrl.searchParams.get('key')
+    if (!key) {
+      // Return all common settings for client-side settings modal
+      const nav_links = await getSetting(route.db, 'nav_links') || ''
+      const custom_js = await getSetting(route.db, 'custom_js') || ''
+      const body_font = await getSetting(route.db, 'body_font') || ''
+      const default_theme = await getSetting(route.db, 'default_theme') || ''
+
+      return jsonOk({
+        nav_links,
+        custom_js,
+        body_font,
+        default_theme
+      })
+    }
 
     const value = await getSetting(route.db, key)
     return jsonOk({ key, value })

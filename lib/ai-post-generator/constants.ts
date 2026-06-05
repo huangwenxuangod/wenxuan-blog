@@ -107,7 +107,7 @@ export const DEFAULT_GENERATORS: Array<Omit<AiPostGeneratorRow, 'id' | 'created_
     workers_model: DEFAULT_IMAGE_WORKERS_MODEL,
     temperature: 0.7,
     max_tokens: 2000,
-    aspect_ratio: '16:9',
+    aspect_ratio: '5:2',
     resolution: '2k',
     is_enabled: 1,
     is_builtin: 1,

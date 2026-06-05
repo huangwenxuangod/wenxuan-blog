@@ -103,6 +103,15 @@ body {
   --ui-warning: #b36f1b;
   --ui-danger: #c65b5b;
   --ui-info: #7f7a72;
+  --preview-article-heading: #171614;
+  --preview-article-body: #2f2b26;
+  --preview-article-quote: #5d554c;
+  --preview-article-quote-border: #d8c7b5;
+  --preview-article-quote-nested-border: #e6dbcf;
+  --preview-article-quote-nested-bg: rgba(92, 77, 61, 0.045);
+  --preview-article-link: #8b5e3c;
+  --preview-ink: #000000;
+  --preview-muted: #5f5f5b;
 }
 
 html[data-admin-theme='light'] {
@@ -567,6 +576,29 @@ select:focus-visible {
 
 .modal-scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+.share-card-preview-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ui-line-strong) 88%, transparent) color-mix(in srgb, var(--ui-soft) 72%, var(--ui-panel));
+}
+
+.share-card-preview-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.share-card-preview-scroll::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--ui-soft) 72%, var(--ui-panel));
+}
+
+.share-card-preview-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--ui-soft) 72%, var(--ui-panel));
+  background: color-mix(in srgb, var(--ui-line-strong) 88%, transparent);
+}
+
+.share-card-preview-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--ui-muted) 54%, var(--ui-line-strong));
 }
 
 :is(.novel-prose, .rich-content) {
@@ -1507,4 +1539,87 @@ select:focus-visible {
   .theme-home-terminal .terminal-post-body {
     min-width: 0;
   }
+}
+
+/* Share Long Image Card Custom Prose Styles */
+.share-card-prose p {
+  margin-bottom: 1.25em;
+  font-size: 15px;
+  line-height: 1.75;
+}
+.share-card-prose h1,
+.share-card-prose h2,
+.share-card-prose h3,
+.share-card-prose h4 {
+  font-weight: 700;
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+  line-height: 1.4;
+  color: inherit;
+}
+.share-card-prose h1 { font-size: 1.6em; }
+.share-card-prose h2 { font-size: 1.4em; }
+.share-card-prose h3 { font-size: 1.2em; }
+.share-card-prose blockquote {
+  border-left: 4px solid currentColor;
+  padding-left: 1.25em;
+  font-style: italic;
+  margin: 1.5em 0;
+  opacity: 0.85;
+}
+.share-card-prose ul,
+.share-card-prose ol {
+  margin: 1.25em 0;
+  padding-left: 1.5em;
+}
+.share-card-prose li {
+  margin-bottom: 0.5em;
+}
+.share-card-prose ul {
+  list-style-type: disc;
+}
+.share-card-prose ol {
+  list-style-type: decimal;
+}
+.share-card-prose code {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.9em;
+  padding: 0.2em 0.4em;
+  background-color: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+}
+.share-card-prose pre {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85em;
+  padding: 1em;
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+.share-card-prose pre code {
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+}
+.share-card-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1.5em auto;
+  display: block;
+}
+.share-card-prose hr {
+  border: 0;
+  border-top: 1px solid currentColor;
+  opacity: 0.15;
+  margin: 2em 0;
+}
+
+/* Dark Mode Overrides for Code inside Share Card */
+.share-card-container.bg-\[\#121212\] .share-card-prose code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.share-card-container.bg-\[\#121212\] .share-card-prose pre {
+  background-color: rgba(255, 255, 255, 0.05);
 }

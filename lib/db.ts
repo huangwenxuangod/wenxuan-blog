@@ -33,6 +33,7 @@ export {
   createCategory,
   deleteCategory,
   getCategories,
+  migratePostsToCategory,
   getPublicCategories,
   updateCategory,
 } from '@/lib/repositories/categories'

@@ -33,12 +33,14 @@ export function CategorySelector({ value, onChange, className = '' }: CategorySe
       .catch(() => {})
   }, [])
 
-  const allCategories = useMemo(() => ([
-    { name: '未分类', slug: 'uncategorized' },
-    ...categories.filter((c) => c.name !== '未分类'),
-  ]), [categories])
+  const allCategories = useMemo(() => {
+    const filtered = categories.filter((c) => c.name !== '未分类')
+    const hasAi = filtered.some((c) => c.name === 'AI')
+    const list = hasAi ? filtered : [{ name: 'AI', slug: 'ai' }, ...filtered]
+    return list
+  }, [categories])
 
-  const selectedCategory = allCategories.find((cat) => cat.name === value) || allCategories[0]
+  const selectedCategory = allCategories.find((cat) => cat.name === value) || allCategories[0] || { name: 'AI', slug: 'ai' }
 
   return (
     <Listbox value={selectedCategory.name} onChange={onChange}>

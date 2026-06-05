@@ -13,20 +13,17 @@ export type EditorAiTaskType =
 
 export type EditorAiAction =
   | { type: 'reply_only' }
-  | { type: 'rewrite_block'; blockIndex: number; markdown: string }
-  | { type: 'rewrite_selection'; markdown: string }
-  | { type: 'insert_text'; blockIndex?: number; position?: 'before' | 'after'; markdown: string }
-  | { type: 'append_section'; markdown: string }
+  | { type: 'edit_title'; title: string }
+  | { type: 'edit_selection'; markdown: string; blockIndex?: number }
+  | { type: 'insert_block'; anchorBlockIndex?: number; position?: 'before' | 'after' | 'end'; markdown: string }
   | {
-      type: 'plan_article_images'
-      images: Array<{
-        blockIndex: number
-        reason: string
-        prompt: string
-        alt: string
-        aspectRatio?: string
-        resolution?: string
-      }>
+      type: 'generate_image'
+      prompt: string
+      usage: 'inline' | 'cover'
+      anchorBlockIndex?: number
+      alt?: string
+      aspectRatio?: string
+      resolution?: string
     }
 
 export type EditorAiRuntimeEvent =

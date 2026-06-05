@@ -7,6 +7,42 @@ export type LegacyEditorAiTool =
       payload: null
     }
   | {
+      name: 'edit_title'
+      payload: {
+        title: string
+      }
+    }
+  | {
+      name: 'edit_selection'
+      payload: {
+        markdown: string
+        blockIndex?: number
+      }
+    }
+  | {
+      name: 'insert_block'
+      payload: {
+        anchorBlockIndex?: number
+        position?: 'before' | 'after' | 'end'
+        markdown: string
+      }
+    }
+  | {
+      name: 'generate_image'
+      payload: {
+        prompt: string
+        usage: 'inline' | 'cover'
+        anchorBlockIndex?: number
+        alt?: string
+        aspectRatio?: string
+        resolution?: string
+        generatedImage?: {
+          url: string
+          alt: string
+        }
+      }
+    }
+  | {
       name: 'rewrite_selection'
       payload: {
         markdown: string
@@ -61,15 +97,77 @@ export function normalizeToolCallToAction(tool: AiEditorToolCall | null | undefi
     return { type: 'reply_only' }
   }
 
-  if (tool.name === 'rewrite_block' && tool.payload && 'blockIndex' in tool.payload && 'markdown' in tool.payload) {
+  if (tool.name === 'edit_title' && tool.payload && 'title' in tool.payload) {
     return {
-      type: 'rewrite_block',
-      blockIndex: Number(tool.payload.blockIndex),
-      markdown: String(tool.payload.markdown || ''),
+      type: 'edit_title',
+      title: String(tool.payload.title || ''),
     }
   }
 
-  if (tool.name === 'insert_text' && tool.payload && 'markdown' in tool.payload) {
+  if (tool.name === 'edit_selection' && tool.payload && 'markdown' in tool.payload) {
+    return {
+      type: 'edit_selection',
+      markdown: String(tool.payload.markdown || ''),
+      blockIndex: 'blockIndex' in tool.payload && typeof tool.payload.blockIndex === 'number'
+        ? Number(tool.payload.blockIndex)
+        : undefined,
+    }
+  }
+
+  if (tool.name === 'insert_block' && tool.payload && 'markdown' in tool.payload) {
+    const payload = tool.payload as {
+      anchorBlockIndex?: number
+      position?: 'before' | 'after' | 'end'
+      markdown: string
+    }
+
+    return {
+      type: 'insert_block',
+      anchorBlockIndex: typeof payload.anchorBlockIndex === 'number' ? payload.anchorBlockIndex : undefined,
+      position: payload.position === 'before' || payload.position === 'after' ? payload.position : 'end',
+      markdown: String(payload.markdown || ''),
+    }
+  }
+
+  if (tool.name === 'generate_image' && tool.payload && 'prompt' in tool.payload) {
+    return {
+      type: 'generate_image',
+      prompt: String(tool.payload.prompt || ''),
+      usage: tool.payload.usage === 'cover' ? 'cover' : 'inline',
+      anchorBlockIndex: 'anchorBlockIndex' in tool.payload && typeof tool.payload.anchorBlockIndex === 'number'
+        ? Number(tool.payload.anchorBlockIndex)
+        : undefined,
+      alt: 'alt' in tool.payload && typeof tool.payload.alt === 'string' ? tool.payload.alt : undefined,
+      aspectRatio: 'aspectRatio' in tool.payload && typeof tool.payload.aspectRatio === 'string'
+        ? tool.payload.aspectRatio
+        : undefined,
+      resolution: 'resolution' in tool.payload && typeof tool.payload.resolution === 'string'
+        ? tool.payload.resolution
+        : undefined,
+    }
+  }
+
+  // Legacy compatibility
+  const toolName = tool.name as string
+
+  if (toolName === 'rewrite_block' && tool.payload && 'blockIndex' in tool.payload && 'markdown' in tool.payload) {
+    const payload = tool.payload as unknown as Record<string, unknown>
+    return {
+      type: 'edit_selection',
+      blockIndex: Number(payload.blockIndex),
+      markdown: String(payload.markdown || ''),
+    }
+  }
+
+  if (toolName === 'rewrite_selection' && tool.payload && 'markdown' in tool.payload) {
+    const payload = tool.payload as unknown as Record<string, unknown>
+    return {
+      type: 'edit_selection',
+      markdown: String(payload.markdown || ''),
+    }
+  }
+
+  if (toolName === 'insert_text' && tool.payload && 'markdown' in tool.payload) {
     const payload = tool.payload as {
       blockIndex?: number
       position?: 'before' | 'after'
@@ -77,8 +175,8 @@ export function normalizeToolCallToAction(tool: AiEditorToolCall | null | undefi
     }
 
     return {
-      type: 'insert_text',
-      blockIndex: typeof payload.blockIndex === 'number' ? payload.blockIndex : undefined,
+      type: 'insert_block',
+      anchorBlockIndex: typeof payload.blockIndex === 'number' ? payload.blockIndex : undefined,
       position: payload.position === 'before' ? 'before' : 'after',
       markdown: String(payload.markdown || ''),
     }
@@ -86,22 +184,26 @@ export function normalizeToolCallToAction(tool: AiEditorToolCall | null | undefi
 
   if (tool.name === 'append_section' && tool.payload && 'markdown' in tool.payload) {
     return {
-      type: 'append_section',
+      type: 'insert_block',
+      position: 'end',
       markdown: String(tool.payload.markdown || ''),
     }
   }
 
   if (tool.name === 'plan_article_images' && tool.payload && 'images' in tool.payload && Array.isArray(tool.payload.images)) {
+    const firstImage = tool.payload.images[0]
+    if (!firstImage) {
+      return { type: 'reply_only' }
+    }
+
     return {
-      type: 'plan_article_images',
-      images: tool.payload.images.map((item) => ({
-        blockIndex: Number(item.blockIndex),
-        reason: String(item.reason || ''),
-        prompt: String(item.prompt || ''),
-        alt: String(item.alt || ''),
-        aspectRatio: item.aspectRatio ? String(item.aspectRatio) : undefined,
-        resolution: item.resolution ? String(item.resolution) : undefined,
-      })),
+      type: 'generate_image',
+      prompt: String(firstImage.prompt || ''),
+      usage: 'inline',
+      anchorBlockIndex: Number(firstImage.blockIndex),
+      alt: String(firstImage.alt || ''),
+      aspectRatio: firstImage.aspectRatio ? String(firstImage.aspectRatio) : undefined,
+      resolution: firstImage.resolution ? String(firstImage.resolution) : undefined,
     }
   }
 
@@ -113,49 +215,49 @@ export function convertActionToLegacyTool(action: EditorAiAction): LegacyEditorA
     return { name: 'reply_only', payload: null }
   }
 
-  if (action.type === 'rewrite_block') {
+  if (action.type === 'edit_title') {
     return {
-      name: 'rewrite_block',
+      name: 'edit_title',
       payload: {
-        blockIndex: action.blockIndex,
-        markdown: action.markdown,
+        title: action.title,
       },
     }
   }
 
-  if (action.type === 'insert_text') {
+  if (action.type === 'edit_selection') {
     return {
-      name: 'insert_text',
+      name: 'edit_selection',
       payload: {
+        markdown: action.markdown,
         blockIndex: action.blockIndex,
+      },
+    }
+  }
+
+  if (action.type === 'insert_block') {
+    return {
+      name: 'insert_block',
+      payload: {
+        anchorBlockIndex: action.anchorBlockIndex,
         position: action.position,
         markdown: action.markdown,
       },
     }
   }
 
-  if (action.type === 'append_section') {
+  if (action.type === 'generate_image') {
     return {
-      name: 'append_section',
+      name: 'generate_image',
       payload: {
-        markdown: action.markdown,
+        prompt: action.prompt,
+        usage: action.usage,
+        anchorBlockIndex: action.anchorBlockIndex,
+        alt: action.alt,
+        aspectRatio: action.aspectRatio,
+        resolution: action.resolution,
       },
     }
   }
 
-  if (action.type === 'rewrite_selection') {
-    return {
-      name: 'rewrite_selection',
-      payload: {
-        markdown: action.markdown,
-      },
-    }
-  }
-
-  return {
-    name: 'plan_article_images',
-    payload: {
-      images: action.images,
-    },
-  }
+  return { name: 'reply_only', payload: null }
 }

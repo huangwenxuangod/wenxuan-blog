@@ -1,4 +1,4 @@
-import { getCategories, createCategory, updateCategory, deleteCategory } from '@/lib/db'
+import { getCategories, createCategory, updateCategory, deleteCategory, migratePostsToCategory } from '@/lib/db'
 import {
   ensureAuthenticatedRequest,
   getRouteEnvWithDb,
@@ -33,7 +33,14 @@ export async function GET(req: NextRequest) {
     if (authError) return authError
 
     const categories = await getCategories(route.db)
-    return jsonOk({ categories })
+    const hasUncategorized = categories.some((category) => category.name === '未分类' || category.slug === 'uncategorized')
+
+    if (hasUncategorized) {
+      await migratePostsToCategory(route.db, '未分类', 'AI', 'ai')
+    }
+
+    const nextCategories = await getCategories(route.db)
+    return jsonOk({ categories: nextCategories.filter((category) => category.name !== '未分类') })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (message.includes('no such table: categories')) {

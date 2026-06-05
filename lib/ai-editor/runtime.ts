@@ -3,6 +3,7 @@ import { buildAiEditorContext } from '@/lib/ai-editor/context'
 import { deriveAiEditorMemoryCandidates } from '@/lib/ai-editor/memory'
 import { runEditorAiProvider } from '@/lib/ai-editor/provider'
 import { classifyEditorAiTask } from '@/lib/ai-editor/task-classifier'
+import { convertActionToLegacyTool } from '@/lib/ai-editor/action-schema'
 import type {
   EditorAiRuntimeInput,
   EditorAiRuntimePreparedInput,
@@ -45,7 +46,7 @@ export async function runEditorAiRuntime(input: EditorAiRuntimeInput): Promise<E
       memoryCandidates: deriveAiEditorMemoryCandidates({
         userMessage: prepared.userMessage,
         assistantMessage: completed.message,
-        tool: null,
+        tool: convertActionToLegacyTool(completed.action) as { name: string },
       }),
     })),
   }

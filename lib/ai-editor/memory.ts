@@ -3,12 +3,13 @@ import type {
   AiEditorMemoryKind,
   AiEditorMemoryWrite,
 } from '@/lib/ai-editor/types'
-import type { AiEditorToolCall } from '@/lib/ai-editor/agent-tools'
 
 interface DeriveMemoryCandidatesInput {
   userMessage: string
   assistantMessage?: string
-  tool?: AiEditorToolCall | null
+  tool?: {
+    name: string
+  } | null
 }
 
 function clipText(text: string, max = 220) {
