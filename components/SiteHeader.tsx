@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useSyncExternalStore } from 'react'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import { SearchEntry } from './SearchEntry'
 import { ThemeDropdown } from '@/components/ThemeDropdown'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { getClientThemePreference, subscribeToThemeChange, type Theme } from '@/lib/appearance'
 import type { SiteCategoryLink, SiteNavLink } from '@/lib/site'
 
@@ -101,26 +102,26 @@ export function SiteHeader({
   const activeCategory = categories.find(c => c.slug === activeCategorySlug)
 
   const renderLink = (link: NavLink, onClick?: () => void) => {
-    const className = "text-[var(--editor-muted)] hover:text-[var(--editor-ink)] transition-colors duration-150 inline-flex items-center"
+    const socialIcon = getSocialIcon(link.label, link.url, 'h-[16px] w-[16px] shrink-0')
+    const hasIcon = Boolean(socialIcon)
+    const className = hasIcon
+      ? 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--editor-muted)] transition-colors duration-150 hover:text-[var(--editor-ink)]'
+      : 'inline-flex items-center text-[var(--editor-muted)] transition-colors duration-150 hover:text-[var(--editor-ink)]'
 
-    const content = getSocialIcon(link.label, link.url) || link.label
+    const content = socialIcon || link.label
 
-    if (link.openInNewTab || link.url.startsWith('http')) {
-      return (
-        <a
-          key={link.label}
-          href={link.url}
-          target={link.openInNewTab ? '_blank' : undefined}
-          rel={link.openInNewTab ? 'noopener noreferrer' : undefined}
-          className={className}
-          onClick={onClick}
-        >
-          {content}
-        </a>
-      )
-    }
-
-    return (
+    const element = link.openInNewTab || link.url.startsWith('http') ? (
+      <a
+        key={link.label}
+        href={link.url}
+        target={link.openInNewTab ? '_blank' : undefined}
+        rel={link.openInNewTab ? 'noopener noreferrer' : undefined}
+        className={className}
+        onClick={onClick}
+      >
+        {content}
+      </a>
+    ) : (
       <Link
         key={link.label}
         href={link.url}
@@ -130,6 +131,16 @@ export function SiteHeader({
         {content}
       </Link>
     )
+
+    if (hasIcon) {
+      return (
+        <Tooltip key={link.label} content={link.label} tone="editor">
+          {element}
+        </Tooltip>
+      )
+    }
+
+    return element
   }
 
   // 终端主题：logo 区域显示终端提示符

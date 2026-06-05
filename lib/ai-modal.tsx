@@ -495,7 +495,7 @@ export function AIModal({
               }
             }}
             disabled={aiLoading}
-            className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] py-2.5 pl-10 pr-3 text-sm text-[var(--ui-ink)] placeholder:text-[var(--ui-muted)] outline-none focus:border-[var(--ui-accent)] focus:ring-1 focus:ring-[var(--ui-accent)] disabled:opacity-50"
+            className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] py-2.5 pl-10 pr-3 text-sm text-[var(--ui-ink)] placeholder:text-[var(--ui-muted)] outline-none focus:outline-none focus:ring-0 focus:border-[var(--ui-line-strong)] disabled:opacity-50"
           />
         </div>
         <div className="text-[11px] text-[var(--editor-muted)]">

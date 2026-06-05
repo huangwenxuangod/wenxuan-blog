@@ -112,24 +112,27 @@ export default async function AdminPostsPage({
           </div>
         </div>
       ) : (
-        <div className="bg-[var(--editor-panel)] rounded-xl border border-[var(--editor-line)] overflow-hidden">
-          {/* 表头 */}
-          <div className="hidden md:grid grid-cols-[50px_1fr_120px_90px_200px] gap-3 px-5 py-3.5 border-b border-[var(--editor-line)] bg-[var(--editor-soft)]">
-            <span className="text-xs font-semibold text-[var(--editor-muted)] uppercase tracking-wide text-center">
-              状态
-            </span>
-            <span className="text-xs font-semibold text-[var(--editor-muted)] uppercase tracking-wide">
+          <div className="bg-[var(--editor-panel)] rounded-xl border border-[var(--editor-line)] overflow-hidden">
+            {/* 表头 */}
+            <div className="hidden md:grid grid-cols-[56px_minmax(0,1fr)_200px_88px_116px_232px] gap-4 px-5 py-3.5 border-b border-[var(--editor-line)] bg-[var(--editor-soft)] items-center">
+              <span className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
+                状态
+              </span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
               标题
             </span>
-            <span className="text-xs font-semibold text-[var(--editor-muted)] uppercase tracking-wide">
+            <span className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
               分类
             </span>
-            <span className="text-xs font-semibold text-[var(--editor-muted)] uppercase tracking-wide text-center">
-              阅读
-            </span>
-            <span className="text-xs font-semibold text-[var(--editor-muted)] uppercase tracking-wide text-right">
-              操作
-            </span>
+              <span className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
+                阅读
+              </span>
+              <span className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
+                时间
+              </span>
+              <span className="text-right text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
+                操作
+              </span>
           </div>
 
           {/* 文章列表 */}

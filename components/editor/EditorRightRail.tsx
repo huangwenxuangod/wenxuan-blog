@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { PanelRightClose } from 'lucide-react'
 import { UiIconButton } from '@/components/ui/primitives'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface EditorRightRailProps {
   open: boolean
@@ -83,16 +84,14 @@ export function EditorRightRail({
 
   return (
     <aside
-      className={`relative shrink-0 bg-[var(--ui-bg)] ${
+      className={`absolute right-0 top-0 z-30 bg-[var(--ui-bg)] ${
         isResizing ? '' : 'transition-[width,opacity] duration-200 ease-in-out'
       } ${
-        open ? 'opacity-100' : 'overflow-hidden opacity-0'
+        open ? 'opacity-100' : 'pointer-events-none overflow-hidden opacity-0'
       }`}
       style={{
         width: open ? width : 0,
-        position: 'sticky',
-        top: '3.5rem',
-        height: 'calc(100vh - 3.5rem)',
+        height: '100%',
       }}
     >
       {open ? (
@@ -109,14 +108,15 @@ export function EditorRightRail({
 
           <div className="flex h-full min-h-0 flex-col border-l border-[color-mix(in_srgb,var(--ui-line)_72%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_100%,transparent)] px-6 py-5">
           <div className="flex items-center justify-end pb-3">
-            <UiIconButton
-              onClick={onClose}
-              className="h-10 w-10 opacity-78"
-              title="收起 AI 对话"
-              aria-label="收起 AI 对话"
-            >
-              <PanelRightClose className="h-[1.15rem] w-[1.15rem]" />
-            </UiIconButton>
+            <Tooltip content="收起 AI 对话">
+              <UiIconButton
+                onClick={onClose}
+                className="h-10 w-10 opacity-78"
+                aria-label="收起 AI 对话"
+              >
+                <PanelRightClose className="h-[1.15rem] w-[1.15rem]" />
+              </UiIconButton>
+            </Tooltip>
           </div>
 
           <div className="min-h-0 flex-1 overflow-hidden">

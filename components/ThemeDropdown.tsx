@@ -77,7 +77,7 @@ export function ThemeDropdown({
         transition
         style={dropdownStyle}
         className={cx(
-          'ui-popover z-50 min-w-[8rem] rounded-lg p-1 outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0',
+          'theme-dropdown-panel z-50 min-w-[13.5rem] overflow-hidden rounded-[1.1rem] p-1.5 outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0',
           inlineMenu ? 'mt-2 w-full' : 'mt-2',
         )}
       >
@@ -90,13 +90,28 @@ export function ThemeDropdown({
                 onClick={() => handleChange(option.id)}
                 style={active ? { ...itemStyle, ...activeItemStyle } : itemStyle}
                 className={cx(
-                  'flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-left text-sm transition',
+                  'group flex w-full cursor-pointer items-start gap-3 rounded-[0.9rem] px-3 py-2.5 text-left transition',
                   active
-                    ? 'bg-[var(--editor-accent)] text-[var(--editor-accent-ink)]'
-                    : 'text-[var(--editor-ink)] data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_34%,transparent)]',
+                    ? 'bg-[color-mix(in_srgb,var(--editor-accent)_12%,var(--editor-panel))] text-[var(--editor-ink)]'
+                    : 'text-[var(--editor-ink)] data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]',
                 )}
               >
-                {option.label}
+                <span
+                  className={cx(
+                    'mt-[0.35rem] h-2 w-2 shrink-0 rounded-full transition-colors',
+                    active
+                      ? 'bg-[var(--editor-accent)]'
+                      : 'bg-[color-mix(in_srgb,var(--editor-line-strong)_70%,transparent)] group-data-[focus]:bg-[color-mix(in_srgb,var(--editor-muted)_60%,transparent)]',
+                  )}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className={cx('block text-sm leading-5', active ? 'font-medium text-[var(--editor-ink)]' : 'text-[var(--editor-ink)]')}>
+                    {option.label}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-5 text-[color-mix(in_srgb,var(--editor-muted)_90%,transparent)]">
+                    {option.description}
+                  </span>
+                </span>
               </button>
             </MenuItem>
           )

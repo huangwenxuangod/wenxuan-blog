@@ -4,6 +4,7 @@ import { useToast } from '@/components/Toast'
 import { copyAsWechatArticleFormat, downloadArticleAsPdf } from '@/lib/wechat-copy'
 import { Copy, FileDown } from 'lucide-react'
 import TurndownService from 'turndown'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 const URL_ATTRIBUTES = [
   ['img', 'src'],
@@ -79,31 +80,39 @@ export function DownloadMarkdown({ title, html }: { title: string; html: string 
 
   return (
     <span className="inline-flex items-center gap-1">
-      <button
-        onClick={handleDownload}
-        title="下载 Markdown"
-        className="inline-flex items-center justify-center rounded p-1 text-[var(--stone-gray)] hover:text-[var(--editor-accent)] hover:bg-[var(--editor-accent)]/8 transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-      </button>
-      <button
-        onClick={handleCopyWechat}
-        title="复制公众号格式"
-        className="inline-flex items-center justify-center rounded p-1 text-[var(--stone-gray)] hover:text-[var(--editor-accent)] hover:bg-[var(--editor-accent)]/8 transition-colors"
-      >
-        <Copy className="h-3.5 w-3.5" />
-      </button>
-      <button
-        onClick={handleDownloadPdf}
-        title="下载 PDF"
-        className="inline-flex items-center justify-center rounded p-1 text-[var(--stone-gray)] hover:text-[var(--editor-accent)] hover:bg-[var(--editor-accent)]/8 transition-colors"
-      >
-        <FileDown className="h-3.5 w-3.5" />
-      </button>
+      <Tooltip content="下载 Markdown">
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center justify-center rounded p-1 text-[var(--stone-gray)] hover:text-[var(--editor-accent)] hover:bg-[var(--editor-accent)]/8 transition-colors"
+          aria-label="下载 Markdown"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
+      </Tooltip>
+
+      <Tooltip content="复制公众号格式">
+        <button
+          onClick={handleCopyWechat}
+          className="inline-flex items-center justify-center rounded p-1 text-[var(--stone-gray)] hover:text-[var(--editor-accent)] hover:bg-[var(--editor-accent)]/8 transition-colors"
+          aria-label="复制公众号格式"
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      </Tooltip>
+
+      <Tooltip content="下载 PDF">
+        <button
+          onClick={handleDownloadPdf}
+          className="inline-flex items-center justify-center rounded p-1 text-[var(--stone-gray)] hover:text-[var(--editor-accent)] hover:bg-[var(--editor-accent)]/8 transition-colors"
+          aria-label="下载 PDF"
+        >
+          <FileDown className="h-3.5 w-3.5" />
+        </button>
+      </Tooltip>
     </span>
   )
 }

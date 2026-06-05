@@ -5,6 +5,7 @@ import { Loader2, Plus, Send } from 'lucide-react'
 import type { EditorInstance, JSONContent } from 'novel'
 import { useToast } from '@/components/Toast'
 import { UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { insertGeneratedImageAtPosition } from '@/lib/editor-file-upload'
 import { replaceEditorRangeWithMarkdown } from '@/lib/editor-markdown'
 
@@ -334,7 +335,7 @@ export function AIPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-transparent">
-      <div ref={listRef} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 pb-4">
+      <div ref={listRef} className="editor-scroll-shell ai-chat-scroll min-h-0 flex-1 space-y-6 overflow-y-auto px-1 pb-4">
         {messages.length === 0 ? (
           null
         ) : (
@@ -381,27 +382,29 @@ export function AIPanel({
 
           <div className="mt-2 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <UiIconButton
-                tone="soft"
-                className="h-9 w-9 rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))]"
-                title="更多操作"
-                aria-label="更多操作"
-              >
-                <Plus className="h-4.5 w-4.5" />
-              </UiIconButton>
+              <Tooltip content="更多操作">
+                <UiIconButton
+                  tone="soft"
+                  className="h-9 w-9 rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))]"
+                  aria-label="更多操作"
+                >
+                  <Plus className="h-4.5 w-4.5" />
+                </UiIconButton>
+              </Tooltip>
             </div>
 
             <div className="flex items-center gap-2.5">
-              <UiIconButton
-                tone="soft"
-                onClick={() => void sendMessage()}
-                disabled={loading || !input.trim() || !editor}
-                title="发送"
-                aria-label="发送"
-                className="h-9 w-9 rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))]"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-[1.05rem] w-[1.05rem]" />}
-              </UiIconButton>
+              <Tooltip content="发送">
+                <UiIconButton
+                  tone="soft"
+                  onClick={() => void sendMessage()}
+                  disabled={loading || !input.trim() || !editor}
+                  aria-label="发送"
+                  className="h-9 w-9 rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))]"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-[1.05rem] w-[1.05rem]" />}
+                </UiIconButton>
+              </Tooltip>
             </div>
           </div>
         </UiPanel>

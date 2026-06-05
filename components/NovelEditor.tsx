@@ -40,6 +40,7 @@ import { EditorTocRail } from '@/components/editor/EditorTocRail'
 import { WeChatPublishModal } from '@/components/WeChatPublishModal'
 import { useToast } from '@/components/Toast'
 import { AdminThemeToggle } from '@/components/AdminThemeToggle'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { AIModal } from '@/lib/ai-modal'
 import {
   COVER_IMAGE_OPTIMIZE_OPTIONS,
@@ -81,16 +82,12 @@ const SITE_DISPLAY_URL = getSiteDisplayUrl()
 const DEFAULT_AI_RAIL_WIDTH = 372
 const MIN_AI_RAIL_WIDTH = 320
 const MAX_AI_RAIL_WIDTH = 640
+const DESKTOP_BREAKPOINT = 1024
 
 const EMPTY_DOCUMENT = {
   type: 'doc',
   content: [{ type: 'paragraph' }],
 } satisfies JSONContent
-
-function calcReadTime(chars: number): string {
-  const minutes = Math.max(1, Math.ceil(chars / 400))
-  return `约${minutes}分钟阅读`
-}
 
 function relativeTime(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000)
@@ -128,6 +125,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [draftReady, setDraftReady] = useState(false)
   const [initialContent, setInitialContent] = useState<JSONContent>(EMPTY_DOCUMENT)
   const editorRef = useRef<EditorInstance | null>(null)
+  const mainScrollRef = useRef<HTMLElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const fileUploadRef = useRef<HTMLInputElement | null>(null)
 
@@ -196,15 +194,31 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
     // Load rail preferences
     if (typeof window !== 'undefined') {
-      setTocOpen(window.localStorage.getItem(TOC_KEY) === 'true')
+      const isDesktop = window.innerWidth >= DESKTOP_BREAKPOINT
+      setTocOpen(isDesktop && window.localStorage.getItem(TOC_KEY) === 'true')
       const storedAiRail = window.localStorage.getItem(AI_RAIL_KEY)
-      setAiRailOpen(storedAiRail === null ? true : storedAiRail === 'true')
+      setAiRailOpen(isDesktop ? (storedAiRail === null ? true : storedAiRail === 'true') : false)
       const storedAiRailWidth = Number(window.localStorage.getItem(AI_RAIL_WIDTH_KEY) || '')
       if (Number.isFinite(storedAiRailWidth) && storedAiRailWidth > 0) {
         setAiRailWidth(Math.min(MAX_AI_RAIL_WIDTH, Math.max(MIN_AI_RAIL_WIDTH, storedAiRailWidth)))
       }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const syncRailLayout = () => {
+      if (window.innerWidth < DESKTOP_BREAKPOINT) {
+        setTocOpen(false)
+        setAiRailOpen(false)
+      }
+    }
+
+    syncRailLayout()
+    window.addEventListener('resize', syncRailLayout)
+    return () => window.removeEventListener('resize', syncRailLayout)
+  }, [])
 
   // Persist rail preferences
   useEffect(() => {
@@ -842,18 +856,19 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   }, [editSlug, slug])
 
   return (
-    <div className="backoffice-shell editor-shell min-h-screen bg-[var(--ui-bg)] text-[var(--ui-ink)]">
+    <div className="backoffice-shell editor-shell flex h-[100dvh] flex-col overflow-hidden bg-[var(--ui-bg)] text-[var(--ui-ink)]">
       {/* ── Sticky Header ── */}
-      <header className="sticky top-0 z-40 border-b border-[var(--ui-line)] bg-[color-mix(in_srgb,var(--ui-bg)_92%,transparent)] backdrop-blur-lg">
+      <header className="z-40 shrink-0 border-b border-[var(--ui-line)] bg-[color-mix(in_srgb,var(--ui-bg)_92%,transparent)] backdrop-blur-lg">
         <div className="flex min-h-14 items-center gap-3 px-4 py-2">
-          <UiIconButton
-            onClick={() => setTocOpen(!tocOpen)}
-            title={tocOpen ? '收起目录' : '展开目录'}
-            aria-label={tocOpen ? '收起目录' : '展开目录'}
-            className="h-10 w-10"
-          >
-            {tocOpen ? <PanelLeftClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelLeftOpen className="h-[1.15rem] w-[1.15rem]" />}
-          </UiIconButton>
+          <Tooltip content={tocOpen ? '收起目录' : '展开目录'}>
+            <UiIconButton
+              onClick={() => setTocOpen(!tocOpen)}
+              aria-label={tocOpen ? '收起目录' : '展开目录'}
+              className="h-10 w-10"
+            >
+              {tocOpen ? <PanelLeftClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelLeftOpen className="h-[1.15rem] w-[1.15rem]" />}
+            </UiIconButton>
+          </Tooltip>
 
           {/* Left: Back */}
           <Link
@@ -866,7 +881,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
           <div className="mx-1 h-4 w-px bg-[var(--editor-line)]" />
 
-          {/* Center: Save status + Word count */}
+          {/* Center: Save status */}
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className={`flex items-center gap-1.5 text-sm min-w-[140px] ${saveStatusColor}`}>
               <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${
@@ -876,17 +891,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
               }`} />
               <span className="truncate">{saveStatusText}</span>
             </div>
-
-            {charCount > 0 && (
-              <>
-                <div className="hidden sm:block h-4 w-px bg-[var(--editor-line)]" />
-                <div className="hidden sm:flex items-center gap-2">
-                  <span className="text-sm text-[var(--stone-gray)] whitespace-nowrap tabular-nums">
-                    {charCount.toLocaleString()} 字 · {calcReadTime(charCount)}
-                  </span>
-                </div>
-              </>
-            )}
           </div>
 
           {/* Upload progress (overlay) */}
@@ -901,43 +905,47 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-1">
-            <UiIconButton
-              onClick={handleCopyWechat}
-              title="复制公众号格式"
-              aria-label="复制公众号格式"
-              className="h-10 w-10"
-            >
-              <Copy className="h-[1.15rem] w-[1.15rem]" />
-            </UiIconButton>
+            <Tooltip content="复制公众号格式">
+              <UiIconButton
+                onClick={handleCopyWechat}
+                aria-label="复制公众号格式"
+                className="h-10 w-10"
+              >
+                <Copy className="h-[1.15rem] w-[1.15rem]" />
+              </UiIconButton>
+            </Tooltip>
 
-            <UiIconButton
-              onClick={handleOpenWechatPublish}
-              title="发布到公众号"
-              aria-label="发布到公众号"
-              className="h-10 w-10"
-            >
-              <Send className="h-[1.15rem] w-[1.15rem]" />
-            </UiIconButton>
+            <Tooltip content="发布到公众号">
+              <UiIconButton
+                onClick={handleOpenWechatPublish}
+                aria-label="发布到公众号"
+                className="h-10 w-10"
+              >
+                <Send className="h-[1.15rem] w-[1.15rem]" />
+              </UiIconButton>
+            </Tooltip>
 
-            <UiIconButton
-              onClick={handleDownloadPdf}
-              title="下载 PDF"
-              aria-label="下载 PDF"
-              className="h-10 w-10"
-            >
-              <FileDown className="h-[1.15rem] w-[1.15rem]" />
-            </UiIconButton>
+            <Tooltip content="下载 PDF">
+              <UiIconButton
+                onClick={handleDownloadPdf}
+                aria-label="下载 PDF"
+                className="h-10 w-10"
+              >
+                <FileDown className="h-[1.15rem] w-[1.15rem]" />
+              </UiIconButton>
+            </Tooltip>
 
             <AdminThemeToggle />
 
-            <UiIconButton
-              onClick={() => setAiRailOpen(!aiRailOpen)}
-              title={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}
-              aria-label={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}
-              className="h-10 w-10"
-            >
-              {aiRailOpen ? <PanelRightClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelRightOpen className="h-[1.15rem] w-[1.15rem]" />}
-            </UiIconButton>
+            <Tooltip content={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}>
+              <UiIconButton
+                onClick={() => setAiRailOpen(!aiRailOpen)}
+                aria-label={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}
+                className="h-10 w-10"
+              >
+                {aiRailOpen ? <PanelRightClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelRightOpen className="h-[1.15rem] w-[1.15rem]" />}
+              </UiIconButton>
+            </Tooltip>
 
             <div className="mx-0.5 h-5 w-px bg-[var(--editor-line)]" />
 
@@ -1025,16 +1033,20 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void handleCoverUpload(f) }} />
 
       {/* ── Main layout: editor + sidebar ── */}
-      <div className="flex">
+      <div className="relative flex-1 overflow-hidden">
         <EditorTocRail
           open={tocOpen}
           editor={editorRef.current}
           documentJson={currentDocumentJson}
+          scrollContainer={mainScrollRef.current}
         />
 
         {/* Main editor area */}
-        <main className="flex-1 min-w-0">
-          <div className="mx-auto max-w-4xl px-4 pb-8 pt-10 sm:px-6">
+        <main
+          ref={mainScrollRef}
+          className="editor-scroll-shell relative h-full min-w-0 overflow-y-auto overflow-x-hidden"
+        >
+          <div className="mx-auto w-full max-w-[780px] px-4 pb-8 pt-10 sm:px-6">
             {/* Title input */}
             <div className="pb-4">
               <UiTextarea
@@ -1070,72 +1082,82 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
             </div>
 
             {/* Novel editor */}
-            {!draftReady ? (
-              <div className="editor-surface" />
-            ) : (
-              <EditorRoot>
-                <div>
-                  <EditorContent
-                    initialContent={initialContent}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    extensions={imageExtensions as any}
-                    className="editor-surface"
-                    immediatelyRender={false}
-                    editorProps={buildEditorProps(
-                      (file) => uploadImageAndGetUrl(file),
-                      (file) => void insertNonImageFile(file),
-                      'editor-main-prose',
-                    )}
-                    onCreate={({ editor }) => {
-                      editorRef.current = editor
+            <div className="relative">
+              {!draftReady ? (
+                <div className="editor-surface" />
+              ) : (
+                <EditorRoot>
+                  <div>
+                    <EditorContent
+                      initialContent={initialContent}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const st = editor.storage as any
-                      setCharCount(st.characterCount?.characters?.() ?? 0)
-                      if (initialData?.html) {
-                        skipNextEditorUpdateRef.current = true
-                        editor.commands.setContent(initialData.html)
-                      } else {
-                        skipNextEditorUpdateRef.current = false
-                      }
-
-                      if (initialData?.slug) {
-                        lastAutosaveSnapshotRef.current = buildAutosaveSnapshot({
-                          currentSlug: initialData.slug,
-                          nextSlug: initialData.slug,
-                          title: initialData.title || '无标题',
-                          html: initialData.html || '',
-                          description: (initialData.description || '').trim(),
-                          category: initialData.category || '未分类',
-                          tags: initialData.tags || [],
-                          coverImage: initialData.cover_image || '',
-                        })
-                      } else {
-                        lastAutosaveSnapshotRef.current = null
-                      }
-                    }}
-                    onUpdate={({ editor }) => {
-                      editorRef.current = editor
-
-                      if (skipNextEditorUpdateRef.current) {
-                        skipNextEditorUpdateRef.current = false
+                      extensions={imageExtensions as any}
+                      className="editor-surface"
+                      immediatelyRender={false}
+                      editorProps={buildEditorProps(
+                        (file) => uploadImageAndGetUrl(file),
+                        (file) => void insertNonImageFile(file),
+                        'editor-main-prose',
+                      )}
+                      onCreate={({ editor }) => {
+                        editorRef.current = editor
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const st = editor.storage as any
                         setCharCount(st.characterCount?.characters?.() ?? 0)
-                        return
-                      }
+                        if (initialData?.html) {
+                          skipNextEditorUpdateRef.current = true
+                          editor.commands.setContent(initialData.html)
+                        } else {
+                          skipNextEditorUpdateRef.current = false
+                        }
 
-                      scheduleDraftSave(latestTitleRef.current, editor)
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const st = editor.storage as any
-                      setCharCount(st.characterCount?.characters?.() ?? 0)
-                    }}
-                  >
-                    <FormattingBubble />
-                    <SlashMenu />
-                  </EditorContent>
+                        if (initialData?.slug) {
+                          lastAutosaveSnapshotRef.current = buildAutosaveSnapshot({
+                            currentSlug: initialData.slug,
+                            nextSlug: initialData.slug,
+                            title: initialData.title || '无标题',
+                            html: initialData.html || '',
+                            description: (initialData.description || '').trim(),
+                            category: initialData.category || '未分类',
+                            tags: initialData.tags || [],
+                            coverImage: initialData.cover_image || '',
+                          })
+                        } else {
+                          lastAutosaveSnapshotRef.current = null
+                        }
+                      }}
+                      onUpdate={({ editor }) => {
+                        editorRef.current = editor
+
+                        if (skipNextEditorUpdateRef.current) {
+                          skipNextEditorUpdateRef.current = false
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          const st = editor.storage as any
+                          setCharCount(st.characterCount?.characters?.() ?? 0)
+                          return
+                        }
+
+                        scheduleDraftSave(latestTitleRef.current, editor)
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const st = editor.storage as any
+                        setCharCount(st.characterCount?.characters?.() ?? 0)
+                      }}
+                    >
+                      <FormattingBubble />
+                      <SlashMenu />
+                    </EditorContent>
+                  </div>
+                </EditorRoot>
+              )}
+
+              {charCount > 0 ? (
+                <div className="pointer-events-none absolute bottom-4 right-2 z-20 sm:bottom-5 sm:right-3">
+                  <span className="text-[11px] font-medium tabular-nums text-[color-mix(in_srgb,var(--ui-muted)_68%,transparent)] sm:text-xs">
+                    {charCount.toLocaleString()} 字
+                  </span>
                 </div>
-              </EditorRoot>
-            )}
+              ) : null}
+            </div>
           </div>
         </main>
         <EditorRightRail

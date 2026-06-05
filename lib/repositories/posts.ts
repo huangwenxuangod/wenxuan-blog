@@ -38,9 +38,9 @@ export async function getPosts(
 
   const { results } = await db
     .prepare(
-      `SELECT id, slug, title, description, category, tags, status, password, is_pinned, is_hidden, published_at, view_count
+      `SELECT id, slug, title, description, category, tags, status, password, is_pinned, is_hidden, published_at, updated_at, view_count
        , deleted_at
-       FROM posts
+        FROM posts
        ${where}
        ORDER BY is_pinned DESC, published_at DESC
        LIMIT ? OFFSET ?`,
@@ -402,8 +402,8 @@ export async function getPostsByCategory(
 ): Promise<PostWithTags[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, slug, title, description, category, tags, status, password, is_pinned, is_hidden, deleted_at, published_at, view_count
-       FROM posts
+      `SELECT id, slug, title, description, category, tags, status, password, is_pinned, is_hidden, deleted_at, published_at, updated_at, view_count
+        FROM posts
        WHERE category = ?
          AND status = 'published'
          AND password IS NULL

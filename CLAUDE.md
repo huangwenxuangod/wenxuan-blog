@@ -1,28 +1,97 @@
-# CLAUDE.md - Claude 专属开发规约
+# CLAUDE.md - Claude 执行摘要
 
-> **重要提示**：本项目的核心智能体开发指南、架构演进与美学规范已统一收录在 **[AGENTS.md](AGENTS.md)** 中。请在开始开发前优先阅读并严格遵守 **AGENTS.md** 中的规约。
-
----
-
-## 1. 常用开发指令
-
-- **启动开发环境**: `npm run dev`
-- **构建生产版本**: `npm run build`
-- **运行测试套件**: `npm run test` (交互式) / `npm run test:run` (单次运行)
-- **代码静态检查**: `npm run lint`
-- **快速验证链路**: `npm run verify:quick`
-- **完整验证链路**: `npm run verify`
-- **Cloudflare 资源初始化**: `npm run cf:init -- --site-url=https://your-domain.com`
-- **重新生成 Cloudflare 绑定类型**: `npm run cf-typegen`
-- **本地运行时预览**: `npm run preview`
-- **编译并部署 Workers**: `npm run deploy`
+本文件是给 Claude 类智能体的快速执行摘要。完整规范以 [AGENTS.md](AGENTS.md) 为准。
 
 ---
 
-## 2. 编码与设计核心准则
+## 1. 必须先遵守的事
 
-1. **美学规范**：严格遵循 Claude 极简美学（详见 `DESIGN.md` 与 `AGENTS.md`）。使用温暖的羊皮纸背景色（`#f5f4ed`），严禁使用冷色调蓝灰（如 Tailwind 的 `gray-`、`slate-`、`zinc-` 等）。
-2. **交互规范**：下拉菜单、浮层、模态弹窗等交互组件**必须**使用 `@headlessui/react`，严禁手写不带无障碍、焦点捕获和键盘导航的自定义 DOM 交互。**所有交互元素（如 `button`、`select`、下拉框选项、模拟按钮等）在 Hover 时必须将 `cursor` 改为 `pointer`**（已在 `app/globals.css` 中全局配置，开发时应确保其符合语义，禁用状态自动切换为 `not-allowed`）。
-3. **样式提炼**：优先复用 `app/globals.css` 中的标准化样式类（如 `.editor-ghost-input`、`.editor-quiet-icon-button`、`.ui-control`、`.ui-popover` 等），拼接类名时使用 `components/ui/primitives.ts` 导出的 `cx` 工具函数。
-4. **类型安全**：严格使用 TypeScript。修改 Cloudflare 绑定后务必运行 `npm run cf-typegen` 更新 `worker-configuration.d.ts`。
-5. **测试保障**：任何核心库或 API 端点的修改，都必须运行 `npm run test:run` 确保全套测试用例 100% 通过。
+1. 涉及 UI、交互、编辑器、后台样式时，先读 `AGENTS.md`
+2. 不要手写复杂交互 DOM，优先使用 `@headlessui/react`
+3. 不要绕开现有组件库，优先使用：
+   - `UiButton`
+   - `UiIconButton`
+   - `UiInput`
+   - `UiTextarea`
+   - `UiPanel`
+   - `SelectDropdown`
+   - `Dropdown`
+   - `Toast`
+
+---
+
+## 2. 组件语义强制规则
+
+### 输入框
+
+只有当用户可以输入自由文本时，才能使用输入框外观。
+
+### 下拉框
+
+只要是从固定选项中选择，就必须使用真正的下拉框。
+
+必须满足：
+
+- 关闭态不可看起来像可编辑输入框
+- 关闭态必须是触发器语义
+- 展开后再显示选项列表
+
+### 可搜索选择器
+
+本质仍然是下拉框。
+
+规则：
+
+- 关闭态看起来仍然是下拉框
+- 搜索输入只能出现在展开后的面板里
+- 不能把关闭态直接做成 `ComboboxInput` 外观
+
+---
+
+## 3. 视觉语言强制规则
+
+本项目的风格是：
+
+- 极简
+- 克制
+- 温暖
+- 低噪音
+- 强一致性
+
+禁止：
+
+- 冷灰默认 Tailwind 风
+- 过度卡片化
+- 无意义提示文案
+- 同页多套按钮或弹窗风格
+- 下拉框做成输入框
+
+---
+
+## 4. 推荐工作流
+
+1. 先判断控件语义
+2. 查现有 primitives 是否已覆盖
+3. 若缺失，先补组件层
+4. 再接业务页面
+5. 跑 `npm run lint`
+6. 跑 `npm run build`
+
+---
+
+## 5. 常用命令
+
+- `npm run dev`
+- `npm run build`
+- `npm run lint`
+- `npm run test:run`
+- `npm run verify:quick`
+- `npm run verify`
+- `npm run preview`
+- `npm run deploy`
+
+---
+
+## 6. 一句话标准
+
+如果一个控件的外观和它真实语义不一致，这个实现就是错的。

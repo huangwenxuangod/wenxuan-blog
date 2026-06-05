@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { generatePassword } from '@/lib/password'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface EncryptionControlProps {
   initialPassword: string | null
@@ -52,44 +53,48 @@ export function EncryptionControl({ initialPassword, onChange, articleUrl }: Enc
     : articleUrl || ''
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={handleToggle}
-        className={`p-2 rounded-md transition-colors ${
-          isEncrypted
-            ? 'bg-[var(--editor-accent)] text-white'
-            : 'bg-[var(--editor-soft)] text-[var(--editor-muted)] hover:bg-[var(--editor-line)]'
-        }`}
-        title={isEncrypted ? '已加密' : '加密文章'}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {isEncrypted ? (
-            <>
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </>
-          ) : (
-            <>
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-            </>
-          )}
-        </svg>
-      </button>
-
-      {isEncrypted && (
+    <div className="relative flex items-center">
+      <Tooltip content={isEncrypted ? '已加密' : '加密文章'}>
         <button
           type="button"
-          onClick={() => setShowPanel(!showPanel)}
-          className="ml-1 p-2 rounded-md bg-[var(--editor-soft)] text-[var(--editor-muted)] hover:bg-[var(--editor-line)] transition-colors"
-          title="查看密码"
+          onClick={handleToggle}
+          className={`p-2 rounded-md transition-colors ${
+            isEncrypted
+              ? 'bg-[var(--editor-accent)] text-white'
+              : 'bg-[var(--editor-soft)] text-[var(--editor-muted)] hover:bg-[var(--editor-line)]'
+          }`}
+          aria-label={isEncrypted ? '已加密' : '加密文章'}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
+            {isEncrypted ? (
+              <>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </>
+            ) : (
+              <>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+              </>
+            )}
           </svg>
         </button>
+      </Tooltip>
+
+      {isEncrypted && (
+        <Tooltip content="查看密码">
+          <button
+            type="button"
+            onClick={() => setShowPanel(!showPanel)}
+            className="ml-1 p-2 rounded-md bg-[var(--editor-soft)] text-[var(--editor-muted)] hover:bg-[var(--editor-line)] transition-colors"
+            aria-label="查看密码"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </Tooltip>
       )}
 
       {showPanel && isEncrypted && (

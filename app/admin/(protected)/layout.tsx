@@ -7,6 +7,7 @@ import { PenLine, ExternalLink } from 'lucide-react'
 import { AdminFooter } from '@/components/AdminFooter'
 import { AdminThemeToggle } from '@/components/AdminThemeToggle'
 import { BackofficeThemeScope } from '@/components/BackofficeThemeScope'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 export default async function AdminProtectedLayout({
   children,
@@ -52,13 +53,15 @@ export default async function AdminProtectedLayout({
               <PenLine className="w-4 h-4" />
               <span className="hidden md:inline">写文章</span>
             </Link>
-            <Link
-              href="/"
-              className={`${navCls} hidden md:inline-flex items-center gap-1`}
-              title="查看博客"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </Link>
+            <Tooltip content="查看博客">
+              <Link
+                href="/"
+                className={`${navCls} hidden md:inline-flex items-center gap-1`}
+                aria-label="查看博客"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Link>
+            </Tooltip>
             <LogoutButton />
           </nav>
         </div>

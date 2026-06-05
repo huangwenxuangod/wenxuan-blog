@@ -77,6 +77,7 @@ import {
 } from './editor-events'
 import { shouldShowEditorBubble } from './editor-bubble'
 import { createDefaultTableContent, hasMarkdownTable, normalizeUrl } from './editor-utils'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 const md = markdownit({ html: true })
 
@@ -100,20 +101,21 @@ function BubbleIconButton({
   onClick: () => void
 }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      className={`inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-medium transition ${
-        active
-          ? 'bg-[var(--editor-accent)] text-[var(--editor-accent-ink)]'
-          : 'text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]'
-      }`}
-    >
-      {children}
-    </button>
+    <Tooltip content={label}>
+      <button
+        type="button"
+        aria-label={label}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onClick}
+        className={`inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-medium transition ${
+          active
+            ? 'bg-[var(--editor-accent)] text-[var(--editor-accent-ink)]'
+            : 'text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]'
+        }`}
+      >
+        {children}
+      </button>
+    </Tooltip>
   )
 }
 

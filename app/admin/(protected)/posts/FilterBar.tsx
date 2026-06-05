@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Dropdown } from '@/components/Dropdown'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface FilterBarProps {
   currentStatus?: string
@@ -116,17 +117,19 @@ export function FilterBar({
                 <path d="m21 21-4.35-4.35"></path>
               </svg>
               {query && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--stone-gray)] transition-colors hover:text-[var(--editor-ink)]"
-                  title="清除搜索"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
+                <Tooltip content="清除搜索">
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--stone-gray)] transition-colors hover:text-[var(--editor-ink)]"
+                    aria-label="清除搜索"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </Tooltip>
               )}
             </div>
           </form>

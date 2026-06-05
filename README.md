@@ -35,6 +35,69 @@
 - 默认初始化配置：主题、导航、字体、AI 文本模型模板、AI 生图模型模板
 - Cloudflare Workers + D1 + R2 部署，不需要自己维护服务器和 CDN
 
+## 前端实现约定
+
+为了避免后台和编辑器出现语义错误或风格漂移，项目对组件和交互有明确约定。
+
+完整协作规范见：
+
+- `AGENTS.md`
+- `CLAUDE.md`
+
+### 组件分层
+
+- `components/ui/primitives.ts`
+  - `UiButton`
+  - `UiIconButton`
+  - `UiInput`
+  - `UiTextarea`
+  - `UiPanel`
+  - `cx`
+- `components/SelectDropdown.tsx`
+  - 统一的真实下拉选择器
+- `components/Dropdown.tsx`
+  - 历史兼容入口，当前内部已统一走 `SelectDropdown`
+- `components/Toast.tsx`
+  - 全局顶部提示
+
+### 交互语义定义
+
+- 自由文本输入：必须使用输入框
+- 固定候选项选择：必须使用真正的下拉框
+- 可搜索选择器：本质仍然是下拉框，搜索框只能出现在展开后的面板中
+
+这意味着：
+
+- “图片比例”“分辨率”“发布状态”“分类”“主题” 都应该是下拉框
+- 不能把关闭态做成一个像输入框的 `ComboboxInput`
+- 不能用手写 DOM 菜单替代 Headless UI 交互骨架
+
+### Headless UI 约定
+
+复杂交互默认使用 `@headlessui/react`：
+
+- `Dialog`：模态弹窗
+- `Listbox`：真实下拉选择器
+- `Menu`：菜单
+- `Transition`：过渡动画
+
+### 视觉约定
+
+本项目的后台与编辑器遵循同一套极简语言：
+
+- 克制
+- 温暖
+- 低噪音
+- 低卡片感
+- 强一致性
+
+不鼓励：
+
+- 默认 Tailwind 灰阶 SaaS 风
+- 关闭态像输入框的伪下拉
+- 同页混用多套按钮、弹窗、下拉风格
+- 通过冗余说明文字制造层级
+
 ## 截图预览
 
 ### 四套首页主题

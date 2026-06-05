@@ -10,6 +10,7 @@ interface EditorTocRailProps {
   open: boolean
   editor: EditorInstance | null
   documentJson: JSONContent | null
+  scrollContainer: HTMLElement | null
 }
 
 const TOC_EXPANDED_KEY = 'qmblog:toc-expanded'
@@ -49,6 +50,13 @@ function findAncestorIds(items: EditorTocItem[], targetIndex: number, parents: s
   }
 
   return null
+}
+
+function getIndentClass(level: number) {
+  if (level <= 1) return ''
+  if (level === 2) return 'ml-4 pl-1'
+  if (level === 3) return 'ml-7 pl-1'
+  return 'ml-10 pl-1'
 }
 
 function TocNode({
@@ -121,7 +129,7 @@ function TocNode({
       </div>
 
       {hasChildren && isExpanded ? (
-        <div className="ml-4.5 pl-1">
+        <div className={getIndentClass(item.level + 1)}>
           {item.children.map((child) => (
             <TocNode
               key={child.id}
@@ -142,6 +150,7 @@ export function EditorTocRail({
   open,
   editor,
   documentJson,
+  scrollContainer,
 }: EditorTocRailProps) {
   const tocTree = useMemo(() => buildEditorToc(documentJson), [documentJson])
   const tocItems = useMemo(() => flattenEditorToc(tocTree), [tocTree])
@@ -220,16 +229,17 @@ export function EditorTocRail({
     updateActiveIndex()
     editor.on('selectionUpdate', updateActiveIndex)
     editor.on('update', updateActiveIndex)
-    window.addEventListener('scroll', updateActiveIndex, { passive: true })
+    const currentScrollContainer = scrollContainer
+    currentScrollContainer?.addEventListener('scroll', updateActiveIndex, { passive: true })
     window.addEventListener('resize', updateActiveIndex)
 
     return () => {
       editor.off('selectionUpdate', updateActiveIndex)
       editor.off('update', updateActiveIndex)
-      window.removeEventListener('scroll', updateActiveIndex)
+      currentScrollContainer?.removeEventListener('scroll', updateActiveIndex)
       window.removeEventListener('resize', updateActiveIndex)
     }
-  }, [editor, open, tocItems])
+  }, [editor, open, scrollContainer, tocItems])
 
   const handleToggle = (id: string) => {
     setManualExpandedIds((current) => {
@@ -260,17 +270,15 @@ export function EditorTocRail({
 
   return (
     <aside
-      className={`shrink-0 overflow-hidden transition-[width,opacity] duration-200 ease-out ${open ? 'opacity-100' : 'opacity-0'}`}
+      className={`absolute left-0 top-0 z-30 overflow-hidden transition-[width,opacity] duration-200 ease-out ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       style={{
-        width: open ? 224 : 0,
-        position: 'sticky',
-        top: '3.5rem',
-        height: 'calc(100vh - 3.5rem)',
+        width: open ? 272 : 0,
+        height: '100%',
       }}
     >
       {open ? (
-        <div className="flex h-full min-h-0 flex-col border-r border-[color-mix(in_srgb,var(--ui-line)_72%,transparent)] bg-transparent px-3 py-4">
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="flex h-full min-h-0 flex-col bg-transparent px-4 py-4">
+          <div className="editor-scroll-shell min-h-0 flex-1 overflow-y-auto pr-2">
             {tocTree.length === 0 ? null : (
               <div className="space-y-0.5">
                 {tocTree.map((item) => (

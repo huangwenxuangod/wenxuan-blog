@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
 import { Modal } from '@/components/Modal'
 import { EyeOff, Eye } from 'lucide-react'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface HiddenToggleProps {
   slug: string
@@ -46,26 +47,28 @@ export function HiddenToggle({ slug, isHidden }: HiddenToggleProps) {
 
   return (
     <>
-      <button
-        onClick={() => setShowModal(true)}
-        disabled={loading}
-        className={`p-1.5 rounded transition-colors disabled:opacity-50 ${
-          hidden === 1
-            ? 'text-[var(--stone-gray)] hover:bg-[var(--editor-soft)]'
-            : 'text-[var(--stone-gray)] hover:bg-[var(--editor-soft)]'
-        }`}
-        title={hidden === 1 ? '取消隐藏' : '隐藏文章'}
-      >
-        {loading ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-        ) : hidden === 1 ? (
-          <EyeOff className="w-4 h-4" />
-        ) : (
-          <Eye className="w-4 h-4" />
-        )}
-      </button>
+      <Tooltip content={hidden === 1 ? '取消隐藏' : '隐藏文章'}>
+        <button
+          onClick={() => setShowModal(true)}
+          disabled={loading}
+          className={`p-1.5 rounded transition-colors disabled:opacity-50 ${
+            hidden === 1
+              ? 'text-[var(--stone-gray)] hover:bg-[var(--editor-soft)]'
+              : 'text-[var(--stone-gray)] hover:bg-[var(--editor-soft)]'
+          }`}
+          aria-label={hidden === 1 ? '取消隐藏' : '隐藏文章'}
+        >
+          {loading ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          ) : hidden === 1 ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
+        </button>
+      </Tooltip>
 
       <Modal
         isOpen={showModal}

@@ -1,6 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element */
 
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
@@ -12,8 +13,15 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
-import { Dropdown } from '@/components/Dropdown'
+import { SelectDropdown } from '@/components/SelectDropdown'
 import { useToast } from '@/components/Toast'
+import {
+  UiButton,
+  UiIconButton,
+  UiPanel,
+  UiTextarea,
+  cx,
+} from '@/components/ui/primitives'
 import {
   appendStoredHistoryItem,
   LOCAL_HISTORY_UPDATED_EVENT,
@@ -72,7 +80,7 @@ interface ImageHistoryItem {
 
 const MAX_HISTORY_ITEMS = 12
 const DEFAULT_HISTORY_SCOPE = 'default'
-const TEMPLATE_COLLAPSED_HEIGHT = 84
+const TEMPLATE_COLLAPSED_HEIGHT = 42
 
 function createHistoryStorageKey(scope: string) {
   return `qmblog:ai-image-history:${scope || DEFAULT_HISTORY_SCOPE}`
@@ -127,7 +135,6 @@ export function ImageGenerationModal({
   const [selectedResolution, setSelectedResolution] = useState<AIImageResolution>('2k')
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null)
   const [prompt, setPrompt] = useState('')
-  const [error, setError] = useState('')
   const [result, setResult] = useState<GeneratedImageResult | null>(null)
   const [showContext, setShowContext] = useState(false)
   const [showRevisedPrompt, setShowRevisedPrompt] = useState(false)
@@ -149,13 +156,8 @@ export function ImageGenerationModal({
     [actions, selectedAction],
   )
 
-  const contextPreview = useMemo(() => {
-    return contextText.trim().slice(0, 240)
-  }, [contextText])
-
-  const contextCharCount = useMemo(() => {
-    return Array.from(contextText.trim()).length
-  }, [contextText])
+  const contextPreview = useMemo(() => contextText.trim().slice(0, 240), [contextText])
+  const contextCharCount = useMemo(() => Array.from(contextText.trim()).length, [contextText])
 
   const modelOptions = useMemo(() => {
     return profiles.map((profile) => ({
@@ -165,6 +167,20 @@ export function ImageGenerationModal({
       searchText: `${profile.name} ${profile.model}`,
     }))
   }, [profiles])
+
+  const aspectRatioOptions = useMemo(() => {
+    return AI_IMAGE_ASPECT_RATIO_OPTIONS.map((option) => ({
+      value: option.value,
+      label: option.label,
+    }))
+  }, [])
+
+  const resolutionOptions = useMemo(() => {
+    return AI_IMAGE_RESOLUTION_OPTIONS.map((option) => ({
+      value: option.value,
+      label: option.label,
+    }))
+  }, [])
 
   const canGenerate = Boolean(prompt.trim() || contextText.trim())
 
@@ -271,7 +287,6 @@ export function ImageGenerationModal({
     if (!open) return
 
     const frame = window.requestAnimationFrame(() => {
-      setError('')
       setResult(null)
       setShowContext(false)
       setShowRevisedPrompt(false)
@@ -294,23 +309,17 @@ export function ImageGenerationModal({
   useEffect(() => {
     if (!open) return
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-
     const previousOverflow = document.body.style.overflow
     const previousOverscroll = document.body.style.overscrollBehavior
 
     document.body.style.overflow = 'hidden'
     document.body.style.overscrollBehavior = 'none'
-    document.addEventListener('keydown', handleKeyDown)
 
     return () => {
       document.body.style.overflow = previousOverflow
       document.body.style.overscrollBehavior = previousOverscroll
-      document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [open, onClose])
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -369,7 +378,6 @@ export function ImageGenerationModal({
   const handleGenerate = useCallback(async () => {
     if (!canGenerate || generating) return
 
-    setError('')
     setResult(null)
     setShowRevisedPrompt(false)
     setHistoryOpen(false)
@@ -393,7 +401,7 @@ export function ImageGenerationModal({
         },
         onError: (message) => {
           if (!closeOnGenerate) {
-            setError(message)
+            toast.error(message)
           }
         },
         onSettled: () => {
@@ -409,7 +417,7 @@ export function ImageGenerationModal({
       storeHistoryItem(image)
       setResult(image)
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : '图片生成失败')
+      toast.error(nextError instanceof Error ? nextError.message : '图片生成失败')
     } finally {
       setGenerating(false)
     }
@@ -418,377 +426,424 @@ export function ImageGenerationModal({
   if (!open) return null
 
   return (
-    <div
-      className="fixed inset-0 z-[70] bg-black/45 px-3 py-3 sm:px-4 sm:py-4"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <div className="flex min-h-full items-center justify-center">
-        <div className="flex w-full max-w-5xl max-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-[var(--editor-line)] bg-[var(--editor-panel)] shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-          <div className="flex items-start justify-between gap-4 border-b border-[var(--editor-line)] px-5 py-4">
-            <div className="min-w-0">
-              <div className="text-base font-semibold text-[var(--editor-ink)]">生成图片</div>
+    <Dialog open={open} onClose={generating ? () => {} : onClose} className="relative z-[70]">
+      <DialogBackdrop className="fixed inset-0 bg-black/45 transition duration-200 data-[closed]:opacity-0" />
+
+      <div className="fixed inset-0 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
+        <div className="flex min-h-full items-center justify-center">
+          <DialogPanel className="ui-modal-panel flex max-h-[calc(100vh-1.5rem)] w-full max-w-[1180px] flex-col overflow-hidden rounded-[2rem] transition duration-200 data-[closed]:scale-[0.985] data-[closed]:opacity-0">
+            <div className="flex items-center justify-between gap-4 border-b border-[var(--ui-line)] px-5 py-4 sm:px-6">
+              <DialogTitle as="h2" className="text-[15px] font-medium text-[var(--ui-ink)]">
+                生成图片
+              </DialogTitle>
+              <UiIconButton
+                onClick={onClose}
+                tone="quiet"
+                size="md"
+                aria-label="关闭"
+                className="text-[var(--ui-muted)]"
+              >
+                <X className="h-4 w-4" />
+              </UiIconButton>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--editor-muted)] transition hover:bg-[var(--editor-soft)] hover:text-[var(--editor-ink)]"
-              aria-label="关闭"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
 
-          <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-            <div className="min-h-0 border-b border-[var(--editor-line)] lg:border-b-0 lg:border-r">
-              <div className="flex h-full min-h-0 flex-col">
-                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium text-[var(--editor-muted)]">画面描述</div>
-                    <div className="relative">
-                      <div className="pointer-events-none absolute left-3 top-3">
-                        <Sparkles className="h-4 w-4 text-[var(--editor-accent)]" />
+            <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,0.96fr)_minmax(360px,1.04fr)]">
+              <div className="min-h-0 border-b border-[var(--ui-line)] lg:border-b-0 lg:border-r">
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="modal-scrollbar-none min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+                    <section className="space-y-2.5">
+                      <div className="text-[11px] font-medium tracking-[0.02em] text-[var(--ui-muted)]">
+                        画面描述
                       </div>
-                      <textarea
-                        ref={promptRef}
-                        rows={3}
-                        value={prompt}
-                        onChange={(event) => setPrompt(event.target.value)}
-                        placeholder="例如：一个在暴雨里抬头看霓虹灯牌的孤独程序员，Mondo 风格，但不要在图里放文字"
-                        className="w-full rounded-2xl border border-[var(--editor-line)] bg-white px-3 py-3 pl-10 text-sm leading-6 text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)] focus:ring-1 focus:ring-[var(--editor-accent)]"
-                      />
-                    </div>
-                  </div>
-
-                  {referenceImageUrl ? (
-                    <div className="space-y-2">
-                      <div className="text-xs font-medium text-[var(--editor-muted)]">参考图片</div>
-                      <div className="overflow-hidden rounded-2xl border border-[var(--editor-line)] bg-white">
-                        <img
-                          src={referenceImageUrl}
-                          alt="参考图片"
-                          className="aspect-[4/3] w-full object-cover"
+                      <UiPanel className="relative rounded-[1.35rem] px-4 py-3.5">
+                        <Sparkles className="pointer-events-none absolute left-4 top-4 h-4 w-4 text-[var(--ui-accent)]" />
+                        <UiTextarea
+                          ref={promptRef}
+                          rows={3}
+                          variant="composer"
+                          value={prompt}
+                          onChange={(event) => setPrompt(event.target.value)}
+                          placeholder="例如：一个在暴雨里抬头看霓虹灯牌的孤独程序员，Mondo 风格，但不要在图里放文字"
+                          className="min-h-[5.75rem] pl-7 pr-0 text-sm leading-6"
                         />
-                      </div>
-                    </div>
-                  ) : null}
+                      </UiPanel>
+                    </section>
 
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium text-[var(--editor-muted)]">快捷模板</div>
-                    <div
-                      ref={templatesRef}
-                      className={`flex flex-wrap gap-2 overflow-hidden pb-1 ${templatesExpanded ? '' : 'max-h-[84px]'}`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setSelectedAction('custom')}
-                        className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${
-                          selectedAction === 'custom'
-                            ? 'border-[var(--editor-accent)] bg-[var(--editor-accent)]/10 text-[var(--editor-accent)]'
-                            : 'border-[var(--editor-line)] text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]'
-                        }`}
+                    {referenceImageUrl ? (
+                      <section className="space-y-2.5">
+                        <div className="text-[11px] font-medium tracking-[0.02em] text-[var(--ui-muted)]">
+                          参考图片
+                        </div>
+                        <UiPanel className="overflow-hidden rounded-[1.35rem] p-0">
+                          <img
+                            src={referenceImageUrl}
+                            alt="参考图片"
+                            className="aspect-[4/3] w-full object-cover"
+                          />
+                        </UiPanel>
+                      </section>
+                    ) : null}
+
+                    <section className="space-y-2.5">
+                      <div className="text-[11px] font-medium tracking-[0.02em] text-[var(--ui-muted)]">
+                        快捷模板
+                      </div>
+                      <div
+                        ref={templatesRef}
+                        className={cx(
+                          'flex flex-wrap gap-2 overflow-hidden',
+                          !templatesExpanded && 'max-h-[42px]',
+                        )}
                       >
-                        自定义
-                      </button>
-                      {actions.map((action) => (
-                        <button
-                          key={action.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedAction(action.action_key)
-                            setSelectedAspectRatio(action.aspect_ratio || 'auto')
-                            setSelectedResolution(action.resolution || '2k')
-                          }}
-                          className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${
-                            selectedAction === action.action_key
-                              ? 'border-[var(--editor-accent)] bg-[var(--editor-accent)]/10 text-[var(--editor-accent)]'
-                              : 'border-[var(--editor-line)] text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]'
-                          }`}
+                        <UiButton
+                          tone={selectedAction === 'custom' ? 'soft' : 'quiet'}
+                          size="sm"
+                          onClick={() => setSelectedAction('custom')}
+                          className={cx(
+                            'rounded-full border px-3',
+                            selectedAction === 'custom'
+                              ? 'border-[color-mix(in_srgb,var(--ui-accent)_38%,var(--ui-line))] text-[var(--ui-accent)]'
+                              : 'border-[color-mix(in_srgb,var(--ui-line)_88%,transparent)] text-[var(--ui-ink)]',
+                          )}
                         >
-                          {action.label}
-                        </button>
-                      ))}
-                    </div>
-                    {templatesOverflowing ? (
-                      <button
-                        type="button"
-                        onClick={() => setTemplatesExpanded((value) => !value)}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-[var(--editor-muted)] transition hover:text-[var(--editor-ink)]"
-                      >
-                        {templatesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        {templatesExpanded ? '收起模板' : '展开模板'}
-                      </button>
+                          自定义
+                        </UiButton>
+                        {actions.map((action) => (
+                          <UiButton
+                            key={action.id}
+                            tone={selectedAction === action.action_key ? 'soft' : 'quiet'}
+                            size="sm"
+                            onClick={() => {
+                              setSelectedAction(action.action_key)
+                              setSelectedAspectRatio(action.aspect_ratio || 'auto')
+                              setSelectedResolution(action.resolution || '2k')
+                            }}
+                            className={cx(
+                              'rounded-full border px-3',
+                              selectedAction === action.action_key
+                                ? 'border-[color-mix(in_srgb,var(--ui-accent)_38%,var(--ui-line))] text-[var(--ui-accent)]'
+                                : 'border-[color-mix(in_srgb,var(--ui-line)_88%,transparent)] text-[var(--ui-ink)]',
+                            )}
+                          >
+                            {action.label}
+                          </UiButton>
+                        ))}
+                      </div>
+                      {templatesOverflowing ? (
+                        <UiButton
+                          tone="quiet"
+                          size="sm"
+                          onClick={() => setTemplatesExpanded((value) => !value)}
+                          className="h-7 gap-1 px-0 text-[11px] text-[var(--ui-muted)]"
+                        >
+                          {templatesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          {templatesExpanded ? '收起' : '展开'}
+                        </UiButton>
+                      ) : null}
+                    </section>
+
+                    <section className="space-y-3 border-t border-[color-mix(in_srgb,var(--ui-line)_72%,transparent)] pt-4">
+                      <div className="text-[11px] font-medium tracking-[0.02em] text-[var(--ui-muted)]">
+                        生成设置
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <div className="text-[11px] text-[var(--ui-muted)]">图片比例</div>
+                          <SelectDropdown
+                            options={aspectRatioOptions}
+                            value={selectedAspectRatio}
+                            onChange={(value) => setSelectedAspectRatio(value as AIImageAspectRatio)}
+                            placeholder="选择比例"
+                            menuPlacement="top"
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="text-[11px] text-[var(--ui-muted)]">分辨率</div>
+                          <SelectDropdown
+                            options={resolutionOptions}
+                            value={selectedResolution}
+                            onChange={(value) => setSelectedResolution(value as AIImageResolution)}
+                            placeholder="选择分辨率"
+                            menuPlacement="top"
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="text-[11px] text-[var(--ui-muted)]">模型</div>
+                          <SelectDropdown
+                            options={modelOptions}
+                            value={selectedProfileId ? String(selectedProfileId) : ''}
+                            onChange={(value) => {
+                              setSelectedProfileId(value ? Number(value) : null)
+                            }}
+                            placeholder="搜索并选择图片模型"
+                            menuPlacement="top"
+                            className="w-full"
+                            searchable
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    {allowReplace ? (
+                      <section className="space-y-2.5">
+                        <div className="text-[11px] font-medium tracking-[0.02em] text-[var(--ui-muted)]">
+                          生成后动作
+                        </div>
+                        <UiPanel inset="soft" className="grid grid-cols-2 gap-1 rounded-[1.1rem] p-1">
+                          <UiButton
+                            tone={placementMode === 'replace' ? 'soft' : 'quiet'}
+                            size="md"
+                            fullWidth
+                            onClick={() => setPlacementMode('replace')}
+                            className={cx(
+                              'rounded-[0.9rem]',
+                              placementMode === 'replace' && 'text-[var(--ui-ink)]',
+                            )}
+                          >
+                            替换当前图
+                          </UiButton>
+                          <UiButton
+                            tone={placementMode === 'insert' ? 'soft' : 'quiet'}
+                            size="md"
+                            fullWidth
+                            onClick={() => setPlacementMode('insert')}
+                            className={cx(
+                              'rounded-[0.9rem]',
+                              placementMode === 'insert' && 'text-[var(--ui-ink)]',
+                            )}
+                          >
+                            插入新图
+                          </UiButton>
+                        </UiPanel>
+                      </section>
+                    ) : null}
+
+                    {contextPreview ? (
+                      <section className="space-y-2.5">
+                        <UiButton
+                          tone="quiet"
+                          fullWidth
+                          onClick={() => setShowContext((value) => !value)}
+                          className="h-auto justify-between rounded-[1.2rem] border border-[color-mix(in_srgb,var(--ui-line)_88%,transparent)] px-4 py-3 text-left"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-[11px] font-medium tracking-[0.02em] text-[var(--ui-muted)]">
+                                选中文本
+                              </div>
+                              <div className="shrink-0 text-[11px] text-[var(--ui-muted)]">
+                                {contextCharCount} 字
+                              </div>
+                            </div>
+                            <div className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--ui-ink)]">
+                              {contextPreview}
+                            </div>
+                          </div>
+                          {showContext ? (
+                            <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ui-muted)]" />
+                          ) : (
+                            <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ui-muted)]" />
+                          )}
+                        </UiButton>
+                        {showContext ? (
+                          <UiPanel inset="soft" className="rounded-[1.2rem] px-4 py-3">
+                            <pre className="whitespace-pre-wrap text-xs leading-6 text-[var(--ui-ink)]">
+                              {contextPreview}
+                            </pre>
+                          </UiPanel>
+                        ) : null}
+                      </section>
                     ) : null}
                   </div>
 
-                  <div className="rounded-2xl border border-[var(--editor-line)] bg-[var(--editor-soft)]/60 p-4">
-                    <div className="mb-3 text-xs font-medium text-[var(--editor-muted)]">生成设置</div>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-[var(--editor-muted)]">图片比例</label>
-                        <select
-                          value={selectedAspectRatio}
-                          onChange={(event) => setSelectedAspectRatio(event.target.value as AIImageAspectRatio)}
-                          className="w-full rounded-xl border border-[var(--editor-line)] bg-white px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
-                        >
-                          {AI_IMAGE_ASPECT_RATIO_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-[var(--editor-muted)]">分辨率</label>
-                        <select
-                          value={selectedResolution}
-                          onChange={(event) => setSelectedResolution(event.target.value as AIImageResolution)}
-                          className="w-full rounded-xl border border-[var(--editor-line)] bg-white px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
-                        >
-                          {AI_IMAGE_RESOLUTION_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-[var(--editor-muted)]">模型</label>
-                        <Dropdown
-                          options={modelOptions}
-                          value={selectedProfileId ? String(selectedProfileId) : ''}
-                          onChange={(value) => {
-                            setSelectedProfileId(value ? Number(value) : null)
-                          }}
-                          placeholder="搜索并选择图片模型"
-                          menuPlacement="top"
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {allowReplace ? (
-                    <div className="space-y-2">
-                      <div className="text-xs font-medium text-[var(--editor-muted)]">生成后动作</div>
-                      <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[var(--editor-soft)] p-1">
-                        <button
-                          type="button"
-                          onClick={() => setPlacementMode('replace')}
-                          className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                            placementMode === 'replace'
-                              ? 'bg-white text-[var(--editor-ink)] shadow-sm'
-                              : 'text-[var(--editor-muted)] hover:text-[var(--editor-ink)]'
-                          }`}
-                        >
-                          替换当前图
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPlacementMode('insert')}
-                          className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                            placementMode === 'insert'
-                              ? 'bg-white text-[var(--editor-ink)] shadow-sm'
-                              : 'text-[var(--editor-muted)] hover:text-[var(--editor-ink)]'
-                          }`}
-                        >
-                          插入新图
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {contextPreview ? (
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowContext((value) => !value)}
-                        className="flex w-full items-start justify-between gap-3 rounded-2xl border border-[var(--editor-line)] bg-white px-4 py-3 text-left transition hover:bg-[var(--editor-soft)]/50"
+                  <div className="border-t border-[var(--ui-line)] px-5 py-4 sm:px-6">
+                    <div className="flex items-center justify-end gap-3">
+                      <UiButton
+                        tone="solid"
+                        size="md"
+                        onClick={() => void handleGenerate()}
+                        disabled={!canGenerate || generating}
+                        className="px-4"
                       >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-xs font-medium text-[var(--editor-muted)]">选中文本</div>
-                            <div className="shrink-0 text-[11px] text-[var(--editor-muted)]">{contextCharCount} 字</div>
-                          </div>
-                          <div className="mt-1 text-sm text-[var(--editor-ink)] line-clamp-2">
-                            {contextPreview}
-                          </div>
-                        </div>
-                        {showContext ? (
-                          <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-[var(--editor-muted)]" />
-                        ) : (
-                          <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--editor-muted)]" />
-                        )}
-                      </button>
-                      {showContext ? (
-                        <pre className="whitespace-pre-wrap rounded-2xl border border-[var(--editor-line)] bg-[var(--editor-soft)] px-4 py-3 text-xs leading-6 text-[var(--editor-ink)]">
-                          {contextPreview}
-                        </pre>
-                      ) : null}
+                        {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        {result ? '重新生成' : '开始生成'}
+                      </UiButton>
                     </div>
-                  ) : null}
-                </div>
-
-                <div className="border-t border-[var(--editor-line)] px-5 py-4">
-                  {error ? (
-                    <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                      {error}
-                    </div>
-                  ) : null}
-
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => void handleGenerate()}
-                      disabled={!canGenerate || generating}
-                      className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--editor-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      {result ? '重新生成' : '开始生成'}
-                    </button>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="min-h-0">
-              <div className="flex h-full min-h-0 flex-col">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--editor-line)] px-5 py-4">
-                  <div className="text-xs font-medium text-[var(--editor-muted)]">
-                    {historyOpen ? '最近生成' : '生成结果'}
+              <div className="min-h-0">
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="flex items-center justify-between gap-3 border-b border-[var(--ui-line)] px-5 py-4 sm:px-6">
+                    <div className="text-[11px] font-medium tracking-[0.02em] text-[var(--ui-muted)]">
+                      {historyOpen ? '最近生成' : '生成结果'}
+                    </div>
+                    {historyItems.length > 0 ? (
+                      <UiButton
+                        tone="quiet"
+                        size="sm"
+                        onClick={() => setHistoryOpen((value) => !value)}
+                        className="rounded-full border border-[var(--ui-line)] px-2.5 text-[11px] text-[var(--ui-ink)]"
+                      >
+                        <History className="h-3.5 w-3.5" />
+                        {historyOpen ? '返回结果' : '最近生成'}
+                      </UiButton>
+                    ) : null}
                   </div>
-                  {historyItems.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setHistoryOpen((value) => !value)}
-                      className="inline-flex items-center gap-1 rounded-full border border-[var(--editor-line)] px-2.5 py-1 text-xs text-[var(--editor-ink)] transition hover:bg-[var(--editor-soft)]"
-                    >
-                      <History className="h-3.5 w-3.5" />
-                      {historyOpen ? '返回结果' : '最近生成'}
-                    </button>
-                  ) : null}
-                </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-                  {historyOpen && historyItems.length > 0 ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {historyItems.map((item) => {
-                        const previewUrl = item.image.variants?.content || item.image.url
-                        return (
-                          <div key={item.id} className="overflow-hidden rounded-2xl border border-[var(--editor-line)] bg-white">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setResult(item.image)
-                                setHistoryOpen(false)
-                                setShowRevisedPrompt(false)
-                              }}
-                              className="block w-full"
+                  <div className="modal-scrollbar-none min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+                    {historyOpen && historyItems.length > 0 ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {historyItems.map((item) => {
+                          const previewUrl = item.image.variants?.content || item.image.url
+                          return (
+                            <UiPanel
+                              key={item.id}
+                              className="overflow-hidden rounded-[1.25rem] p-0"
                             >
-                              <img
-                                src={previewUrl}
-                                alt={item.image.alt}
-                                className="aspect-[4/3] w-full object-cover"
-                              />
-                            </button>
-                            <div className="space-y-2 px-3 py-3">
-                              <div className="line-clamp-2 text-sm font-medium text-[var(--editor-ink)]">
-                                {item.promptLabel}
+                              <UiButton
+                                tone="quiet"
+                                fullWidth
+                                onClick={() => {
+                                  setResult(item.image)
+                                  setHistoryOpen(false)
+                                  setShowRevisedPrompt(false)
+                                }}
+                                className="h-auto rounded-none p-0"
+                              >
+                                <img
+                                  src={previewUrl}
+                                  alt={item.image.alt}
+                                  className="aspect-[4/3] w-full object-cover"
+                                />
+                              </UiButton>
+                              <div className="space-y-2 px-3 py-3">
+                                <div className="line-clamp-2 text-sm font-medium leading-6 text-[var(--ui-ink)]">
+                                  {item.promptLabel}
+                                </div>
+                                <div className="text-[11px] leading-5 text-[var(--ui-muted)]">
+                                  {item.contextPreview || '来自最近生成'}
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[11px] text-[var(--ui-muted)]">
+                                    {formatHistoryTime(item.createdAt)}
+                                  </span>
+                                  <UiButton
+                                    tone="quiet"
+                                    size="sm"
+                                    onClick={() => onInsert(item.image.url, item.image.alt, placementMode)}
+                                    className="rounded-lg border border-[var(--ui-line)] px-2.5 text-[11px] text-[var(--ui-ink)]"
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                    {placementMode === 'replace' ? '替换' : '插入'}
+                                  </UiButton>
+                                </div>
                               </div>
-                              <div className="text-[11px] leading-5 text-[var(--editor-muted)]">
-                                {item.contextPreview || '来自最近生成'}
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] text-[var(--editor-muted)]">
-                                  {formatHistoryTime(item.createdAt)}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => onInsert(item.image.url, item.image.alt, placementMode)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--editor-line)] px-2.5 py-1.5 text-xs font-medium text-[var(--editor-ink)] transition hover:bg-[var(--editor-soft)]"
-                                >
-                                  <Check className="h-3.5 w-3.5" />
-                                  {placementMode === 'replace' ? '替换' : '插入'}
-                                </button>
-                              </div>
+                            </UiPanel>
+                          )
+                        })}
+                      </div>
+                    ) : generating ? (
+                      <UiPanel
+                        inset="soft"
+                        className="flex min-h-[320px] items-center justify-center rounded-[1.35rem] border-dashed text-sm text-[var(--ui-muted)]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          AI 正在生成图片…
+                        </div>
+                      </UiPanel>
+                    ) : result ? (
+                      <div className="flex h-full min-h-0 flex-col gap-4">
+                        <UiPanel className="overflow-hidden rounded-[1.35rem] p-0">
+                          <img
+                            src={result.variants?.content || result.url}
+                            alt={result.alt}
+                            className="h-auto w-full object-cover"
+                          />
+                        </UiPanel>
+
+                        <div className="space-y-3 border-t border-[color-mix(in_srgb,var(--ui-line)_72%,transparent)] pt-1">
+                          <div className="text-[11px] font-medium tracking-[0.02em] text-[var(--ui-muted)]">
+                            ALT
+                          </div>
+                          <div className="text-sm leading-6 text-[var(--ui-ink)]">
+                            {result.alt}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 text-[11px] text-[var(--ui-muted)]">
+                            <UiPanel className="rounded-full px-2.5 py-1">
+                              比例：{getAiImageAspectRatioLabel(result.aspectRatio)}
+                            </UiPanel>
+                            <UiPanel className="rounded-full px-2.5 py-1">
+                              分辨率：{getAiImageResolutionLabel(result.resolution)}
+                            </UiPanel>
+                            <UiPanel className="rounded-full px-2.5 py-1">
+                              模型：{`${result.profileName} · ${result.model}`}
+                            </UiPanel>
+                          </div>
+
+                          {result.revisedPrompt ? (
+                            <div className="space-y-2">
+                              <UiButton
+                                tone="quiet"
+                                size="sm"
+                                onClick={() => setShowRevisedPrompt((value) => !value)}
+                                className="h-7 gap-1 px-0 text-[11px] text-[var(--ui-muted)]"
+                              >
+                                {showRevisedPrompt ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                查看润色后的提示词
+                              </UiButton>
+                              {showRevisedPrompt ? (
+                                <UiPanel inset="soft" className="rounded-xl px-3 py-3">
+                                  <div className="whitespace-pre-wrap text-xs leading-6 text-[var(--ui-ink)]">
+                                    {result.revisedPrompt}
+                                  </div>
+                                </UiPanel>
+                              ) : null}
                             </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : generating ? (
-                    <div className="flex h-full min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-[var(--editor-line)] bg-[var(--editor-soft)] text-sm text-[var(--editor-muted)]">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        AI 正在生成图片…
-                      </div>
-                    </div>
-                  ) : result ? (
-                    <div className="flex h-full min-h-0 flex-col gap-4">
-                      <div className="overflow-hidden rounded-2xl border border-[var(--editor-line)] bg-white">
-                        <img
-                          src={result.variants?.content || result.url}
-                          alt={result.alt}
-                          className="h-auto w-full object-cover"
-                        />
-                      </div>
-
-                      <div className="rounded-2xl border border-[var(--editor-line)] bg-[var(--editor-soft)] px-4 py-4">
-                        <div className="text-xs font-medium text-[var(--editor-muted)]">ALT</div>
-                        <div className="mt-1 text-sm leading-6 text-[var(--editor-ink)]">{result.alt}</div>
-
-                        <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-[var(--editor-muted)]">
-                          <span className="rounded-full bg-white px-2.5 py-1">比例：{getAiImageAspectRatioLabel(result.aspectRatio)}</span>
-                          <span className="rounded-full bg-white px-2.5 py-1">分辨率：{getAiImageResolutionLabel(result.resolution)}</span>
-                          <span className="rounded-full bg-white px-2.5 py-1">模型：{`${result.profileName} · ${result.model}`}</span>
+                          ) : null}
                         </div>
 
-                        {result.revisedPrompt ? (
-                          <div className="mt-3">
-                            <button
-                              type="button"
-                              onClick={() => setShowRevisedPrompt((value) => !value)}
-                              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--editor-muted)] transition hover:text-[var(--editor-ink)]"
-                            >
-                              {showRevisedPrompt ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                              查看模型润色后的提示词
-                            </button>
-                            {showRevisedPrompt ? (
-                              <div className="mt-2 whitespace-pre-wrap rounded-xl border border-[var(--editor-line)] bg-white px-3 py-3 text-xs leading-6 text-[var(--editor-ink)]">
-                                {result.revisedPrompt}
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
+                        <div className="mt-auto flex justify-end gap-2">
+                          <UiButton
+                            tone="quiet"
+                            size="md"
+                            onClick={onClose}
+                            className="border border-[var(--ui-line)] px-4 text-[var(--ui-ink)]"
+                          >
+                            关闭
+                          </UiButton>
+                          <UiButton
+                            tone="solid"
+                            size="md"
+                            onClick={() => onInsert(result.url, result.alt, placementMode)}
+                            className="px-4"
+                          >
+                            {placementMode === 'replace' ? '替换当前图' : '插入正文'}
+                          </UiButton>
+                        </div>
                       </div>
-
-                      <div className="mt-auto flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={onClose}
-                          className="rounded-xl border border-[var(--editor-line)] px-4 py-2 text-sm text-[var(--editor-ink)] transition hover:bg-[var(--editor-soft)]"
-                        >
-                          关闭
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onInsert(result.url, result.alt, placementMode)}
-                          className="rounded-xl bg-[var(--editor-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105"
-                        >
-                          {placementMode === 'replace' ? '替换当前图' : '插入正文'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-[var(--editor-line)]/70 bg-white/35">
-                      <div className="flex flex-col items-center gap-3 text-[var(--editor-muted)] opacity-60">
-                        <ImageIcon className="h-11 w-11" />
-                      </div>
-                    </div>
-                  )}
+                    ) : (
+                      <UiPanel
+                        inset="soft"
+                        className="flex min-h-[320px] items-center justify-center rounded-[1.35rem] border-dashed"
+                      >
+                        <div className="flex flex-col items-center gap-3 text-[var(--ui-muted)] opacity-60">
+                          <ImageIcon className="h-11 w-11" />
+                        </div>
+                      </UiPanel>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </DialogPanel>
         </div>
       </div>
-    </div>
+    </Dialog>
   )
 }
