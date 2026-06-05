@@ -1,9 +1,9 @@
 import type { NextRequest } from 'next/server'
 import { ensureAuthenticatedRequest, getRouteEnvWithDb, jsonError, jsonOk, parseJsonBody } from '@/lib/server/route-helpers'
-import { assertWechatBridgeReady, fetchWechatBridgeJson, getWechatBridgeConfig } from '@/lib/wechat-bridge-config'
+import { assertWechatBridgeReady, fetchWechatBridgeJson, getWechatBridgeConfig } from '@/lib/wechat/bridge-config'
 import { resolvePostCoverImage } from '@/lib/default-cover-images'
 import { getSiteUrl } from '@/lib/site-config'
-import { WECHAT_DEFAULT_AUTHOR, WECHAT_DEFAULT_NEED_OPEN_COMMENT } from '@/lib/wechat-publish-defaults'
+import { WECHAT_DEFAULT_AUTHOR, WECHAT_DEFAULT_NEED_OPEN_COMMENT } from '@/lib/wechat/publish-defaults'
 
 interface PublishWechatBody {
   account_id?: string

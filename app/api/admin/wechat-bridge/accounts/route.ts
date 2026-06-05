@@ -5,7 +5,7 @@ import {
   fetchWechatBridgeJson,
   getWechatBridgeConfig,
   type WechatBridgeAccount,
-} from '@/lib/wechat-bridge-config'
+} from '@/lib/wechat/bridge-config'
 
 export async function GET(req: NextRequest) {
   const route = await getRouteEnvWithDb('DB unavailable')

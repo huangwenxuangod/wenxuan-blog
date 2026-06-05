@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import { getSetting } from '@/lib/db'
+import { getSetting } from '@/lib/repositories/settings'
 
 // 公开 API：返回字体设置（无需认证）
 // 只暴露 body_font 这一个 key，不暴露其他设置

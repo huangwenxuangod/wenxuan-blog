@@ -46,3 +46,8 @@ export {
   type AiArticleMessageRow,
   type AiArticleThreadRow,
 } from '@/lib/repositories/ai-article-threads'
+export {
+  listAiArticleMemoryItems,
+  upsertAiArticleMemoryItem,
+  type AiArticleMemoryRow,
+} from '@/lib/repositories/ai-article-memory'

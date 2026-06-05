@@ -9,7 +9,7 @@ vi.mock('@/lib/cloudflare', () => ({
   getAppCloudflareEnv: mocks.getAppCloudflareEnv,
 }))
 
-vi.mock('@/lib/related-content', () => ({
+vi.mock('@/lib/related-content/search', () => ({
   searchPostsWithStrategy: mocks.searchPostsWithStrategy,
 }))
 
@@ -23,7 +23,7 @@ describe('/api/search route', () => {
   it('returns empty results when the query is blank', async () => {
     const response = await GET({
       nextUrl: new URL('http://test.local/api/search?q=%20%20'),
-    } as never)
+    } as never, {} as never) as Response
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ results: [] })
@@ -35,9 +35,11 @@ describe('/api/search route', () => {
 
     const response = await GET({
       nextUrl: new URL('http://test.local/api/search?q=ask%20ai'),
-    } as never)
+    } as never, {} as never) as Response
 
-    await expect(response.json()).resolves.toEqual({ results: [] })
+    const body = await response.json()
+    expect(body.error).toBeDefined()
+    expect(body.error.code).toBe('DB_UNAVAILABLE')
   })
 
   it('maps related-content results into the public response shape', async () => {
@@ -60,7 +62,7 @@ describe('/api/search route', () => {
 
     const response = await GET({
       nextUrl: new URL('http://test.local/api/search?q=%20ask%20ai%20'),
-    } as never)
+    } as never, {} as never) as Response
     const body = await response.json()
 
     expect(mocks.searchPostsWithStrategy).toHaveBeenCalledWith(

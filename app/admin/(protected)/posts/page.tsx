@@ -1,8 +1,8 @@
 import { getPosts, searchPosts, getCategories } from '@/lib/db'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import Link from 'next/link'
-import { PostRow } from './PostRow'
 import { FilterBar } from './FilterBar'
+import { PostsTableClient } from './PostsTableClient'
 
 export const metadata = { title: '文章管理' }
 
@@ -112,36 +112,11 @@ export default async function AdminPostsPage({
           </div>
         </div>
       ) : (
-          <div className="bg-[var(--editor-panel)] rounded-xl border border-[var(--editor-line)] overflow-hidden">
-            {/* 表头 */}
-            <div className="hidden md:grid grid-cols-[56px_minmax(0,1fr)_200px_88px_116px_232px] gap-4 px-5 py-3.5 border-b border-[var(--editor-line)] bg-[var(--editor-soft)] items-center">
-              <span className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
-                状态
-              </span>
-            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
-              标题
-            </span>
-            <span className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
-              分类
-            </span>
-              <span className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
-                阅读
-              </span>
-              <span className="text-center text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
-                时间
-              </span>
-              <span className="text-right text-xs font-semibold uppercase tracking-wide text-[var(--editor-muted)]">
-                操作
-              </span>
-          </div>
-
-          {/* 文章列表 */}
-          <div className="divide-y divide-[var(--editor-line)]">
-            {posts.map((post) => (
-              <PostRow key={post.slug} post={post} categories={dbCategories} />
-            ))}
-          </div>
-        </div>
+        <PostsTableClient
+          posts={posts}
+          categories={dbCategories}
+          currentStatus={status}
+        />
       )}
     </div>
   )

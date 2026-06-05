@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
@@ -32,16 +33,11 @@ import {
 import { generatePassword } from '@/lib/password'
 import { InputModal } from '@/components/InputModal'
 import { CategorySelector } from '@/components/CategorySelector'
-import { ImageGenerationModal } from '@/components/ImageGenerationModal'
-import { ImageCropModal } from '@/components/ImageCropModal'
-import { AIPanel } from '@/components/editor/AIPanel'
 import { EditorRightRail } from '@/components/editor/EditorRightRail'
 import { EditorTocRail } from '@/components/editor/EditorTocRail'
-import { WeChatPublishModal } from '@/components/WeChatPublishModal'
 import { useToast } from '@/components/Toast'
 import { AdminThemeToggle } from '@/components/AdminThemeToggle'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { AIModal } from '@/lib/ai-modal'
 import {
   COVER_IMAGE_OPTIMIZE_OPTIONS,
   EDITOR_IMAGE_OPTIMIZE_OPTIONS,
@@ -57,7 +53,6 @@ import {
   replaceImageNodeAtPosition,
   uploadEditorFile,
 } from '@/lib/editor-file-upload'
-import { copyAsWechatArticleFormat, downloadArticleAsPdf } from '@/lib/wechat-copy'
 import {
   extractFilesFromClipboard,
   useEditorAuxiliaryModals,
@@ -83,6 +78,46 @@ const DEFAULT_AI_RAIL_WIDTH = 372
 const MIN_AI_RAIL_WIDTH = 320
 const MAX_AI_RAIL_WIDTH = 640
 const DESKTOP_BREAKPOINT = 1024
+
+const AIPanel = dynamic(
+  () => import('@/components/editor/AIPanel').then((module) => ({ default: module.AIPanel })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center text-sm text-[var(--editor-muted)]">
+        AI 面板加载中...
+      </div>
+    ),
+  },
+)
+
+const AIModal = dynamic(
+  () => import('@/lib/ai-modal').then((module) => ({ default: module.AIModal })),
+  {
+    ssr: false,
+  },
+)
+
+const ImageGenerationModal = dynamic(
+  () => import('@/components/ImageGenerationModal').then((module) => ({ default: module.ImageGenerationModal })),
+  {
+    ssr: false,
+  },
+)
+
+const ImageCropModal = dynamic(
+  () => import('@/components/ImageCropModal').then((module) => ({ default: module.ImageCropModal })),
+  {
+    ssr: false,
+  },
+)
+
+const WeChatPublishModal = dynamic(
+  () => import('@/components/WeChatPublishModal').then((module) => ({ default: module.WeChatPublishModal })),
+  {
+    ssr: false,
+  },
+)
 
 const EMPTY_DOCUMENT = {
   type: 'doc',
@@ -765,6 +800,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     }
 
     try {
+      const { copyAsWechatArticleFormat } = await import('@/lib/wechat/copy')
       await copyAsWechatArticleFormat(normalizedTitle, html)
       toast.success('已复制公众号格式')
     } catch (error) {
@@ -791,6 +827,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     }
 
     try {
+      const { downloadArticleAsPdf } = await import('@/lib/wechat/copy')
       await downloadArticleAsPdf(normalizedTitle, html)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '导出 PDF 失败')
@@ -1165,7 +1202,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           onClose={() => setAiRailOpen(false)}
           width={aiRailWidth}
           onWidthChange={setAiRailWidth}
-          aiContent={(
+          aiContent={aiRailOpen ? (
             <AIPanel
               articleKey={articleKey}
               postSlug={editSlug || normalizePostSlug(slug) || null}
@@ -1174,68 +1211,76 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
               documentJson={currentDocumentJson}
               documentText={currentDocumentText}
             />
-          )}
+          ) : null}
         />
       </div>
 
-      <WeChatPublishModal
-        isOpen={wechatPublishOpen}
-        onClose={() => setWechatPublishOpen(false)}
-        title={title.trim() || '无标题'}
-        html={editorRef.current?.getHTML() || ''}
-        defaultDigest={description}
-        defaultSourceUrl={wechatSourceUrl}
-        defaultCoverImageUrl={resolvePostCoverImage({
-          cover_image: coverImage,
-          slug: normalizePostSlug(slug) || editSlug || title,
-          title,
-        })}
-      />
+      {wechatPublishOpen ? (
+        <WeChatPublishModal
+          isOpen={wechatPublishOpen}
+          onClose={() => setWechatPublishOpen(false)}
+          title={title.trim() || '无标题'}
+          html={editorRef.current?.getHTML() || ''}
+          defaultDigest={description}
+          defaultSourceUrl={wechatSourceUrl}
+          defaultCoverImageUrl={resolvePostCoverImage({
+            cover_image: coverImage,
+            slug: normalizePostSlug(slug) || editSlug || title,
+            title,
+          })}
+        />
+      ) : null}
 
       <InputModal open={inputModal.open} title={inputModal.title} placeholder={inputModal.placeholder} onConfirm={handleInputModalConfirm} onCancel={handleInputModalCancel} />
 
-      <ImageGenerationModal
-        open={imageModal.open}
-        contextText={imageModal.contextText}
-        historyScope="admin-editor"
-        closeOnGenerate={false}
-        onClose={closeImageModal}
-        onInsert={insertGeneratedImage}
-      />
+      {imageModal.open ? (
+        <ImageGenerationModal
+          open={imageModal.open}
+          contextText={imageModal.contextText}
+          historyScope="admin-editor"
+          closeOnGenerate={false}
+          onClose={closeImageModal}
+          onInsert={insertGeneratedImage}
+        />
+      ) : null}
 
-      <ImageGenerationModal
-        open={Boolean(referenceImageTarget)}
-        contextText=""
-        historyScope="admin-editor"
-        referenceImageUrl={referenceImageTarget?.src}
-        allowReplace
-        defaultPlacementMode="replace"
-        closeOnGenerate={false}
-        generationMode="foreground"
-        onClose={() => setReferenceImageTarget(null)}
-        onInsert={(imageUrl, alt, placementMode) => {
-          if (!referenceImageTarget) return
-          applyImageActionResult(referenceImageTarget, imageUrl, alt, placementMode ?? 'replace')
-          setReferenceImageTarget(null)
-        }}
-      />
+      {referenceImageTarget ? (
+        <ImageGenerationModal
+          open={Boolean(referenceImageTarget)}
+          contextText=""
+          historyScope="admin-editor"
+          referenceImageUrl={referenceImageTarget.src}
+          allowReplace
+          defaultPlacementMode="replace"
+          closeOnGenerate={false}
+          generationMode="foreground"
+          onClose={() => setReferenceImageTarget(null)}
+          onInsert={(imageUrl, alt, placementMode) => {
+            if (!referenceImageTarget) return
+            applyImageActionResult(referenceImageTarget, imageUrl, alt, placementMode ?? 'replace')
+            setReferenceImageTarget(null)
+          }}
+        />
+      ) : null}
 
-      <ImageCropModal
-        open={Boolean(cropImageTarget)}
-        imageUrl={cropImageTarget?.src || ''}
-        imageAlt={cropImageTarget?.alt}
-        defaultPlacementMode="replace"
-        onClose={() => setCropImageTarget(null)}
-        onApply={async (file, placementMode) => {
-          if (!cropImageTarget) return
+      {cropImageTarget ? (
+        <ImageCropModal
+          open={Boolean(cropImageTarget)}
+          imageUrl={cropImageTarget.src}
+          imageAlt={cropImageTarget.alt}
+          defaultPlacementMode="replace"
+          onClose={() => setCropImageTarget(null)}
+          onApply={async (file, placementMode) => {
+            if (!cropImageTarget) return
 
-          const uploaded = await uploadImageAndGetUrl(file)
-          applyImageActionResult(cropImageTarget, uploaded, cropImageTarget.alt || file.name, placementMode)
-          setCropImageTarget(null)
-        }}
-      />
+            const uploaded = await uploadImageAndGetUrl(file)
+            applyImageActionResult(cropImageTarget, uploaded, cropImageTarget.alt || file.name, placementMode)
+            setCropImageTarget(null)
+          }}
+        />
+      ) : null}
 
-      {editorRef.current && (
+      {editorRef.current && aiModal.open ? (
         <AIModal
           editor={editorRef.current}
           isOpen={aiModal.open}
@@ -1253,7 +1298,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
             markDirty()
           }}
         />
-      )}
+      ) : null}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { getSetting, setSetting } from '@/lib/db'
+import { getSetting, setSetting } from '@/lib/repositories/settings'
 import {
   decryptApiKey,
   encryptApiKey,

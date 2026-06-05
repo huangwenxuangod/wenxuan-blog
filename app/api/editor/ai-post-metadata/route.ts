@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateRequest } from '@/lib/admin-auth'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import {
-  ensureAiPostGeneratorInfrastructure,
-  generatePostCover,
-  generatePostMetadata,
-  type AiPostGeneratorTarget,
-} from '@/lib/ai-post-generators'
+import { ensureAiPostGeneratorInfrastructure } from '@/lib/ai-post-generator/storage'
+import type { AiPostGeneratorTarget } from '@/lib/ai-post-generator/types'
 
 type ImageBucket = {
   put: (
@@ -78,6 +74,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: '图片存储未配置' }, { status: 500 })
       }
 
+      const { generatePostCover } = await import('@/lib/ai-post-generator/cover')
       const result = await generatePostCover({
         title,
         content,
@@ -96,6 +93,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const { generatePostMetadata } = await import('@/lib/ai-post-generator/metadata')
     const result = await generatePostMetadata({
       target: body.target,
       title,

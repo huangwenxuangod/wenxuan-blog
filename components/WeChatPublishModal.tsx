@@ -9,12 +9,12 @@ import {
   buildWechatBridgeArticleExport,
   buildWechatBridgeCoverImageUrl,
   extractFirstWechatBridgeCoverImageUrl,
-} from '@/lib/wechat-copy'
+} from '@/lib/wechat/copy'
 import {
   WECHAT_DEFAULT_AUTHOR,
   WECHAT_DEFAULT_NEED_OPEN_COMMENT,
   WECHAT_DEFAULT_ONLY_FANS_CAN_COMMENT,
-} from '@/lib/wechat-publish-defaults'
+} from '@/lib/wechat/publish-defaults'
 
 interface BridgeAccount {
   id: string

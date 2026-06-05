@@ -1,17 +1,21 @@
 import {
+  buildEditorAiRouteEvents,
+  finalizeEditorAiCompletion,
+} from '@/lib/ai-editor/server-execution'
+import { createEditorAiEventStream } from '@/lib/ai-editor/stream'
+import { getAppCloudflareEnv } from '@/lib/cloudflare'
+import { normalizeArticleKey } from '@/lib/repositories/ai-article-threads'
+import {
   appendAiArticleMessage,
   getOrCreateAiArticleThread,
   listAiArticleMessages,
-} from '@/lib/db'
-import { runAiEditorAgent } from '@/lib/ai-editor-agent'
-import { buildAiEditorContext } from '@/lib/ai-editor-context'
-import { generateEditorImage } from '@/lib/ai-image'
-import { getAiRuntimeEnv } from '@/lib/ai'
-import { getAppCloudflareEnv } from '@/lib/cloudflare'
+} from '@/lib/repositories/ai-article-threads'
+import { listAiArticleMemoryItems } from '@/lib/repositories/ai-article-memory'
 import {
   ensureAuthenticatedRequest,
-  jsonError,
   parseJsonBody,
+  AppError,
+  withRouteErrorHandling,
 } from '@/lib/server/route-helpers'
 import type { NextRequest } from 'next/server'
 
@@ -36,64 +40,49 @@ interface ChatRequestBody {
   message?: string
   documentText?: string
   documentJson?: unknown
+  activeBlockIndex?: number
+  selectionText?: string
 }
 
-function createNdjsonStream(payload: {
-  message: string
-  tool: Record<string, unknown>
-  error?: string
-}) {
-  const encoder = new TextEncoder()
-  return new ReadableStream({
-    async start(controller) {
-      const text = String(payload.message || '')
-      const chunkSize = 24
+function safeParseMemoryPayload(payloadJson: string | null): Record<string, unknown> | null {
+  if (!payloadJson) return null
 
-      controller.enqueue(encoder.encode(`${JSON.stringify({ type: 'assistant_start' })}\n`))
-
-      for (let index = 0; index < text.length; index += chunkSize) {
-        const delta = text.slice(index, index + chunkSize)
-        controller.enqueue(encoder.encode(`${JSON.stringify({ type: 'assistant_delta', delta })}\n`))
-        await new Promise((resolve) => setTimeout(resolve, 12))
-      }
-
-      controller.enqueue(encoder.encode(`${JSON.stringify({
-        type: 'assistant_done',
-        message: text,
-        tool: payload.tool,
-        error: payload.error,
-      })}\n`))
-      controller.close()
-    },
-  })
+  try {
+    const parsed = JSON.parse(payloadJson) as unknown
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null
+  } catch {
+    return null
+  }
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withRouteErrorHandling(async (req: NextRequest) => {
   const env = await getAppCloudflareEnv()
   const db = env?.DB as D1Database | undefined
   const images = env?.IMAGES as ImageBucket | undefined
 
   if (!db) {
-    return jsonError('DB unavailable', 500)
+    throw AppError.dbUnavailable()
   }
 
   const authError = await ensureAuthenticatedRequest(req, db)
   if (authError) {
-    return authError
+    throw AppError.unauthorized()
   }
 
   const body = await parseJsonBody<ChatRequestBody>(req)
   const userMessage = (body.message || '').trim()
   if (!userMessage) {
-    return jsonError('消息不能为空', 400)
+    throw AppError.badRequest('消息不能为空')
   }
 
+  const articleKey = normalizeArticleKey(body.articleKey, body.postSlug)
   const thread = await getOrCreateAiArticleThread(db, {
     articleKey: body.articleKey,
     postSlug: body.postSlug,
     title: body.title,
   })
-  const history = await listAiArticleMessages(db, thread.id, 30)
 
   await appendAiArticleMessage(db, {
     threadId: thread.id,
@@ -101,107 +90,96 @@ export async function POST(req: NextRequest) {
     content: userMessage,
   })
 
-  const context = buildAiEditorContext({
+  const [persistedHistory, memoryRows] = await Promise.all([
+    listAiArticleMessages(db, thread.id, 30),
+    listAiArticleMemoryItems(db, articleKey, 40),
+  ])
+
+  const [{ runEditorAiRuntime }, { getAiRuntimeEnv }] = await Promise.all([
+    import('@/lib/ai-editor/runtime'),
+    import('@/lib/ai'),
+  ])
+
+  const result = await runEditorAiRuntime({
+    articleKey,
+    userMessage,
     title: body.title || '',
+    postSlug: body.postSlug,
     documentText: body.documentText || '',
     documentJson: (body.documentJson as never) || null,
-    postSlug: body.postSlug,
-  })
-
-  const result = await runAiEditorAgent({
-    userMessage,
-    history: history
+    activeBlockIndex: Number.isInteger(body.activeBlockIndex) ? body.activeBlockIndex : null,
+    selectionText: body.selectionText || null,
+    history: persistedHistory
       .filter((item): item is typeof item & { role: 'user' | 'assistant' } => item.role === 'user' || item.role === 'assistant')
       .map((item) => ({
         role: item.role,
         content: item.content,
       })),
-    context,
+    memoryItems: memoryRows.map((item) => ({
+      id: item.id,
+      articleKey: item.article_key,
+      scope: item.scope,
+      kind: item.kind,
+      title: item.title,
+      summary: item.summary,
+      payload: safeParseMemoryPayload(item.payload_json),
+      sourceMessageId: item.source_message_id,
+      sourceToolName: item.source_tool_name,
+      confidence: item.confidence,
+      pinned: item.pinned === 1,
+      archived: item.archived === 1,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+    })),
     env: getAiRuntimeEnv(env),
     db,
   })
-
-  let responsePayload: Record<string, unknown> = {
-    message: result.message,
-    tool: result.tool || { name: 'reply_only', payload: null },
-  }
-
-  if (result.tool?.name === 'plan_article_images') {
-    if (!images) {
-      responsePayload = {
-        ...responsePayload,
-        error: '图片存储未配置，无法自动插图',
-      }
-    } else {
-      const imagePayload = result.tool.payload && 'images' in result.tool.payload
-        ? result.tool.payload.images
-        : null
-      const plannedImages = Array.isArray(imagePayload)
-        ? imagePayload
-        : []
-
-      const generatedImages = []
-      for (const item of plannedImages.slice(0, 6)) {
-        const generated = await generateEditorImage({
-          action: 'custom',
-          userPrompt: item.prompt,
-          articleTitle: body.title,
-          contextText: item.reason,
-          aspectRatio: item.aspectRatio,
-          resolution: item.resolution,
-          db,
-          env: env as Record<string, string | undefined>,
-          images,
-        })
-
-        generatedImages.push({
-          blockIndex: item.blockIndex,
-          reason: item.reason,
-          alt: item.alt || generated.alt,
-          image: generated,
-        })
-      }
-
-      responsePayload = {
-        ...responsePayload,
-        tool: {
-          ...result.tool,
-          payload: {
-            ...result.tool.payload,
-            generatedImages,
-          },
-        },
-      }
+  const completion = result.completed.then(async (completed) => {
+    const generateEditorImage = async (input: {
+      action: 'custom'
+      userPrompt: string
+      articleTitle?: string
+      contextText?: string
+      aspectRatio?: string
+      resolution?: string
+      db: D1Database
+      env: Record<string, string | undefined>
+      images: ImageBucket
+    }) => {
+      const { generateEditorImage } = await import('@/lib/ai-image')
+      return generateEditorImage(input)
     }
-  }
 
-  await appendAiArticleMessage(db, {
-    threadId: thread.id,
-    role: 'assistant',
-    content: String(responsePayload.message || ''),
+    return finalizeEditorAiCompletion({
+      articleKey,
+      articleTitle: body.title,
+      db,
+      env: env as Record<string, string | undefined>,
+      images,
+      threadId: thread.id,
+      completed,
+      generateEditorImage,
+    })
   })
 
-  if (result.tool && result.tool.name !== 'reply_only') {
-    const toolPayload = responsePayload.tool && typeof responsePayload.tool === 'object' && 'payload' in responsePayload.tool
-      ? (responsePayload.tool as { payload?: unknown }).payload
-      : null
-    await appendAiArticleMessage(db, {
-      threadId: thread.id,
-      role: 'tool',
-      content: result.tool.name,
-      toolName: result.tool.name,
-      toolPayload: JSON.stringify(toolPayload || null),
-    })
-  }
+  const eventStream = createEditorAiEventStream(buildEditorAiRouteEvents(result.stream, completion))
 
-  return new Response(createNdjsonStream({
-    message: String(responsePayload.message || ''),
-    tool: (responsePayload.tool as Record<string, unknown>) || { name: 'reply_only', payload: null },
-    error: typeof responsePayload.error === 'string' ? responsePayload.error : undefined,
+  return new Response(new ReadableStream({
+    async start(controller) {
+      const reader = eventStream.getReader()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        controller.enqueue(value)
+      }
+
+      controller.close()
+    },
   }), {
     headers: {
       'Content-Type': 'application/x-ndjson; charset=utf-8',
       'Cache-Control': 'no-cache',
     },
   })
-}
+})

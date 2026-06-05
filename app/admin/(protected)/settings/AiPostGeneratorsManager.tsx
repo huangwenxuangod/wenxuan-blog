@@ -10,7 +10,7 @@ import {
   getAiImageResolutionLabel,
   type AIImageAspectRatio,
   type AIImageResolution,
-} from '@/lib/ai-image-options'
+} from '@/lib/ai-image/options'
 
 type GeneratorTarget = 'summary' | 'tags' | 'slug' | 'cover'
 type ProviderMode = 'workers_ai' | 'profile'

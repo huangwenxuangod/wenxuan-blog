@@ -1,5 +1,5 @@
-import type { GeneratedEditorImage } from '@/lib/ai-image'
-import type { AIImageAspectRatio, AIImageResolution } from '@/lib/ai-image-options'
+import type { GeneratedEditorImage } from '@/lib/ai-image/shared'
+import type { AIImageAspectRatio, AIImageResolution } from '@/lib/ai-image/options'
 
 export type AiPostGeneratorTarget = 'summary' | 'tags' | 'slug' | 'cover'
 export type AiPostGeneratorProviderMode = 'workers_ai' | 'profile'

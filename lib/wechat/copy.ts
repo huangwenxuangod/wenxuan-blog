@@ -1,7 +1,7 @@
 'use client'
 
 import juice from 'juice'
-import { buildWechatExportCss, normalizeWechatExportHtml, type WechatExportStyleTokens } from './wechat-export-style'
+import { buildWechatExportCss, normalizeWechatExportHtml, type WechatExportStyleTokens } from './export-style'
 
 type ExportMode = 'clipboard' | 'pdf'
 

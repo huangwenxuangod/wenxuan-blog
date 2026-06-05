@@ -2,7 +2,6 @@ import { deletePost, getPostBySlug, updatePost } from '@/lib/db'
 import { isAdminAuthenticated, COOKIE_NAME } from '@/lib/admin-auth'
 import { invalidatePublicContentCache } from '@/lib/cache'
 import { buildAutoDescription, normalizePostSlug } from '@/lib/post-utils'
-import { enqueueBackgroundJob } from '@/lib/background-jobs'
 import { getRouteContextWithDb, jsonError, jsonOk, parseJsonBody } from '@/lib/server/route-helpers'
 import type { NextRequest } from 'next/server'
 
@@ -98,6 +97,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       console.warn('Cache invalidation failed:', cacheErr)
     }
 
+    const { enqueueBackgroundJob } = await import('@/lib/background-jobs/enqueue')
+
     await enqueueBackgroundJob(
       env,
       {
@@ -144,6 +145,8 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     } catch (cacheErr) {
       console.warn('Cache invalidation failed:', cacheErr)
     }
+
+    const { enqueueBackgroundJob } = await import('@/lib/background-jobs/enqueue')
 
     await enqueueBackgroundJob(
       env,

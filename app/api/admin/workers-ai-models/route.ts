@@ -4,7 +4,7 @@ import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import {
   WORKERS_AI_IMAGE_MODEL_SUGGESTIONS,
   WORKERS_AI_TEXT_MODEL_SUGGESTIONS,
-} from '@/lib/ai-post-generators'
+} from '@/lib/ai-post-generator/constants'
 import {
   decryptApiKey,
   ensureAiConfigInfrastructure,

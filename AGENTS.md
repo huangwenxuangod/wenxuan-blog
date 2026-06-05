@@ -283,6 +283,42 @@
 - 全局消息使用 `Toast`
 - 面板内部仅在字段校验必须贴身展示时才使用内联提示
 
+### 7.4 数据备份与导出系统
+
+- **后端接口**：`app/api/admin/backup/route.ts` 负责安全拉取 `posts`（含 Markdown 内容与 HTML）、`categories`、`site_settings` 三张表的完整数据，并在成功时直接返回原始 JSON 结构。
+- **前端组件**：`app/admin/(protected)/settings/BackupManager.tsx` 负责在客户端执行多格式一键打包：
+  - **Markdown (ZIP)**：通过 `fflate` 纯前端打包所有文章为单独的 `.md` 文件，头部注入规范的 YAML Front Matter 头部（完美兼容 Obsidian / Hugo 等），并附带 `manifest.json` 导出清单。
+  - **JSON 数据库备份**：导出全站数据库快照，便于全站无缝迁移或数据恢复。
+  - **CSV 数据表**：打包导出文章属性列表，自动写入 UTF-8 BOM 字节序，确保 Microsoft Excel 双击打开中文字符 100% 不乱码。
+- **集成入口**：已集成到后台“设置管理”的“数据备份”选项卡下，各导出按钮统一包裹自研传送门式 `Tooltip` 气泡。
+
+### 7.5 文章批量操作系统 (Bulk Actions)
+
+- **前端核心**：`app/admin/(protected)/posts/PostsTableClient.tsx` 负责表格行勾选、全选、分页、搜索、过滤以及状态管理。当有行被勾选时，会在页面底部/顶部呼出 `BulkActionsBar.tsx`。
+- **批量操作栏**：`app/admin/(protected)/posts/BulkActionsBar.tsx` 提供了统一的批量操作入口，支持：
+  - **批量改分类**：下拉选择并一键更新。
+  - **批量转状态**：一键转为草稿、批量发布。
+  - **批量置顶/取消置顶**：切换 `is_pinned` 属性。
+  - **批量隐藏/取消隐藏**：切换 `is_hidden` 属性（控制 unlisted 状态）。
+  - **批量删除/恢复**：支持软删除（进入回收站）与恢复。
+  - **批量清除密码**：一键解密文章。
+- **后端接口**：`app/api/admin/posts/bulk/route.ts` 负责原子化接收 slugs 数组与 action 类型，在 D1 数据库中执行高效的批量更新事务。
+
+### 7.6 AI 协作与元数据生成系统 (AI Post Generator)
+
+- **系统设计**：详见 `docs/editor-ai-system-design.md`。系统分为 Context 层、Memory 层、Runtime Harness 和 Execution 层。
+- **元数据生成核心**：`lib/ai-post-generator/generate.ts` 与 `lib/ai-post-generator/storage.ts` 提供了模块化的 AI 元数据生成框架：
+  - **摘要生成 (summary)**：基于文章内容自动提炼 160 字内的高密度摘要。
+  - **标签提取 (tags)**：提取 3-6 个最具区分度的主题词。
+  - **Slug 生成 (slug)**：生成符合 SEO 规范的英文 kebab-case 格式 slug。
+  - **封面生成 (cover)**：自动调用生图模型（如 Flux-1）为文章生成高完成度的 editorial illustration 概念插图。
+- **API 接口**：`app/api/editor/ai-post-metadata/route.ts` 是编辑器右侧 Rail 及元数据面板请求 AI 辅助的统一入口。
+
+### 7.7 后台异步任务系统 (Background Jobs)
+
+- **核心实现**：`lib/background-jobs.ts` 提供了一个非阻塞的后台任务队列，用于处理生图、大文本处理等耗时较长的异步 AI 任务，避免 Workers 超时并提升 HTTP 响应速度。
+- **模型发现**：`app/api/admin/workers-ai-models/route.ts` 支持动态查询 Cloudflare Workers AI 的可用模型列表，提供模型发现与配置同步。
+
 ---
 
 ## 8. 常用开发与校验命令

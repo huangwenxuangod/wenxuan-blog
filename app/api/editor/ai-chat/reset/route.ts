@@ -1,4 +1,4 @@
-import { resetAiArticleThread } from '@/lib/db'
+import { resetAiArticleThread } from '@/lib/repositories/ai-article-threads'
 import {
   ensureAuthenticatedRequest,
   getRouteEnvWithDb,

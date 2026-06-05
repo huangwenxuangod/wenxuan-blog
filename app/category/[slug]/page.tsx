@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getPostsByCategory, getPostsCountByCategory, getPublicCategories } from '@/lib/db'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import { SiteHeader } from '@/components/SiteHeader'
 import { SiteFooter } from '@/components/SiteFooter'
 import { Pagination } from '@/components/Pagination'
 import { getSiteHeaderData } from '@/lib/site'
 import { getSiteUrl } from '@/lib/site-config'
+import { getPublicCategories } from '@/lib/repositories/categories'
+import { getPostsByCategory, getPostsCountByCategory } from '@/lib/repositories/posts'
 
 const PAGE_SIZE = 25
 const BASE_URL = getSiteUrl()

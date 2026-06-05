@@ -1,9 +1,9 @@
-import { getPostBySlug } from '@/lib/db'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import { isAdminAuthenticated, COOKIE_NAME } from '@/lib/admin-auth'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { NovelEditorClient } from '@/components/NovelEditorClient'
+import { getPostBySlug } from '@/lib/repositories/posts'
 
 export default async function EditorPage({
   searchParams,

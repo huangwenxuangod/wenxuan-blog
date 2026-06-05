@@ -17,13 +17,17 @@ vi.mock('@/lib/db', () => ({
   deleteCategory: mocks.deleteCategory,
 }))
 
-vi.mock('@/lib/server/route-helpers', () => ({
-  ensureAuthenticatedRequest: mocks.ensureAuthenticatedRequest,
-  getRouteEnvWithDb: mocks.getRouteEnvWithDb,
-  jsonError: (message: string, status = 500) => Response.json({ error: message }, { status }),
-  jsonOk: (data: unknown, status = 200) => Response.json(data, { status }),
-  parseJsonBody: mocks.parseJsonBody,
-}))
+vi.mock('@/lib/server/route-helpers', async (importOriginal) => {
+  const actual = await importOriginal() as Record<string, unknown>
+  return {
+    ...actual,
+    ensureAuthenticatedRequest: mocks.ensureAuthenticatedRequest,
+    getRouteEnvWithDb: mocks.getRouteEnvWithDb,
+    jsonError: (message: string, status = 500) => Response.json({ error: message }, { status }),
+    jsonOk: (data: unknown, status = 200) => Response.json(data, { status }),
+    parseJsonBody: mocks.parseJsonBody,
+  }
+})
 
 import { DELETE, GET, POST } from '@/app/api/admin/categories/route'
 

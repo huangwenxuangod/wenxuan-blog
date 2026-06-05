@@ -7,7 +7,7 @@ import {
   AI_IMAGE_PROVIDER_CATEGORIES,
   AI_IMAGE_PROVIDER_MAP,
   AI_IMAGE_PROVIDER_PRESETS,
-} from '@/lib/ai-image-provider-presets'
+} from '@/lib/ai-image/provider-presets'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 import {
   createModelOptions,

@@ -1,10 +1,6 @@
 import { createPost, updatePostBySlug } from '@/lib/db'
 import { invalidatePublicContentCache } from '@/lib/cache'
-import { enqueueBackgroundJob } from '@/lib/background-jobs'
 import { nanoid } from 'nanoid'
-import { remark } from 'remark'
-import remarkGfm from 'remark-gfm'
-import remarkHtml from 'remark-html'
 import { buildAutoDescription, normalizePostSlug } from '@/lib/post-utils'
 import {
   ensureAuthenticatedRequest,
@@ -57,6 +53,9 @@ export async function POST(req: NextRequest) {
     const slug = customSlug || `${date}-${nanoid(6)}`
 
     // 3. 优先使用编辑器直接生成的 HTML，兼容旧版 Markdown 提交
+    const { remark } = await import('remark')
+    const { default: remarkGfm } = await import('remark-gfm')
+    const { default: remarkHtml } = await import('remark-html')
     const htmlContent =
       rawHtml ||
       (
@@ -83,6 +82,8 @@ export async function POST(req: NextRequest) {
 
     // 6. 清除缓存
     await invalidatePublicContentCache(env)
+
+    const { enqueueBackgroundJob } = await import('@/lib/background-jobs/enqueue')
 
     await enqueueBackgroundJob(
       env,

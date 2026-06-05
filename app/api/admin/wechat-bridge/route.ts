@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { ensureAuthenticatedRequest, getRouteEnvWithDb, jsonError, jsonOk, parseJsonBody } from '@/lib/server/route-helpers'
-import { getWechatBridgePublicConfig, saveWechatBridgeConfig } from '@/lib/wechat-bridge-config'
+import { getWechatBridgePublicConfig, saveWechatBridgeConfig } from '@/lib/wechat/bridge-config'
 
 interface SaveWechatBridgeBody {
   enabled?: boolean

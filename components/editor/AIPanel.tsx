@@ -3,58 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Plus, Send } from 'lucide-react'
 import type { EditorInstance, JSONContent } from 'novel'
+import type { LegacyEditorAiTool } from '@/lib/ai-editor/action-schema'
+import {
+  applyEditorAiAction,
+  applyLegacyToolResult,
+  getActiveBlockIndex,
+} from '@/lib/ai-editor/client-execution'
+import type { EditorAiAction } from '@/lib/ai-editor/runtime-types'
+import { renderMarkdownToHtml } from '@/lib/editor-markdown'
 import { useToast } from '@/components/Toast'
 import { UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { insertGeneratedImageAtPosition } from '@/lib/editor-file-upload'
-import { replaceEditorRangeWithMarkdown } from '@/lib/editor-markdown'
 
 type ChatMessage = {
   id: string
   role: 'user' | 'assistant'
   content: string
 }
-
-type ToolResult =
-  | {
-      name: 'reply_only'
-      payload: null
-    }
-  | {
-      name: 'insert_text'
-      payload: {
-        blockIndex?: number
-        position?: 'before' | 'after'
-        markdown: string
-      }
-    }
-  | {
-      name: 'rewrite_block'
-      payload: {
-        blockIndex: number
-        markdown: string
-      }
-    }
-  | {
-      name: 'append_section'
-      payload: {
-        markdown: string
-      }
-    }
-  | {
-      name: 'plan_article_images'
-      payload: {
-        generatedImages?: Array<{
-          blockIndex: number
-          reason: string
-          alt: string
-          image: {
-            url: string
-            alt: string
-          }
-        }>
-      }
-    }
 
 interface AIPanelProps {
   articleKey: string
@@ -66,43 +31,21 @@ interface AIPanelProps {
   onTitleApply?: (nextTitle: string) => void
 }
 
+type ChatEvent =
+  | { type: 'assistant_start' }
+  | { type: 'assistant_delta'; delta: string }
+  | { type: 'action_ready'; action: EditorAiAction }
+  | { type: 'tool_pending'; tool: string; payload?: unknown }
+  | { type: 'tool_result'; tool: string; payload?: unknown }
+  | { type: 'assistant_done'; message: string; tool?: LegacyEditorAiTool; error?: string }
+  | { type: 'assistant_error'; error: string }
+
 function createMessageId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function findBlockRange(editor: EditorInstance, blockIndex: number) {
-  let currentIndex = -1
-  let range: { from: number; to: number } | null = null
-
-  editor.state.doc.descendants((node, pos) => {
-    if (!node.isBlock) return true
-    currentIndex += 1
-    if (currentIndex !== blockIndex) return true
-    range = {
-      from: pos,
-      to: pos + node.nodeSize,
-    }
-    return false
-  })
-
-  return range
-}
-
-function findInsertPosition(editor: EditorInstance, blockIndex: number, position: 'before' | 'after' = 'after') {
-  let currentIndex = -1
-  let insertPos: number | null = null
-
-  editor.state.doc.descendants((node, pos) => {
-    if (!node.isBlock) return true
-    currentIndex += 1
-    if (currentIndex !== blockIndex) return true
-    insertPos = position === 'before'
-      ? pos
-      : pos + node.nodeSize
-    return false
-  })
-
-  return insertPos
+function shouldApplyImmediately(action: EditorAiAction) {
+  return action.type !== 'plan_article_images'
 }
 
 export function AIPanel({
@@ -119,6 +62,7 @@ export function AIPanel({
   const [loading, setLoading] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
+  const [toolStatus, setToolStatus] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -178,62 +122,15 @@ export function AIPanel({
     const node = listRef.current
     if (!node) return
     node.scrollTop = node.scrollHeight
-  }, [messages, loading])
+  }, [messages, loading, toolStatus])
 
   useEffect(() => {
     resizeComposer()
   }, [input, resizeComposer])
 
-  const applyToolResult = useCallback((tool: ToolResult) => {
-    if (!editor) return
-
-    if (tool.name === 'reply_only') return
-
-    if (tool.name === 'append_section') {
-      const end = editor.state.doc.content.size
-      replaceEditorRangeWithMarkdown(editor, tool.payload.markdown, { from: end, to: end })
-      return
-    }
-
-    if (tool.name === 'rewrite_block') {
-      const range = findBlockRange(editor, tool.payload.blockIndex)
-      if (!range) return
-      replaceEditorRangeWithMarkdown(editor, tool.payload.markdown, range)
-      return
-    }
-
-    if (tool.name === 'insert_text') {
-      const insertPos = Number.isFinite(tool.payload.blockIndex)
-        ? findInsertPosition(editor, Number(tool.payload.blockIndex), tool.payload.position || 'after')
-        : editor.state.selection.to
-
-      replaceEditorRangeWithMarkdown(editor, tool.payload.markdown, {
-        from: insertPos ?? editor.state.selection.to,
-        to: insertPos ?? editor.state.selection.to,
-      })
-      return
-    }
-
-    if (tool.name === 'plan_article_images') {
-      const generatedImages = tool.payload.generatedImages || []
-      generatedImages
-        .slice()
-        .sort((a, b) => b.blockIndex - a.blockIndex)
-        .forEach((item) => {
-          const insertPos = findInsertPosition(editor, item.blockIndex, 'after')
-          insertGeneratedImageAtPosition(
-            editor,
-            item.image.url,
-            item.alt || item.image.alt,
-            insertPos,
-          )
-        })
-    }
-  }, [editor])
-
   const sendMessage = useCallback(async (rawInput?: string) => {
     const nextInput = (rawInput ?? input).trim()
-    if (!nextInput || loading || !editor) return
+    if (!nextInput || loading) return
 
     const userMessage: ChatMessage = {
       id: createMessageId('user'),
@@ -241,6 +138,14 @@ export function AIPanel({
       content: nextInput,
     }
     const assistantId = createMessageId('assistant')
+    const activeBlockIndex = editor ? getActiveBlockIndex(editor) : null
+    const selectionText = editor
+      ? editor.state.doc.textBetween(
+          editor.state.selection.from,
+          editor.state.selection.to,
+          '\n',
+        ).trim() || null
+      : null
 
     setMessages((current) => [
       ...current,
@@ -252,6 +157,7 @@ export function AIPanel({
       },
     ])
     setStreamingId(assistantId)
+    setToolStatus(null)
     setInput('')
     setLoading(true)
 
@@ -266,17 +172,22 @@ export function AIPanel({
           message: nextInput,
           documentText,
           documentJson,
+          activeBlockIndex,
+          selectionText,
         }),
       })
 
       if (!response.ok || !response.body) {
-        throw new Error('AI 对话失败')
+        const { parseApiError } = await import('@/lib/api-client')
+        const apiError = await parseApiError(response)
+        throw apiError
       }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let finalTool: ToolResult = { name: 'reply_only', payload: null }
+      let finalTool: LegacyEditorAiTool = { name: 'reply_only', payload: null }
+      let actionApplied = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -288,10 +199,7 @@ export function AIPanel({
 
         for (const line of lines) {
           if (!line.trim()) continue
-          const event = JSON.parse(line) as
-            | { type: 'assistant_start' }
-            | { type: 'assistant_delta'; delta: string }
-            | { type: 'assistant_done'; message: string; tool?: ToolResult; error?: string }
+          const event = JSON.parse(line) as ChatEvent
 
           if (event.type === 'assistant_delta') {
             setMessages((current) => current.map((item) => (
@@ -299,30 +207,85 @@ export function AIPanel({
                 ? { ...item, content: item.content + event.delta }
                 : item
             )))
+            continue
           }
 
-          if (event.type === 'assistant_done') {
-            finalTool = event.tool || { name: 'reply_only', payload: null }
-            if (event.error) {
-              toast.error(event.error)
+          if (event.type === 'action_ready') {
+            if (!actionApplied && shouldApplyImmediately(event.action)) {
+              if (editor) {
+                applyEditorAiAction(editor, event.action)
+                actionApplied = true
+              }
             }
+            continue
+          }
+
+          if (event.type === 'tool_pending') {
+            if (event.tool === 'plan_article_images') {
+              setToolStatus('AI 正在生成并插入配图…')
+            }
+            continue
+          }
+
+          if (event.type === 'tool_result') {
+            if (event.tool === 'plan_article_images') {
+              setToolStatus('配图已生成，正在写入编辑器…')
+            }
+            continue
+          }
+
+            if (event.type === 'assistant_done') {
+              finalTool = event.tool || { name: 'reply_only', payload: null }
+              if (!actionApplied && finalTool.name !== 'plan_article_images') {
+                if (editor) {
+                  applyLegacyToolResult(editor, finalTool)
+                }
+                actionApplied = true
+              }
+              if (event.error) {
+                toast.error(event.error)
+              }
+              setStreamingId(null)
+              setToolStatus(null)
+              setLoading(false)
+              continue
+            }
+
+          if (event.type === 'assistant_error') {
+            toast.error(event.error)
           }
         }
       }
 
-      applyToolResult(finalTool)
+      if ((!actionApplied || finalTool.name === 'plan_article_images') && editor) {
+        applyLegacyToolResult(editor, finalTool)
+      }
     } catch (error) {
       setMessages((current) => current.map((item) => (
         item.id === assistantId
           ? { ...item, content: '抱歉，这次执行失败了，请重试。' }
           : item
       )))
-      toast.error(error instanceof Error ? error.message : 'AI 对话失败')
+      
+      const { ApiClientError } = await import('@/lib/api-client')
+      if (error instanceof ApiClientError) {
+        let errMsg = error.message
+        if (error.requestId && error.requestId !== 'unknown') {
+          errMsg += ` [ID: ${error.requestId.slice(0, 8)}]`
+        }
+        if (error.hint) {
+          errMsg += ` (${error.hint})`
+        }
+        toast.error(errMsg)
+      } else {
+        toast.error(error instanceof Error ? error.message : 'AI 对话失败')
+      }
     } finally {
       setStreamingId(null)
+      setToolStatus(null)
       setLoading(false)
     }
-  }, [applyToolResult, articleKey, documentJson, documentText, editor, input, loading, postSlug, title, toast])
+  }, [articleKey, documentJson, documentText, editor, input, loading, postSlug, title, toast])
 
   if (!hydrated) {
     return (
@@ -353,6 +316,11 @@ export function AIPanel({
               >
                 {message.role === 'assistant' && !message.content && message.id === streamingId ? (
                   <span className="text-[var(--editor-muted)]">AI 正在思考…</span>
+                ) : message.role === 'assistant' ? (
+                  <div
+                    className="prose prose-sm max-w-none prose-headings:mb-3 prose-headings:mt-5 prose-p:my-3 prose-li:my-1 prose-ul:my-3 prose-ol:my-3 prose-strong:text-[var(--editor-ink)] prose-p:text-[var(--editor-ink)] prose-li:text-[var(--editor-ink)]"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(message.content) }}
+                  />
                 ) : (
                   message.content
                 )}
@@ -364,6 +332,12 @@ export function AIPanel({
 
       <div className="px-1 pb-1 pt-3">
         <UiPanel inset="soft" className="rounded-[1.55rem] border-[color-mix(in_srgb,var(--ui-line)_88%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_98%,var(--ui-soft))] px-4 py-2.5 shadow-[0_10px_28px_rgb(var(--ui-shadow-rgb)/0.08)]">
+          {toolStatus ? (
+            <div className="pb-2 text-xs text-[color-mix(in_srgb,var(--ui-muted)_88%,transparent)]">
+              {toolStatus}
+            </div>
+          ) : null}
+
           <UiTextarea
             ref={textareaRef}
             rows={1}
@@ -398,7 +372,7 @@ export function AIPanel({
                 <UiIconButton
                   tone="soft"
                   onClick={() => void sendMessage()}
-                  disabled={loading || !input.trim() || !editor}
+                  disabled={loading || !input.trim()}
                   aria-label="发送"
                   className="h-9 w-9 rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))]"
                 >

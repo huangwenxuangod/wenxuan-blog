@@ -1,10 +1,10 @@
-import { getPosts, getPostsCount } from '@/lib/db'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import { type Theme } from '@/lib/appearance'
 import type { SiteCategoryLink, SiteNavLink } from '@/lib/site'
 import { getSiteHeaderData } from '@/lib/site'
 import { HomeClient } from '@/components/HomeClient'
 import { getSiteUrl } from '@/lib/site-config'
+import { getPosts, getPostsCount } from '@/lib/repositories/posts'
 
 const PAGE_SIZE = 25
 const BASE_URL = getSiteUrl()

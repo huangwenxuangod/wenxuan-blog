@@ -1,4 +1,3 @@
-import { getPostBySlug, incrementViewCount, isPubliclyAccessiblePost, isSearchIndexablePost } from '@/lib/db'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import { verifyPassword } from '@/lib/password'
 import { notFound } from 'next/navigation'
@@ -10,10 +9,11 @@ import { PasswordPrompt } from '@/components/PasswordPrompt'
 import { DownloadMarkdown } from '@/components/DownloadMarkdown'
 import { TwitterEmbedsEnhancer } from '@/components/TwitterEmbedsEnhancer'
 import { getSiteHeaderData } from '@/lib/site'
-import { getRelatedPosts } from '@/lib/related-content'
 import { getPublicContentCacheNamespace } from '@/lib/cache'
 import { getSiteUrl } from '@/lib/site-config'
 import { resolvePostCoverImage } from '@/lib/default-cover-images'
+import { incrementViewCount, getPostBySlug } from '@/lib/repositories/posts'
+import { isPubliclyAccessiblePost, isSearchIndexablePost } from '@/lib/repositories/types'
 
 // Cloudflare Workers 缓存策略
 export const revalidate = 86400 // 24小时缓存
@@ -34,7 +34,6 @@ export async function generateMetadata({
     const post = await getPostBySlug(env.DB, slug, getPublicContentCacheNamespace(env)).catch(() => null)
     if (!post || !isPubliclyAccessiblePost(post)) return {}
     const searchIndexable = isSearchIndexablePost(post)
-
     const ogImage = resolvePostCoverImage(post, { baseUrl })
 
     // Password-protected articles should not expose metadata to crawlers.
@@ -178,7 +177,9 @@ export default async function PostPage({
   const readingMinutes = Math.max(1, Math.ceil(textLength / 400))
   const searchIndexable = isSearchIndexablePost(post)
   const related = !post.password
-    ? await getRelatedPosts(db, env, post, 3).catch(() => ({ strategy: 'fts' as const, source: 'rules' as const, results: [] }))
+    ? await import('@/lib/related-content/related')
+      .then(({ getRelatedPosts }) => getRelatedPosts(db, env, post, 3))
+      .catch(() => ({ strategy: 'fts' as const, source: 'rules' as const, results: [] }))
     : { strategy: 'fts' as const, source: 'rules' as const, results: [] }
   const contentContainerId = `post-content-${post.slug}`
 

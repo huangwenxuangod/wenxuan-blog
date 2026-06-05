@@ -36,8 +36,8 @@ vi.mock('@/lib/ai-provider-profiles', async () => {
   }
 })
 
-vi.mock('@/lib/ai-image-config', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/ai-image-config')>('@/lib/ai-image-config')
+vi.mock('@/lib/ai-image/config', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/ai-image/config')>('@/lib/ai-image/config')
   return {
     ...actual,
     resolveAiImageProfileConfig: mocks.resolveAiImageProfileConfig,

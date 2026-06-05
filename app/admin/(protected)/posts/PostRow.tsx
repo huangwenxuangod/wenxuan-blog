@@ -15,6 +15,9 @@ import { getSiteUrl } from '@/lib/site-config'
 interface PostRowProps {
   post: PostWithTags
   categories: string[]
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
 }
 
 function formatRelativeTime(ts: number) {
@@ -38,7 +41,13 @@ function formatRelativeTime(ts: number) {
   })
 }
 
-export function PostRow({ post, categories }: PostRowProps) {
+export function PostRow({
+  post,
+  categories,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
+}: PostRowProps) {
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showPermanentModal, setShowPermanentModal] = useState(false)
@@ -267,7 +276,19 @@ export function PostRow({ post, categories }: PostRowProps) {
   return (
     <>
       {/* 桌面端 */}
-      <div className="hidden md:grid grid-cols-[56px_minmax(0,1fr)_200px_88px_116px_232px] gap-4 px-5 py-3 hover:bg-[var(--editor-panel)] transition-colors items-center">
+      <div className="hidden md:grid grid-cols-[44px_56px_minmax(0,1fr)_200px_88px_116px_232px] gap-4 px-5 py-3 hover:bg-[var(--editor-panel)] transition-colors items-center">
+        <div className="flex items-center justify-center">
+          {selectable ? (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              aria-label={`选择文章 ${post.title}`}
+              className="h-4 w-4 cursor-pointer rounded border-[var(--editor-line)] text-[var(--editor-accent)] accent-[var(--editor-accent)]"
+            />
+          ) : null}
+        </div>
+
         {/* 状态列 */}
         <div className="flex items-center justify-center">
           {/* 状态圆点 */}
@@ -440,6 +461,18 @@ export function PostRow({ post, categories }: PostRowProps) {
       {/* 移动端 */}
       <div className="md:hidden p-4 hover:bg-[var(--editor-panel)] transition-colors">
         <div className="flex items-start gap-3 mb-2">
+          {selectable ? (
+            <div className="pt-0.5">
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={onToggleSelect}
+                aria-label={`选择文章 ${post.title}`}
+                className="h-4 w-4 cursor-pointer rounded border-[var(--editor-line)] text-[var(--editor-accent)] accent-[var(--editor-accent)]"
+              />
+            </div>
+          ) : null}
+
           {/* 状态列 */}
           <div className="flex flex-col items-center gap-1 flex-shrink-0">
             <span

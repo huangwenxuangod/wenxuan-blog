@@ -34,6 +34,11 @@ export async function searchPosts(
       .bind(query, limit)
       .all<Post>()
     results = ftsResult.results
+
+    // 如果 FTS5 未匹配到任何结果，且查询包含中文，则抛出异常以强制回退到 LIKE 模糊匹配
+    if (results.length === 0 && /[\u4e00-\u9fa5]/.test(query)) {
+      throw new Error('Chinese FTS no match')
+    }
   } catch {
     const pattern = `%${query}%`
     const likeResult = await db

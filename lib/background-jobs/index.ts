@@ -1,8 +1,6 @@
-import { processPost, getAiRuntimeEnv } from '@/lib/ai'
 import { invalidatePublicContentCache } from '@/lib/cache'
 import { getPostAiSnapshot, updatePost } from '@/lib/db'
 import { buildAutoDescription } from '@/lib/post-utils'
-import { deletePostFromRelatedIndex, syncPostToRelatedIndex } from '@/lib/related-content'
 
 export type BackgroundJob =
   | {
@@ -50,6 +48,11 @@ function shouldUseQueue(env?: BackgroundJobEnv | null): boolean {
 async function runProcessPostAiJob(env: BackgroundJobEnv, postId: number) {
   if (!env.DB) return
 
+  const [{ processPost, getAiRuntimeEnv }, { syncPostToRelatedIndex }] = await Promise.all([
+    import('@/lib/ai'),
+    import('@/lib/related-content/index-sync'),
+  ])
+
   const post = await getPostAiSnapshot(env.DB, postId)
   if (!post || post.deleted_at) return
 
@@ -80,10 +83,12 @@ async function runProcessPostAiJob(env: BackgroundJobEnv, postId: number) {
 }
 
 async function runSyncPostRelatedIndexJob(env: BackgroundJobEnv, postId: number) {
+  const { syncPostToRelatedIndex } = await import('@/lib/related-content/index-sync')
   await syncPostToRelatedIndex(env, postId)
 }
 
 async function runDeletePostRelatedIndexJob(env: BackgroundJobEnv, postId: number) {
+  const { deletePostFromRelatedIndex } = await import('@/lib/related-content/index-sync')
   await deletePostFromRelatedIndex(env, postId)
 }
 

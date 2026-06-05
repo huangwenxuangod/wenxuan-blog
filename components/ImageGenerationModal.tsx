@@ -35,7 +35,7 @@ import {
   getAiImageResolutionLabel,
   type AIImageAspectRatio,
   type AIImageResolution,
-} from '@/lib/ai-image-options'
+} from '@/lib/ai-image/options'
 
 interface ImageActionItem {
   id: number

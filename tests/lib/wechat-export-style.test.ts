@@ -3,7 +3,7 @@ import {
   buildWechatExportCss,
   normalizeWechatExportHtml,
   type WechatExportStyleTokens,
-} from '@/lib/wechat-export-style'
+} from '@/lib/wechat/export-style'
 
 const TOKENS: WechatExportStyleTokens = {
   background: '#f5f4ed',

@@ -5,7 +5,7 @@ import {
   ensureAiImageConfigInfrastructure,
   ensureDefaultImageProfileId,
   type AIImageActionRow,
-} from '@/lib/ai-image-config'
+} from '@/lib/ai-image/config'
 import {
   deriveLegacyQualityFromResolution,
   deriveLegacySizeFromAspectRatio,
@@ -13,7 +13,7 @@ import {
   inferResolutionFromLegacyQuality,
   normalizeAiImageAspectRatio,
   normalizeAiImageResolution,
-} from '@/lib/ai-image-options'
+} from '@/lib/ai-image/options'
 
 export async function GET(req: NextRequest) {
   const env = await getAppCloudflareEnv()

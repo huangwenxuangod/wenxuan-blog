@@ -142,6 +142,11 @@ export function isWorkersAiBaseUrl(input: string): boolean {
   return /api\.cloudflare\.com\/client\/v4\/accounts\/[^/]+\/ai(?:\/|$)/i.test(normalized)
 }
 
+export function isDeepSeekBaseUrl(input: string): boolean {
+  const normalized = normalizeBaseUrl(input || '')
+  return /api\.deepseek\.com(?:\/v1)?$/i.test(normalized)
+}
+
 export function buildWorkersAiRunUrl(baseUrl: string, model: string): string {
   const normalized = normalizeBaseUrl(baseUrl)
   const apiRoot = /\/ai\/v1$/i.test(normalized)

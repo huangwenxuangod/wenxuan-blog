@@ -16,10 +16,13 @@ vi.mock('@/lib/cloudflare', () => ({
   getAppCloudflareEnv: mocks.getAppCloudflareEnv,
 }))
 
-vi.mock('@/lib/ai-post-generators', () => ({
-  ensureAiPostGeneratorInfrastructure: mocks.ensureAiPostGeneratorInfrastructure,
+vi.mock('@/lib/ai-post-generator/generate', () => ({
   generatePostMetadata: mocks.generatePostMetadata,
   generatePostCover: mocks.generatePostCover,
+}))
+
+vi.mock('@/lib/ai-post-generator/storage', () => ({
+  ensureAiPostGeneratorInfrastructure: mocks.ensureAiPostGeneratorInfrastructure,
 }))
 
 import { POST } from '@/app/api/editor/ai-post-metadata/route'

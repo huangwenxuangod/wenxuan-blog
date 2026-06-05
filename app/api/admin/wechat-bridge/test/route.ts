@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { ensureAuthenticatedRequest, getRouteEnvWithDb, jsonError, jsonOk, parseJsonBody } from '@/lib/server/route-helpers'
-import { fetchWechatBridgeJson, getWechatBridgeConfig, type WechatBridgeAccount } from '@/lib/wechat-bridge-config'
+import { fetchWechatBridgeJson, getWechatBridgeConfig, type WechatBridgeAccount } from '@/lib/wechat/bridge-config'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 
 interface BridgeTestBody {

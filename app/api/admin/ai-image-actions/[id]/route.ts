@@ -4,7 +4,7 @@ import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import {
   ensureAiImageConfigInfrastructure,
   ensureDefaultImageProfileId,
-} from '@/lib/ai-image-config'
+} from '@/lib/ai-image/config'
 import {
   deriveLegacyQualityFromResolution,
   deriveLegacySizeFromAspectRatio,
@@ -12,7 +12,7 @@ import {
   inferResolutionFromLegacyQuality,
   normalizeAiImageAspectRatio,
   normalizeAiImageResolution,
-} from '@/lib/ai-image-options'
+} from '@/lib/ai-image/options'
 
 export async function PUT(
   req: NextRequest,

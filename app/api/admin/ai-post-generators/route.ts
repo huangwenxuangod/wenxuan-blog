@@ -4,13 +4,17 @@ import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import {
   WORKERS_AI_IMAGE_MODEL_SUGGESTIONS,
   WORKERS_AI_TEXT_MODEL_SUGGESTIONS,
+} from '@/lib/ai-post-generator/constants'
+import {
   ensureAiPostGeneratorInfrastructure,
   getAiPostGeneratorByTarget,
   listAiPostGenerators,
-  type AiPostGeneratorProviderMode,
-  type AiPostGeneratorTarget,
-} from '@/lib/ai-post-generators'
-import { normalizeAiImageAspectRatio, normalizeAiImageResolution } from '@/lib/ai-image-options'
+} from '@/lib/ai-post-generator/storage'
+import type {
+  AiPostGeneratorProviderMode,
+  AiPostGeneratorTarget,
+} from '@/lib/ai-post-generator/types'
+import { normalizeAiImageAspectRatio, normalizeAiImageResolution } from '@/lib/ai-image/options'
 import { clampMaxTokens, clampTemperature } from '@/lib/ai-provider-profiles'
 
 interface UpdateGeneratorBody {

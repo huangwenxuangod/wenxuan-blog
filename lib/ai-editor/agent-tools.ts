@@ -1,4 +1,4 @@
-import type { EditorDocumentBlock } from '@/lib/editor-document-outline'
+import type { EditorDocumentBlock } from '@/lib/ai-editor/types'
 
 export type AiEditorToolName =
   | 'reply_only'
@@ -50,6 +50,7 @@ export interface AiEditorToolCall {
 export function describeAiEditorTools(outline: EditorDocumentBlock[]) {
   return `
 你是文章写作助手。你不需要征求用户二次确认，可以直接执行最合适的编辑动作。
+你必须优先利用当前聚焦区域、相关召回块和结构化记忆来判断动作范围，不要默认整篇改写。
 
 你必须只返回一个 JSON 对象，结构如下：
 {
@@ -71,6 +72,7 @@ export function describeAiEditorTools(outline: EditorDocumentBlock[]) {
 约束：
 - blockIndex 必须基于下面给出的文章块列表，从 0 开始
 - 优先局部编辑，不要默认整篇重写
+- 如果要改文，尽量只改当前 block、当前 section 或明确召回出的相关 block
 - 如果用户是问答、 brainstorming、解释概念，则用 reply_only
 - 如果用户要求自动配图，可以选择 1-6 张图，位置要分散且合理
 - 返回必须是合法 JSON，不要加 markdown 代码块

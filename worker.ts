@@ -2,7 +2,8 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore -- generated artifact may be absent during clean Next type-checks
 import { default as handler } from './.open-next/worker.js'
-import { consumeBackgroundJobBatch, type BackgroundJob, type BackgroundJobEnv } from './lib/background-jobs'
+import { consumeBackgroundJobBatch } from './lib/background-jobs/runner'
+import type { BackgroundJob, BackgroundJobEnv } from './lib/background-jobs/shared'
 
 interface QueueMessage<T> {
   body: T

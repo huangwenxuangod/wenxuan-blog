@@ -6,7 +6,7 @@ import {
   ensureDefaultImageProfileId,
   saveEncryptedAiImageApiKey,
   type AIImageProviderProfileRow,
-} from '@/lib/ai-image-config'
+} from '@/lib/ai-image/config'
 import { normalizeBaseUrl, resolveAiConfigSecret } from '@/lib/ai-provider-profiles'
 
 interface SaveProfileBody {

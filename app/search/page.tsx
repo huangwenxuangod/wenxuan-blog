@@ -1,4 +1,3 @@
-import { searchPosts } from '@/lib/db'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import Link from 'next/link'
 import { SiteHeader } from '@/components/SiteHeader'
@@ -6,6 +5,7 @@ import { SiteFooter } from '@/components/SiteFooter'
 import type { SiteCategoryLink, SiteNavLink } from '@/lib/site'
 import { getSiteHeaderData } from '@/lib/site'
 import type { Theme } from '@/lib/appearance'
+import { searchPosts } from '@/lib/repositories/search'
 
 export const metadata = {
   title: '搜索结果',

@@ -11,7 +11,7 @@ import {
   inferResolutionFromLegacyQuality,
   type AIImageAspectRatio,
   type AIImageResolution,
-} from '@/lib/ai-image-options'
+} from './options'
 
 export interface AIImageProviderProfileRow {
   id: number

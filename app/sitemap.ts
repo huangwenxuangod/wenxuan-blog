@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import { getPosts, getPublicCategories } from '@/lib/db'
 import { getSiteUrl } from '@/lib/site-config'
+import { getPublicCategories } from '@/lib/repositories/categories'
+import { getPosts } from '@/lib/repositories/posts'
 
 export const dynamic = 'force-dynamic'
 

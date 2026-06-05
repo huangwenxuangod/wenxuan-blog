@@ -1,0 +1,88 @@
+import type { AIEnv } from '@/lib/ai'
+import type { AiEditorContext, AiEditorMemoryItem, AiEditorMemoryWrite, AiEditorThreadMessage } from '@/lib/ai-editor/types'
+
+export type EditorAiTaskType =
+  | 'chat'
+  | 'rewrite'
+  | 'expand'
+  | 'compress'
+  | 'outline_fix'
+  | 'image_plan'
+  | 'image_generate'
+  | 'image_insert'
+
+export type EditorAiAction =
+  | { type: 'reply_only' }
+  | { type: 'rewrite_block'; blockIndex: number; markdown: string }
+  | { type: 'rewrite_selection'; markdown: string }
+  | { type: 'insert_text'; blockIndex?: number; position?: 'before' | 'after'; markdown: string }
+  | { type: 'append_section'; markdown: string }
+  | {
+      type: 'plan_article_images'
+      images: Array<{
+        blockIndex: number
+        reason: string
+        prompt: string
+        alt: string
+        aspectRatio?: string
+        resolution?: string
+      }>
+    }
+
+export type EditorAiRuntimeEvent =
+  | { type: 'assistant_start' }
+  | { type: 'assistant_delta'; delta: string }
+  | { type: 'tool_pending'; tool: string; payload?: unknown }
+  | { type: 'tool_result'; tool: string; payload?: unknown }
+  | { type: 'action_ready'; action: EditorAiAction }
+  | { type: 'assistant_done'; message: string; action?: EditorAiAction | null; error?: string }
+  | { type: 'assistant_error'; error: string }
+
+export interface EditorAiRuntimeInput {
+  articleKey: string
+  userMessage: string
+  title: string
+  postSlug?: string | null
+  documentText: string
+  documentJson?: unknown
+  activeBlockIndex?: number | null
+  selectionText?: string | null
+  history: AiEditorThreadMessage[]
+  memoryItems: AiEditorMemoryItem[]
+  env?: AIEnv
+  db?: D1Database
+}
+
+export interface EditorAiRuntimeResult {
+  taskType: EditorAiTaskType
+  context: AiEditorContext
+  stream: AsyncIterable<EditorAiRuntimeEvent>
+  completed: Promise<EditorAiRuntimeCompletedResult>
+}
+
+export interface EditorAiRuntimePreparedInput extends EditorAiRuntimeInput {
+  context: AiEditorContext
+}
+
+export interface EditorAiModelPrompt {
+  systemPrompt: string
+  userPrompt: string
+}
+
+export interface EditorAiProviderRunResult {
+  message: string
+  action: EditorAiAction
+  error?: string
+}
+
+export interface EditorAiProviderStreamResult {
+  stream: AsyncIterable<EditorAiRuntimeEvent>
+  completed: Promise<EditorAiProviderRunResult>
+}
+
+export interface EditorAiRuntimeCompletedResult {
+  message: string
+  action: EditorAiAction
+  memoryCandidates: AiEditorMemoryWrite[]
+  error?: string
+}

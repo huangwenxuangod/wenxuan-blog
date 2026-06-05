@@ -16,6 +16,8 @@ type MockKV = {
   delete: ReturnType<typeof vi.fn>
 }
 
+const mutableEnv = process.env as Record<string, string | undefined>
+
 function createKvMock(): MockKV {
   return {
     get: vi.fn(),
@@ -30,11 +32,11 @@ describe('cache helpers', () => {
 
   beforeEach(() => {
     delete process.env.ENABLE_PUBLIC_CACHE_IN_DEV
-    process.env.NODE_ENV = 'test'
+    mutableEnv.NODE_ENV = 'test'
   })
 
   afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv
+    mutableEnv.NODE_ENV = originalNodeEnv
     if (originalEnableCacheInDev === undefined) {
       delete process.env.ENABLE_PUBLIC_CACHE_IN_DEV
     } else {
@@ -54,10 +56,10 @@ describe('cache helpers', () => {
   it('enables public cache in production or when dev flag is on', () => {
     const cache = createKvMock()
 
-    process.env.NODE_ENV = 'production'
+    mutableEnv.NODE_ENV = 'production'
     expect(shouldUsePublicContentCache({ CACHE: cache as never })).toBe(true)
 
-    process.env.NODE_ENV = 'test'
+    mutableEnv.NODE_ENV = 'test'
     process.env.ENABLE_PUBLIC_CACHE_IN_DEV = 'true'
     expect(shouldUsePublicContentCache({ CACHE: cache as never })).toBe(true)
     expect(getPublicContentCacheNamespace({ CACHE: cache as never })).toBe(cache)

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateRequest } from '@/lib/admin-auth'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import { transformEditorSelectionStream, getAiRuntimeEnv } from '@/lib/ai'
 import { ensureAiConfigInfrastructure, resolveAiConfigSecret } from '@/lib/ai-provider-profiles'
 
 export async function POST(req: NextRequest) {
@@ -35,6 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '缺少选中文本' }, { status: 400 })
   }
 
+  const { getAiRuntimeEnv, transformEditorSelectionStream } = await import('@/lib/ai')
   const aiEnv = getAiRuntimeEnv(env)
 
   // 从 DB 动态读取操作配置（替代硬编码 VALID_ACTIONS）

@@ -1,9 +1,7 @@
 'use client'
 
 import { useToast } from '@/components/Toast'
-import { copyAsWechatArticleFormat, downloadArticleAsPdf } from '@/lib/wechat-copy'
 import { Copy, FileDown } from 'lucide-react'
-import TurndownService from 'turndown'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 const URL_ATTRIBUTES = [
@@ -43,26 +41,32 @@ function absolutizeHtmlUrls(html: string) {
 export function DownloadMarkdown({ title, html }: { title: string; html: string }) {
   const toast = useToast()
 
-  const handleDownload = () => {
-    const td = new TurndownService({
-      headingStyle: 'atx',
-      bulletListMarker: '-',
-      codeBlockStyle: 'fenced',
-    })
-    const normalizedHtml = absolutizeHtmlUrls(html)
-    // 保留图片标签（turndown 默认就支持 img → ![](src)）
-    const markdown = td.turndown(normalizedHtml)
-    const blob = new Blob([`# ${title}\n\n${markdown}`], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${title}.md`
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleDownload = async () => {
+    try {
+      const { default: TurndownService } = await import('turndown')
+      const td = new TurndownService({
+        headingStyle: 'atx',
+        bulletListMarker: '-',
+        codeBlockStyle: 'fenced',
+      })
+      const normalizedHtml = absolutizeHtmlUrls(html)
+      // 保留图片标签（turndown 默认就支持 img → ![](src)）
+      const markdown = td.turndown(normalizedHtml)
+      const blob = new Blob([`# ${title}\n\n${markdown}`], { type: 'text/markdown;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${title}.md`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '下载 Markdown 失败')
+    }
   }
 
   const handleCopyWechat = async () => {
     try {
+      const { copyAsWechatArticleFormat } = await import('@/lib/wechat/copy')
       await copyAsWechatArticleFormat(title, html)
       toast.success('已复制公众号格式')
     } catch (error) {
@@ -72,6 +76,7 @@ export function DownloadMarkdown({ title, html }: { title: string; html: string 
 
   const handleDownloadPdf = async () => {
     try {
+      const { downloadArticleAsPdf } = await import('@/lib/wechat/copy')
       await downloadArticleAsPdf(title, html)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '导出 PDF 失败')

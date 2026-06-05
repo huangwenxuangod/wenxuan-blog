@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import {
@@ -16,10 +17,7 @@ import {
 import { InputModal } from '@/components/InputModal'
 import { CategorySelector } from '@/components/CategorySelector'
 import { DownloadMarkdown } from '@/components/DownloadMarkdown'
-import { ImageGenerationModal } from '@/components/ImageGenerationModal'
-import { ImageCropModal } from '@/components/ImageCropModal'
 import { useToast } from '@/components/Toast'
-import { AIModal } from '@/lib/ai-modal'
 import { EDITOR_IMAGE_OPTIMIZE_OPTIONS, optimizeImageForUpload } from '@/lib/client-image'
 import {
   createUploadPlaceholderMarker,
@@ -38,6 +36,27 @@ import {
 } from '@/lib/editor-ui'
 import type { EditorImageActionTarget } from '@/lib/resizable-image'
 import { resizeTextareaHeight, useAutoResizeTextarea } from '@/lib/textarea-autosize'
+
+const AIModal = dynamic(
+  () => import('@/lib/ai-modal').then((module) => ({ default: module.AIModal })),
+  {
+    ssr: false,
+  },
+)
+
+const ImageGenerationModal = dynamic(
+  () => import('@/components/ImageGenerationModal').then((module) => ({ default: module.ImageGenerationModal })),
+  {
+    ssr: false,
+  },
+)
+
+const ImageCropModal = dynamic(
+  () => import('@/components/ImageCropModal').then((module) => ({ default: module.ImageCropModal })),
+  {
+    ssr: false,
+  },
+)
 
 interface InlineArticleEditorProps {
   slug: string
@@ -508,47 +527,53 @@ export function InlineArticleEditor({
         onCancel={handleInputModalCancel}
       />
 
-      <ImageGenerationModal
-        open={imageModal.open}
-        contextText={imageModal.contextText}
-        historyScope="inline-article"
-        onClose={closeImageModal}
-        onInsert={insertGeneratedImage}
-      />
+      {imageModal.open ? (
+        <ImageGenerationModal
+          open={imageModal.open}
+          contextText={imageModal.contextText}
+          historyScope="inline-article"
+          onClose={closeImageModal}
+          onInsert={insertGeneratedImage}
+        />
+      ) : null}
 
-      <ImageGenerationModal
-        open={Boolean(referenceImageTarget)}
-        contextText=""
-        historyScope="inline-article"
-        referenceImageUrl={referenceImageTarget?.src}
-        allowReplace
-        defaultPlacementMode="replace"
-        closeOnGenerate={false}
-        generationMode="foreground"
-        onClose={() => setReferenceImageTarget(null)}
-        onInsert={(imageUrl, alt, placementMode) => {
-          if (!referenceImageTarget) return
-          applyImageActionResult(referenceImageTarget, imageUrl, alt, placementMode ?? 'replace')
-          setReferenceImageTarget(null)
-        }}
-      />
+      {referenceImageTarget ? (
+        <ImageGenerationModal
+          open={Boolean(referenceImageTarget)}
+          contextText=""
+          historyScope="inline-article"
+          referenceImageUrl={referenceImageTarget.src}
+          allowReplace
+          defaultPlacementMode="replace"
+          closeOnGenerate={false}
+          generationMode="foreground"
+          onClose={() => setReferenceImageTarget(null)}
+          onInsert={(imageUrl, alt, placementMode) => {
+            if (!referenceImageTarget) return
+            applyImageActionResult(referenceImageTarget, imageUrl, alt, placementMode ?? 'replace')
+            setReferenceImageTarget(null)
+          }}
+        />
+      ) : null}
 
-      <ImageCropModal
-        open={Boolean(cropImageTarget)}
-        imageUrl={cropImageTarget?.src || ''}
-        imageAlt={cropImageTarget?.alt}
-        defaultPlacementMode="replace"
-        onClose={() => setCropImageTarget(null)}
-        onApply={async (file, placementMode) => {
-          if (!cropImageTarget) return
+      {cropImageTarget ? (
+        <ImageCropModal
+          open={Boolean(cropImageTarget)}
+          imageUrl={cropImageTarget.src}
+          imageAlt={cropImageTarget.alt}
+          defaultPlacementMode="replace"
+          onClose={() => setCropImageTarget(null)}
+          onApply={async (file, placementMode) => {
+            if (!cropImageTarget) return
 
-          const uploaded = await uploadImageAndGetUrl(file)
-          applyImageActionResult(cropImageTarget, uploaded, cropImageTarget.alt || file.name, placementMode)
-          setCropImageTarget(null)
-        }}
-      />
+            const uploaded = await uploadImageAndGetUrl(file)
+            applyImageActionResult(cropImageTarget, uploaded, cropImageTarget.alt || file.name, placementMode)
+            setCropImageTarget(null)
+          }}
+        />
+      ) : null}
 
-      {editorRef.current && (
+      {editorRef.current && aiModal.open ? (
         <AIModal
           editor={editorRef.current}
           isOpen={aiModal.open}
@@ -569,7 +594,7 @@ export function InlineArticleEditor({
             if (editorRef.current) checkDirty(editorRef.current, { title: nextTitle })
           }}
         />
-      )}
+      ) : null}
     </>
   )
 }

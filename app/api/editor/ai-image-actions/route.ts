@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import { ensureAiImageConfigInfrastructure } from '@/lib/ai-image-config'
+import { ensureAiImageConfigInfrastructure } from '@/lib/ai-image/config'
 
 interface AiImageActionPublic {
   id: number

@@ -1,4 +1,4 @@
-import { getOrCreateAiArticleThread, listAiArticleMessages } from '@/lib/db'
+import { getOrCreateAiArticleThread, listAiArticleMessages } from '@/lib/repositories/ai-article-threads'
 import {
   ensureAuthenticatedRequest,
   getRouteEnvWithDb,

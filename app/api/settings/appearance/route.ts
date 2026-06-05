@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { normalizeTheme } from '@/lib/appearance'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import { getSetting } from '@/lib/db'
+import { getSetting } from '@/lib/repositories/settings'
 
 export async function GET() {
   try {

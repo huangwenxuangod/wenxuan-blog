@@ -1,5 +1,6 @@
 import { normalizeTheme, type Theme } from '@/lib/appearance'
-import { getPublicCategories, getSetting } from '@/lib/db'
+import { getPublicCategories } from '@/lib/repositories/categories'
+import { getSetting } from '@/lib/repositories/settings'
 
 export interface SiteNavLink {
   label: string

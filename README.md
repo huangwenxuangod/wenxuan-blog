@@ -1,50 +1,53 @@
-# 文轩博客 Open Source
+# Wenxuan Blog Open Source
+
+English | [简体中文](README-ZH.md)
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/huangwenxuangod/wenxuan-blog-opensource)
 [![Use this template](https://img.shields.io/badge/GitHub-Use%20this%20template-111111?logo=github)](https://github.com/huangwenxuangod/wenxuan-blog-opensource/generate)
 
-如果你也想拥有一个真正属于自己的学习、写作、分享阵地，而不是把内容完全寄托在平台算法上，这个项目就是为此做的。
+If you want to have a learning, writing, and sharing space that truly belongs to you, rather than fully entrusting your content to platform algorithms, this project is built for exactly that.
 
-文轩博客不是一个只会渲染 Markdown 的静态模板，而是一套完整的博客系统：前后台双编辑器、AI 写作辅助、AI 生图、主题系统、全文检索、API Token、外部发布生态都已经接好，目标就是让你更容易持续写下去。
+Wenxuan Blog is not just a static template that renders Markdown; it is a fully integrated blog engine. It features dual front-end and back-end editors, AI-powered writing assistance, AI image generation, a robust theme system, full-text search, API tokens, and an external publishing ecosystem—all pre-configured to make it easier for you to keep writing.
 
-- 在线示例：部署后补充
-- 介绍文章：部署后补充
-- 当前仓库：<https://github.com/huangwenxuangod/wenxuan-blog-opensource>
+- Live Demo: To be added after deployment
+- Introduction Article: To be added after deployment
+- Current Repository: <https://github.com/huangwenxuangod/wenxuan-blog-opensource>
 
-## 为什么值得做成自己的站
+## Why Build Your Own Blog?
 
-- 自媒体账号可能被封，平台流量也可能波动，但自己的站点不会
-- 写作系统应该足够轻，打开就能写，而不是被后台流程打断
-- AI 最该服务的是摘要、标签、封面、slug、生图这些重复工作
-- 博客不该只是展示页，还应该是你的长期知识资产
+- Social media accounts can be banned, and platform traffic can fluctuate, but your own site is permanent.
+- A writing system should be lightweight enough to open and write immediately, without being interrupted by complex backend processes.
+- AI is best suited to handle repetitive tasks such as summaries, tags, covers, slugs, and image generation.
+- A blog should not just be a display page; it should be your long-term knowledge asset.
 
-## 你会得到什么
+## What You Will Get
 
-- 前台、后台都能编辑，所见即所得，接近飞书 / Notion 的写作体验
-- 四套首页主题，移动端友好，开箱即用
-- **全新编辑器目录导轨 (Table of Contents)**：实时解析文档结构，自动生成带层级编号的目录，支持双向滚动高亮与平滑锚点跳转，状态持久化保存
-- **基于 Headless UI 的无障碍交互重构**：所有下拉菜单、弹窗、弹出层均采用 Headless UI 重构，提供顺滑的过渡动画、完美的键盘导航和焦点管理
-- **全局触觉交互规范 (Tactile Hover Feedback)**：框架级注入 Hover 指针规则，全站所有按钮、下拉菜单、选项列表、模拟按钮在悬停时自动展现 `cursor: pointer` 手势，禁用状态自动切换为 `cursor: not-allowed`，提供极佳的物理操控感
-- **智能品牌图标引擎 (Smart Brand Icons)**：导航栏智能检测 GitHub 和 Twitter/X 链接（支持大小写不敏感的标签名或 URL），全自动渲染为像素级完美、100% 视觉重量一致的现代 inline SVG 品牌图标
-- **Claude 极简美学设计规范**：深度定制的温暖羊皮纸色调、Anthropic Serif 衬线体字形与极简环形投影，带来静谧、专注的写作与阅读体验
-- Bubble Menu + Ask AI，选中文本就能改写、润色、扩写、翻译
-- AI 自动处理摘要、标签、SEO slug、封面图
-- AI 生图模型和模板配置、最近生成记录、插入和替换工作流
-- 图片右键菜单：下载、设为封面、对齐、裁剪、参考生图
-- 发布状态：公开、草稿、密码访问、链接访问
-- 默认初始化配置：主题、导航、字体、AI 文本模型模板、AI 生图模型模板
-- Cloudflare Workers + D1 + R2 部署，不需要自己维护服务器和 CDN
+- **What-You-See-Is-What-You-Get (WYSIWYG) Editing**: Edit on both front-end and back-end with an experience close to Lark or Notion.
+- **Four Beautiful Homepage Themes**: Fully responsive, mobile-friendly, and ready to use out of the box.
+- **New Editor Table of Contents (TOC) Rail**: Real-time parsing of document structures, automatic generation of hierarchical numbered directories, dual-direction scroll highlighting, smooth anchor transitions, and persistent state saving.
+- **100% Data Ownership & Multi-Format One-Click Backup**: Export all articles (including full Markdown content), categories, and system settings as a **Markdown ZIP (with standard YAML Front Matter, perfectly compatible with Obsidian/Hugo)**, a **JSON Database Backup** for full restoration, or a **CSV Spreadsheet** (with UTF-8 BOM, ensuring Excel opens Chinese characters flawlessly without corruption).
+- **Accessible Interaction via Headless UI**: All dropdown menus, modals, and overlays are refactored using Headless UI, providing smooth transitions, perfect keyboard navigation, and robust focus management.
+- **Global Tactile Hover Feedback**: Framework-level hover pointer rules that automatically apply `cursor: pointer` to all buttons, selectors, option lists, and custom interactive elements, and fallback to `cursor: not-allowed` when disabled, providing a premium physical control feel.
+- **Smart Brand Icons**: Automatically detects GitHub and Twitter/X links in the navigation bar (case-insensitive label or URL) and renders them as pixel-perfect, visually balanced inline SVG brand icons.
+- **Claude Minimalist Aesthetic**: A deeply customized design with warm parchment tones (`#f5f4ed`), Anthropic Serif typeface, and soft circular shadows, creating a quiet, focused writing and reading environment.
+- **Bubble Menu + Ask AI**: Select text to instantly rewrite, polish, expand, or translate.
+- **AI-Powered Metadata Generation**: Automatically generates summaries, tags, SEO-friendly slugs, and covers.
+- **AI Image Generation & Workflow**: Configurable text-to-image models, generation logs, and inline replacement/insertion workflows.
+- **Image Context Menu**: Right-click to download, set as cover, align, crop, or use as reference for new image generation.
+- **Granular Publishing Statuses**: Public, Draft, Password Protected, and Unlisted URL Access.
+- **Default Out-of-the-Box Config**: Pre-configured navigation, themes, fonts, AI text/image model templates, and Ask AI preset actions.
+- **Cloudflare Edge-Native Stack**: Run on Cloudflare Pages/Workers, using D1 (SQLite) and R2 (Object Storage) without maintaining servers or CDNs.
 
-## 前端实现约定
+## Front-End Implementation Guidelines
 
-为了避免后台和编辑器出现语义错误或风格漂移，项目对组件和交互有明确约定。
+To prevent semantic errors or style drift in the admin panel and editor, the project has strict conventions for components and interactions.
 
-完整协作规范见：
+For full collaboration guidelines, see:
 
 - `AGENTS.md`
 - `CLAUDE.md`
 
-### 组件分层
+### Component Layers
 
 - `components/ui/primitives.ts`
   - `UiButton`
@@ -54,105 +57,97 @@
   - `UiPanel`
   - `cx`
 - `components/SelectDropdown.tsx`
-  - 统一的真实下拉选择器
+  - Unified genuine dropdown selector
 - `components/Dropdown.tsx`
-  - 历史兼容入口，当前内部已统一走 `SelectDropdown`
+  - Legacy compatibility wrapper, internally routing to `SelectDropdown`
 - `components/Toast.tsx`
-  - 全局顶部提示
+  - Global top-level toast notifications
 
-### 交互语义定义
+### Interaction Semantics
 
-- 自由文本输入：必须使用输入框
-- 固定候选项选择：必须使用真正的下拉框
-- 可搜索选择器：本质仍然是下拉框，搜索框只能出现在展开后的面板中
+- **Free Text Input**: Must use standard inputs (`UiInput`, `UiTextarea`).
+- **Fixed Options Selection**: Must use genuine dropdowns (`SelectDropdown` or Listbox-based wrappers).
+- **Searchable Selectors**: Still categorized as dropdowns; search inputs must live inside the expanded popover panel, not as a closed-state `ComboboxInput`.
 
-这意味着：
+This means:
+- "Aspect Ratio", "Resolution", "Publish Status", "Category", and "Theme" must be dropdowns.
+- Never fake a dropdown using a text-input look.
 
-- “图片比例”“分辨率”“发布状态”“分类”“主题” 都应该是下拉框
-- 不能把关闭态做成一个像输入框的 `ComboboxInput`
-- 不能用手写 DOM 菜单替代 Headless UI 交互骨架
+### Headless UI Primitives
 
-### Headless UI 约定
+Complex overlays must use `@headlessui/react`:
+- `Dialog`: Modal overlays
+- `Listbox`: Dropdown selectors
+- `Menu`: Menus
+- `Transition`: Transitions and animations
 
-复杂交互默认使用 `@headlessui/react`：
+### Visual Aesthetic
 
-- `Dialog`：模态弹窗
-- `Listbox`：真实下拉选择器
-- `Menu`：菜单
-- `Transition`：过渡动画
+Both admin panel and editor follow a unified minimalist language:
+- Restrained
+- Warm
+- Low Noise
+- Minimalist Cards
+- Strong Consistency
 
-### 视觉约定
+We discourage:
+- Cold gray SaaS-style default Tailwind colors.
+- Fake dropdowns that look like inputs.
+- Mixing multiple button, modal, or dropdown styles on the same page.
+- Adding redundant helper texts to create visual hierarchy.
 
-本项目的后台与编辑器遵循同一套极简语言：
+## Screenshots
 
-- 克制
-- 温暖
-- 低噪音
-- 低卡片感
-- 强一致性
+### Four Homepage Themes
 
-不鼓励：
+![Four Homepage Themes](docs/screenshots/home-themes.webp)
 
-- 默认 Tailwind 灰阶 SaaS 风
-- 关闭态像输入框的伪下拉
-- 同页混用多套按钮、弹窗、下拉风格
-- 通过冗余说明文字制造层级
+### Editor & WYSIWYG Writing
 
-## 截图预览
-
-### 四套首页主题
-
-![四套首页主题](docs/screenshots/home-themes.webp)
-
-### 编辑器与所见即所得写作
-
-![编辑器总览](docs/screenshots/editor-overview.webp)
+![Editor Overview](docs/screenshots/editor-overview.webp)
 
 ### Ask AI / Bubble Menu
 
 ![Ask AI](docs/screenshots/ask-ai.png)
 
-### 后台设置与主题、代码、API Token 管理
+### Admin Settings (Theme, Code, & API Tokens)
 
-![后台设置](docs/screenshots/admin-settings.webp)
+![Admin Settings](docs/screenshots/admin-settings.webp)
 
-### 多种发布状态
+### Publishing Statuses
 
-![发布状态](docs/screenshots/publish-states.png)
+![Publish Status](docs/screenshots/publish-states.png)
 
-### AI 模型与生图配置
+### AI Models & Image Generation Config
 
-![图片模型配置](docs/screenshots/image-provider.png)
+![AI Models](docs/screenshots/image-provider.png)
 
-## 配套生态也一起开源了
+## Open-Source Ecosystem
 
-这个仓库不只开源博客主站，也把外部发布工具一起放进来了。你可以把“写作入口”放在最顺手的地方，但最终都回到同一个博客后台。
+This repository includes external publishing tools so you can write wherever you find most comfortable, while syncing everything back to your central blog database.
 
-- [`ecosystem/chrome-clipper`](ecosystem/chrome-clipper/README.md)：浏览器网页剪藏，直接进入博客草稿箱
-- [`ecosystem/obsidian-publisher`](ecosystem/obsidian-publisher/README.md)：从 Obsidian 一键发布到博客
-- [`ecosystem/qiaomu-blog-publish-skill`](ecosystem/qiaomu-blog-publish-skill/README.md)：通过 Claude Skill / 命令工作流直接发布
-- [`ecosystem/README.md`](ecosystem/README.md)：生态工具总览
+- [`ecosystem/chrome-clipper`](ecosystem/chrome-clipper/README.md): Clip web content directly into your blog drafts.
+- [`ecosystem/obsidian-publisher`](ecosystem/obsidian-publisher/README.md): Publish notes from Obsidian with a single click.
+- [`ecosystem/qiaomu-blog-publish-skill`](ecosystem/qiaomu-blog-publish-skill/README.md): Publish directly via Claude Skills or command-line workflows.
+- [`ecosystem/README.md`](ecosystem/README.md): Ecosystem tools overview.
 
-## 一键部署到 Cloudflare
+## One-Click Deployment to Cloudflare
 
-直接点击上面的 `Deploy to Cloudflare` 按钮即可。
+Simply click the `Deploy to Cloudflare` button above.
 
-这个模板已经补好了适合 Deploy Button 的配置：
+This template is fully optimized for the Cloudflare Deploy Button:
+- Cloudflare reads the Worker configuration in the repository.
+- Automatically provisions and binds `D1` and `R2` resources.
+- Runs the custom deploy script to initialize the database schema and default configurations.
 
-- Cloudflare 会读取仓库里的 Worker 配置
-- 自动创建需要的 `D1` / `R2` 绑定
-- 使用仓库里的自定义 deploy script
-- 部署时自动应用数据库 schema 和模板默认配置
-
-部署时建议准备这些值：
-
+We recommend preparing these environment variables during deployment:
 - `NEXT_PUBLIC_SITE_URL`
 - `ADMIN_PASSWORD`
 - `ADMIN_TOKEN_SALT`
 - `AI_CONFIG_ENCRYPTION_SECRET`
-- `AI_API_KEY`（可选）
+- `AI_API_KEY` (Optional)
 
-如果你更想手动掌控 Cloudflare 资源，也可以走 CLI：
+If you prefer provisioning Cloudflare resources manually via CLI:
 
 ```bash
 npm install
@@ -163,7 +158,7 @@ npm run build
 npm run deploy
 ```
 
-## 本地开发
+## Local Development
 
 ```bash
 git clone https://github.com/huangwenxuangod/wenxuan-blog-opensource.git
@@ -173,60 +168,58 @@ cp .env.example .env.local
 npm run dev
 ```
 
-常用入口：
+Key Routes:
+- Homepage: `/`
+- Admin Panel: `/admin`
+- Editor: `/editor`
 
-- 首页：`/`
-- 后台：`/admin`
-- 编辑器：`/editor`
-
-如果你要在 Worker 运行时本地预览：
+To preview locally inside the Cloudflare Worker runtime:
 
 ```bash
 npm run preview
 ```
 
-## 默认初始化内容
+## Default Initialized Content
 
-首次初始化后，模板会自动带上这些基础能力：
+Upon initial setup, the template automatically provisions:
+- Default navigation links.
+- Default themes and fonts.
+- Default categories.
+- AI text model templates.
+- AI image model templates.
+- Article summary, tags, slug, and cover generators.
+- Ask AI preset actions.
 
-- 默认导航
-- 默认主题与字体
-- 默认分类
-- AI 文本模型配置模板
-- AI 生图模型配置模板
-- 文章摘要、标签、slug、封面生成器
-- 编辑器 Ask AI 预设动作
+All API keys are kept safe and are never committed to the repository; they are configured via Cloudflare Secrets or the Admin settings panel.
 
-所有 API Key 都不会进入仓库，首次部署时通过 Cloudflare secret 或后台配置补齐。
-
-## 技术栈
+## Tech Stack
 
 - Next.js 16
 - React 19
 - TypeScript
-- Tailwind CSS v4 (新一代高速样式引擎)
-- Headless UI (@headlessui/react 无障碍交互组件)
+- Tailwind CSS v4 (Next-generation high-speed style engine)
+- Headless UI (@headlessui/react accessible components)
 - OpenNext for Cloudflare
 - Cloudflare Workers
 - Cloudflare D1
 - Cloudflare R2
 - Novel / Tiptap
 
-## 常用命令
+## Common Commands
 
-| 命令 | 说明 |
+| Command | Description |
 | --- | --- |
-| `npm run dev` | Next.js 本地开发 |
-| `npm run build` | 构建应用 |
-| `npm run verify:quick` | 跑 lint、test、build |
-| `npm run verify` | 跑完整验证链路 |
-| `npm run cf:init` | 初始化 Cloudflare 资源和模板默认设置 |
-| `npm run preview` | Worker 运行时预览 |
-| `npm run deploy` | 部署到 Cloudflare Workers |
+| `npm run dev` | Local development via Next.js |
+| `npm run build` | Build the production application |
+| `npm run verify:quick` | Quick check (lint, test, and build) |
+| `npm run verify` | Run full validation pipeline |
+| `npm run cf:init` | Initialize Cloudflare resources and template defaults |
+| `npm run preview` | Local preview inside Worker runtime |
+| `npm run deploy` | Deploy to Cloudflare Workers |
 
-## 作者
+## Author
 
-- 文轩
-- GitHub：<https://github.com/huangwenxuangod>
-- X / Twitter：<https://x.com/hungxun254458>
-- Blog：部署后补充
+- Wenxuan
+- GitHub: <https://github.com/huangwenxuangod>
+- X / Twitter: <https://x.com/hungxun254458>
+- Blog: To be added after deployment

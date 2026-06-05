@@ -4,10 +4,10 @@ import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import {
   ensureAiImageConfigInfrastructure,
   resolveAiImageProfileConfig,
-} from '@/lib/ai-image-config'
+} from '@/lib/ai-image/config'
 import {
   AI_IMAGE_PROVIDER_MAP,
-} from '@/lib/ai-image-provider-presets'
+} from '@/lib/ai-image/provider-presets'
 import { normalizeBaseUrl, resolveAiConfigSecret } from '@/lib/ai-provider-profiles'
 
 type RawModelItem =

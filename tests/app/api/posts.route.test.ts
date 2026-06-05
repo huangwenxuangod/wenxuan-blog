@@ -16,13 +16,17 @@ vi.mock('@/lib/db', () => ({
   updatePostBySlug: mocks.updatePostBySlug,
 }))
 
-vi.mock('@/lib/server/route-helpers', () => ({
-  ensureAuthenticatedRequest: mocks.ensureAuthenticatedRequest,
-  getRouteContextWithDb: mocks.getRouteContextWithDb,
-  jsonError: (message: string, status = 500) => Response.json({ error: message }, { status }),
-  jsonOk: (data: unknown, status = 200) => Response.json(data, { status }),
-  parseJsonBody: mocks.parseJsonBody,
-}))
+vi.mock('@/lib/server/route-helpers', async (importOriginal) => {
+  const actual = await importOriginal() as Record<string, unknown>
+  return {
+    ...actual,
+    ensureAuthenticatedRequest: mocks.ensureAuthenticatedRequest,
+    getRouteContextWithDb: mocks.getRouteContextWithDb,
+    jsonError: (message: string, status = 500) => Response.json({ error: message }, { status }),
+    jsonOk: (data: unknown, status = 200) => Response.json(data, { status }),
+    parseJsonBody: mocks.parseJsonBody,
+  }
+})
 
 vi.mock('@/lib/cache', () => ({
   invalidatePublicContentCache: mocks.invalidatePublicContentCache,

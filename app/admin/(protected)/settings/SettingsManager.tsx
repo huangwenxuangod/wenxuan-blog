@@ -15,6 +15,7 @@ import { AiImageActionsManager } from './AiImageActionsManager'
 import { AiPostGeneratorsManager } from './AiPostGeneratorsManager'
 import { RuntimeCapabilitiesPanel } from './RuntimeCapabilitiesPanel'
 import { ThirdPartyPublishingManager } from './ThirdPartyPublishingManager'
+import { BackupManager } from './BackupManager'
 
 interface Category {
   name: string
@@ -173,6 +174,11 @@ export function SettingsManager({
       id: 'runtime',
       label: '运行环境',
       content: <RuntimeCapabilitiesPanel capabilities={initialRuntimeCapabilities} />,
+    },
+    {
+      id: 'backup',
+      label: '数据备份',
+      content: <BackupManager />,
     },
   ]
 

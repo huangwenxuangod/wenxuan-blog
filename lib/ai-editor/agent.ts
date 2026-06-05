@@ -1,8 +1,8 @@
 import OpenAI from 'openai'
 import { resolveConfig, type AIEnv } from '@/lib/ai'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
-import { describeAiEditorTools, type AiEditorToolCall } from '@/lib/ai-editor-agent-tools'
-import type { buildAiEditorContext } from '@/lib/ai-editor-context'
+import { describeAiEditorTools, type AiEditorToolCall } from './agent-tools'
+import type { buildAiEditorContext } from './context'
 
 interface AgentHistoryMessage {
   role: 'user' | 'assistant'
@@ -47,10 +47,33 @@ export async function runAiEditorAgent(input: RunAiEditorAgentInput): Promise<Ag
   }
 
   const systemPrompt = describeAiEditorTools(input.context.outline)
+  const focusedBlocks = [
+    ...input.context.focusedContext.previousBlocks,
+    ...(input.context.focusedContext.activeBlock ? [input.context.focusedContext.activeBlock] : []),
+    ...input.context.focusedContext.nextBlocks,
+  ]
+  const retrievedBlocks = input.context.retrievedContext.relevantBlocks
+  const supportingBlocks = input.context.retrievedContext.supportingBlocks
+
   const contextPrompt = [
     input.context.title ? `文章标题：${input.context.title}` : '',
-    input.context.fullText ? `文章全文：\n${input.context.fullText.slice(0, 12000)}` : '',
+    `文档快照：\n${JSON.stringify(input.context.documentSnapshot, null, 2)}`,
+    input.context.memorySummary ? `结构化记忆摘要：\n${input.context.memorySummary}` : '',
+    input.context.threadContext.threadSummary ? `最近对话：\n${input.context.threadContext.threadSummary}` : '',
+    focusedBlocks.length > 0
+      ? `当前聚焦区域：\n${focusedBlocks.map((block) => `- #${block.index} [${block.type}] ${block.text.slice(0, 220) || '(空块)'}`).join('\n')}`
+      : '',
+    retrievedBlocks.length > 0
+      ? `相关召回块：\n${retrievedBlocks.map((block) => `- #${block.index} [${block.type}] ${block.text.slice(0, 220) || '(空块)'}`).join('\n')}`
+      : '',
+    supportingBlocks.length > 0
+      ? `辅助上下文：\n${supportingBlocks.map((block) => `- #${block.index} [${block.type}] ${block.text.slice(0, 180) || '(空块)'}`).join('\n')}`
+      : '',
+    input.context.retrievedContext.memoryItems.length > 0
+      ? `本轮相关记忆：\n${input.context.retrievedContext.memoryItems.map((item) => `- [${item.kind}] ${item.summary}`).join('\n')}`
+      : '',
     input.context.outlineText ? `文章结构：\n${input.context.outlineText}` : '',
+    input.context.fullText ? `文章全文（截断）：\n${input.context.fullText.slice(0, 8000)}` : '',
   ].filter(Boolean).join('\n\n')
 
   const messages = [

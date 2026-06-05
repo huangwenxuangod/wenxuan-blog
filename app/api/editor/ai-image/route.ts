@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateRequest } from '@/lib/admin-auth'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import { generateEditorImage } from '@/lib/ai-image'
-import { ensureAiImageConfigInfrastructure } from '@/lib/ai-image-config'
+import { ensureAiImageConfigInfrastructure } from '@/lib/ai-image/config'
 
 type ImageBucket = {
   put: (
@@ -59,6 +58,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const { generateEditorImage } = await import('@/lib/ai-image')
     const normalizedReferenceImageUrl = typeof body.referenceImageUrl === 'string' && body.referenceImageUrl.trim()
       ? new URL(body.referenceImageUrl.trim(), req.nextUrl.origin).toString()
       : undefined

@@ -30,12 +30,16 @@ vi.mock('@/lib/background-jobs', () => ({
   enqueueBackgroundJob: mocks.enqueueBackgroundJob,
 }))
 
-vi.mock('@/lib/server/route-helpers', () => ({
-  getRouteContextWithDb: mocks.getRouteContextWithDb,
-  jsonError: (message: string, status = 500) => Response.json({ error: message }, { status }),
-  jsonOk: (data: unknown, status = 200) => Response.json(data, { status }),
-  parseJsonBody: mocks.parseJsonBody,
-}))
+vi.mock('@/lib/server/route-helpers', async (importOriginal) => {
+  const actual = await importOriginal() as Record<string, unknown>
+  return {
+    ...actual,
+    getRouteContextWithDb: mocks.getRouteContextWithDb,
+    jsonError: (message: string, status = 500) => Response.json({ error: message }, { status }),
+    jsonOk: (data: unknown, status = 200) => Response.json(data, { status }),
+    parseJsonBody: mocks.parseJsonBody,
+  }
+})
 
 import { PUT } from '@/app/api/admin/posts/[slug]/route'
 

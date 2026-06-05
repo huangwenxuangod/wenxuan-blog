@@ -19,12 +19,16 @@ vi.mock('@/lib/admin-auth', () => ({
   isAdminAuthenticated: mocks.isAdminAuthenticated,
 }))
 
-vi.mock('@/lib/server/route-helpers', () => ({
-  getRouteEnvWithDb: mocks.getRouteEnvWithDb,
-  jsonError: (message: string, status = 500) => Response.json({ error: message }, { status }),
-  jsonOk: (data: unknown, status = 200) => Response.json(data, { status }),
-  parseJsonBody: mocks.parseJsonBody,
-}))
+vi.mock('@/lib/server/route-helpers', async (importOriginal) => {
+  const actual = await importOriginal() as Record<string, unknown>
+  return {
+    ...actual,
+    getRouteEnvWithDb: mocks.getRouteEnvWithDb,
+    jsonError: (message: string, status = 500) => Response.json({ error: message }, { status }),
+    jsonOk: (data: unknown, status = 200) => Response.json(data, { status }),
+    parseJsonBody: mocks.parseJsonBody,
+  }
+})
 
 vi.mock('next/headers', () => ({
   cookies: mocks.cookies,

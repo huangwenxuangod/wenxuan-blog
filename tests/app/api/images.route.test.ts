@@ -28,6 +28,8 @@ function createStoredObject(overrides?: Partial<{
   }
 }
 
+type NextRequestInit = ConstructorParameters<typeof NextRequest>[1]
+
 describe('/api/images/[...key] route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -37,7 +39,7 @@ describe('/api/images/[...key] route', () => {
     global.fetch = originalFetch
   })
 
-  function createImageRequest(url: string, init?: RequestInit) {
+  function createImageRequest(url: string, init?: NextRequestInit) {
     return new NextRequest(url, init)
   }
 

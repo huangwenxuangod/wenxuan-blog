@@ -13,11 +13,11 @@ import {
 import {
   ensureAiImageConfigInfrastructure,
   ensureDefaultImageProfileId,
-} from '@/lib/ai-image-config'
+} from '@/lib/ai-image/config'
 import {
   normalizeAiImageAspectRatio,
   normalizeAiImageResolution,
-} from '@/lib/ai-image-options'
+} from '@/lib/ai-image/options'
 
 function normalizeGeneratorRow(row: AiPostGeneratorRow): AiPostGeneratorRow {
   return {
