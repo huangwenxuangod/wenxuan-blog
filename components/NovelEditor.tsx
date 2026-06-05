@@ -76,8 +76,14 @@ import { buildAutoDescription, normalizePostSlug } from '@/lib/post-utils'
 import { getSiteDisplayUrl, getSiteUrl } from '@/lib/site-config'
 import { resizeTextareaHeight, useAutoResizeTextarea } from '@/lib/textarea-autosize'
 import { UiButton, UiIconButton, UiPanel, UiTextarea, cx } from '@/components/ui/primitives'
-import { buildDocumentContextText, extractTitleCandidate } from '@/lib/ai-modal'
+import {
+  buildDocumentContextText,
+  extractTitleCandidate,
+  readAiTextResponse,
+  TITLE_GENERATION_PROMPT,
+} from '@/lib/ai-modal'
 import type { RuntimeCapabilities } from '@/lib/runtime-capabilities'
+import { resolveEditorRailLayout } from '@/lib/editor-responsive-layout'
 import {
   normalizeWechatStylePreset,
   WECHAT_STYLE_PRESET_OPTIONS,
@@ -97,7 +103,6 @@ const SITE_DISPLAY_URL = getSiteDisplayUrl()
 const DEFAULT_AI_RAIL_WIDTH = 372
 const MIN_AI_RAIL_WIDTH = 320
 const MAX_AI_RAIL_WIDTH = 640
-const DESKTOP_BREAKPOINT = 1024
 
 const AIPanel = dynamic(
   () => import('@/components/editor/AIPanel').then((module) => ({ default: module.AIPanel })),
@@ -291,6 +296,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [tocOpen, setTocOpen] = useState(true)
   const [aiRailOpen, setAiRailOpen] = useState(true)
   const [aiRailWidth, setAiRailWidth] = useState(DEFAULT_AI_RAIL_WIDTH)
+  const [viewportWidth, setViewportWidth] = useState(0)
   const [rightRailMode, setRightRailMode] = useState<RightRailMode>('chat')
   const [wechatStylePreset, setWechatStylePreset] = useState<WechatStylePresetId>('default')
   const [publishPanelOpen, setPublishPanelOpen] = useState(false)
@@ -429,11 +435,11 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
     // Load rail preferences
     if (typeof window !== 'undefined') {
-      const isDesktop = window.innerWidth >= DESKTOP_BREAKPOINT
+      setViewportWidth(window.innerWidth)
       const storedToc = window.localStorage.getItem(TOC_KEY)
-      setTocOpen(isDesktop ? (storedToc === null ? true : storedToc === 'true') : false)
+      setTocOpen(storedToc === null ? true : storedToc === 'true')
       const storedAiRail = window.localStorage.getItem(AI_RAIL_KEY)
-      setAiRailOpen(isDesktop ? (storedAiRail === null ? true : storedAiRail === 'true') : false)
+      setAiRailOpen(storedAiRail === null ? true : storedAiRail === 'true')
       setWechatStylePreset(normalizeWechatStylePreset(window.localStorage.getItem(WECHAT_STYLE_STORAGE_KEY)))
       const storedAiRailWidth = Number(window.localStorage.getItem(AI_RAIL_WIDTH_KEY) || '')
       if (Number.isFinite(storedAiRailWidth) && storedAiRailWidth > 0) {
@@ -446,10 +452,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     if (typeof window === 'undefined') return
 
     const syncRailLayout = () => {
-      if (window.innerWidth < DESKTOP_BREAKPOINT) {
-        setTocOpen(false)
-        setAiRailOpen(false)
-      }
+      setViewportWidth(window.innerWidth)
     }
 
     syncRailLayout()
@@ -1006,20 +1009,15 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: '请基于下面的标题和正文，生成 5 个更好的中文标题，使用 Markdown 编号列表返回，直接返回结果，不要解释。',
+          action: 'custom',
+          customPrompt: TITLE_GENERATION_PROMPT,
           text: context,
         }),
       })
 
-      const result = await response.json() as {
-        result?: string
-        error?: string
-      }
-
-      const nextTitle = extractTitleCandidate(result.result || '')
-      if (!response.ok || !nextTitle) {
-        throw new Error(result.error || '标题生成失败')
-      }
+      const result = await readAiTextResponse(response)
+      const nextTitle = extractTitleCandidate(result)
+      if (!nextTitle) throw new Error('标题生成失败')
 
       latestTitleRef.current = nextTitle
       setTitle(nextTitle)
@@ -1329,19 +1327,25 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     return currentSlug ? `https://${SITE_DISPLAY_URL}/${currentSlug}` : ''
   }, [editSlug, slug])
   const hasCoverImage = coverImage.trim().length > 0
+  const railLayout = resolveEditorRailLayout({
+    viewportWidth,
+    tocPreferredOpen: tocOpen,
+    aiPreferredOpen: aiRailOpen,
+    aiPreferredWidth: aiRailWidth,
+  })
 
   return (
     <div className="backoffice-shell editor-shell flex h-[100dvh] flex-col overflow-hidden bg-[var(--ui-bg)] text-[var(--ui-ink)]">
       {/* ── Sticky Header ── */}
       <header className="z-40 shrink-0 border-b border-[var(--ui-line)] bg-[color-mix(in_srgb,var(--ui-bg)_92%,transparent)] backdrop-blur-lg">
         <div className="flex min-h-14 items-center gap-3 px-4 py-2">
-          <Tooltip content={tocOpen ? '收起目录' : '展开目录'}>
+          <Tooltip content={railLayout.tocVisible ? '收起目录' : '展开目录'}>
             <UiIconButton
               onClick={() => setTocOpen(!tocOpen)}
-              aria-label={tocOpen ? '收起目录' : '展开目录'}
+              aria-label={railLayout.tocVisible ? '收起目录' : '展开目录'}
               className="h-10 w-10"
             >
-              {tocOpen ? <PanelLeftClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelLeftOpen className="h-[1.15rem] w-[1.15rem]" />}
+              {railLayout.tocVisible ? <PanelLeftClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelLeftOpen className="h-[1.15rem] w-[1.15rem]" />}
             </UiIconButton>
           </Tooltip>
 
@@ -1510,13 +1514,13 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
               </UiIconButton>
             </Tooltip>
 
-            <Tooltip content={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}>
+            <Tooltip content={railLayout.aiVisible ? '收起 AI 对话' : '展开 AI 对话'}>
               <UiIconButton
                 onClick={() => setAiRailOpen(!aiRailOpen)}
-                aria-label={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}
+                aria-label={railLayout.aiVisible ? '收起 AI 对话' : '展开 AI 对话'}
                 className="h-10 w-10"
               >
-                {aiRailOpen ? <PanelRightClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelRightOpen className="h-[1.15rem] w-[1.15rem]" />}
+                {railLayout.aiVisible ? <PanelRightClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelRightOpen className="h-[1.15rem] w-[1.15rem]" />}
               </UiIconButton>
             </Tooltip>
 
@@ -1609,7 +1613,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       {/* ── Main layout: editor + sidebar ── */}
       <div className="relative flex-1 overflow-hidden">
         <EditorTocRail
-          open={tocOpen}
+          open={railLayout.tocVisible}
           editor={editorRef.current}
           documentJson={currentDocumentJson}
           scrollContainer={mainScrollRef.current}
@@ -1618,7 +1622,11 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         {/* Main editor area */}
         <main
           ref={mainScrollRef}
-          className="editor-scroll-shell relative h-full min-w-0 overflow-y-auto overflow-x-hidden"
+          className="editor-scroll-shell relative h-full min-w-0 overflow-y-auto overflow-x-hidden transition-[padding] duration-200 ease-out"
+          style={{
+            paddingLeft: railLayout.leftInset,
+            paddingRight: railLayout.rightInset,
+          }}
         >
           <div className="mx-auto w-full max-w-[780px] px-4 pb-8 pt-10 sm:px-6">
             {/* Title input */}
@@ -1644,12 +1652,12 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                 >
                   <button
                     type="button"
-                    onClick={() => void handleGenerateCover()}
+                    onClick={() => coverInputRef.current?.click()}
                     disabled={generatingCover || uploadingImage}
                     className="inline-flex h-8 cursor-pointer items-center gap-1.5 pl-0 pr-0 text-[13px] text-[var(--ui-muted)] transition hover:text-[var(--ui-ink)] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {generatingCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-                    <span>更换封面</span>
+                    {uploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    <span>上传封面</span>
                   </button>
                   <button
                     type="button"
@@ -1839,9 +1847,9 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           </div>
         </main>
         <EditorRightRail
-          open={aiRailOpen}
+          open={railLayout.aiVisible}
           onClose={() => setAiRailOpen(false)}
-          width={aiRailWidth}
+          width={railLayout.aiWidth}
           onWidthChange={setAiRailWidth}
           headerAccessory={(
             <>
@@ -1879,7 +1887,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
               </Tooltip>
             </>
           )}
-          aiContent={aiRailOpen ? (
+          aiContent={railLayout.aiVisible ? (
             <div className="flex h-full min-h-0 flex-col">
               <div className="relative min-h-0 flex-1 overflow-hidden">
                 <div

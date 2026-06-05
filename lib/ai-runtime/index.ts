@@ -70,22 +70,22 @@ function getDisabledConfig(reason: string): ResolvedConfig {
 function resolveEnv(env?: AIEnv): ResolvedConfig {
   const externalApiKey = env?.AI_API_KEY || process.env.AI_API_KEY || ''
 
+  if (env?.WORKERS_AI && readFlag(env?.ENABLE_WORKERS_AI || process.env.ENABLE_WORKERS_AI)) {
+    return {
+      strategy: 'workers-ai',
+      binding: env.WORKERS_AI,
+      model: resolveWorkersAiModel(env),
+      temperature: 0.7,
+      maxTokens: 2000,
+    }
+  }
+
   if (externalApiKey) {
     return {
       strategy: 'external-provider',
       apiKey: externalApiKey,
       baseURL: env?.AI_BASE_URL || process.env.AI_BASE_URL || DEFAULT_EXTERNAL_BASE_URL,
       model: env?.AI_MODEL || process.env.AI_MODEL || DEFAULT_EXTERNAL_MODEL,
-      temperature: 0.7,
-      maxTokens: 2000,
-    }
-  }
-
-  if (env?.WORKERS_AI && readFlag(env?.ENABLE_WORKERS_AI || process.env.ENABLE_WORKERS_AI)) {
-    return {
-      strategy: 'workers-ai',
-      binding: env.WORKERS_AI,
-      model: resolveWorkersAiModel(env),
       temperature: 0.7,
       maxTokens: 2000,
     }

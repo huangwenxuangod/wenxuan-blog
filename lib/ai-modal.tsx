@@ -36,6 +36,8 @@ interface DocumentQuickAction {
   description: string
 }
 
+export const TITLE_GENERATION_PROMPT = '请基于下面的标题和正文，生成 1 个更好的中文标题。只返回标题本身，不要编号、引号、Markdown 格式或解释。'
+
 const DEFAULT_AI_ACTIONS: AiActionItem[] = [
   { id: 1, action_key: 'improve', label: '润色', description: '让表达更顺更自然' },
   { id: 2, action_key: 'shorten', label: '缩写', description: '压缩成更短版本' },
@@ -55,8 +57,8 @@ const DOCUMENT_QUICK_ACTIONS: DocumentQuickAction[] = [
   {
     id: 'doc_title',
     label: '生成标题',
-    description: '给出更好的标题候选',
-    prompt: '请基于下面的标题和正文，生成 5 个更好的中文标题，使用 Markdown 编号列表返回，直接返回结果，不要解释。',
+    description: '生成一个更好的标题',
+    prompt: TITLE_GENERATION_PROMPT,
   },
   {
     id: 'doc_description',
@@ -114,6 +116,15 @@ export function extractTitleCandidate(markdown: string) {
     .replace(/[*_`~]/g, '')
     .trim()
     .slice(0, 120)
+}
+
+export async function readAiTextResponse(response: Response) {
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null) as { error?: string } | null
+    throw new Error(errorPayload?.error || 'AI 处理失败')
+  }
+
+  return response.text()
 }
 
 interface AIModalProps {

@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #fcfbf7;
+  color: #1a1a1a;
+  width: 360px;
+  overflow: hidden;
+}
+
+/* Custom scrollbar matching our blog design */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555555;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #333333;
+}

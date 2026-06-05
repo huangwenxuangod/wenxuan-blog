@@ -40,13 +40,13 @@ export function ApiTokensManager() {
   useEffect(() => { loadTokens() }, [])
 
   const createToken = async () => {
-    if (!newName.trim()) return
     setCreating(true)
+    const tokenName = newName.trim() || `默认 Token (${new Date().toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })})`
     try {
       const res = await fetch('/api/admin/tokens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName.trim() }),
+        body: JSON.stringify({ name: tokenName }),
       })
       if (!res.ok) throw new Error('创建失败')
       const data = (await res.json()) as CreateTokenResponse
@@ -140,7 +140,7 @@ export function ApiTokensManager() {
         />
         <button
           onClick={createToken}
-          disabled={creating || !newName.trim()}
+          disabled={creating}
           className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-medium text-[var(--ui-accent-ink)] hover:brightness-105 disabled:opacity-50"
         >
             {creating ? '创建中...' : '生成 Token'}

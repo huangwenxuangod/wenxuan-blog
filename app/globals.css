@@ -87,6 +87,30 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+/* 全局滚动条样式：在任何情况下（亮色/暗色模式）均强制使用不透的暗灰色滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555555; /* 纯正的暗灰色，任何模式下都保持一致 */
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3c3c3c; /* 悬停时加深 */
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #555555 transparent;
+}
+
 :root {
   --ui-bg: #f5f4ed;
   --ui-panel: #f0eee6;

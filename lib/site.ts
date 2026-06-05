@@ -33,7 +33,12 @@ export async function getSiteHeaderData(db: D1Database): Promise<{
       try {
         const parsed = JSON.parse(navJson)
         if (Array.isArray(parsed)) {
-          navLinks = parsed
+          navLinks = parsed.filter((link): link is SiteNavLink => (
+            typeof link?.label === 'string' &&
+            typeof link?.url === 'string' &&
+            typeof link?.openInNewTab === 'boolean' &&
+            !link.url.startsWith('/admin')
+          ))
         }
       } catch {}
     }
