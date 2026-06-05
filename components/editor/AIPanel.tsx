@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, RotateCcw, Send } from 'lucide-react'
+import { Loader2, Plus, Send } from 'lucide-react'
 import type { EditorInstance, JSONContent } from 'novel'
 import { useToast } from '@/components/Toast'
 import { UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
@@ -121,6 +121,13 @@ export function AIPanel({
   const listRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
+  const resizeComposer = useCallback(() => {
+    const node = textareaRef.current
+    if (!node) return
+    node.style.height = '0px'
+    node.style.height = `${Math.min(node.scrollHeight, 144)}px`
+  }, [])
+
   const loadHistory = useCallback(async () => {
     try {
       const search = new URLSearchParams({
@@ -172,6 +179,10 @@ export function AIPanel({
     node.scrollTop = node.scrollHeight
   }, [messages, loading])
 
+  useEffect(() => {
+    resizeComposer()
+  }, [input, resizeComposer])
+
   const applyToolResult = useCallback((tool: ToolResult) => {
     if (!editor) return
 
@@ -218,28 +229,6 @@ export function AIPanel({
         })
     }
   }, [editor])
-
-  const resetThread = useCallback(async () => {
-    try {
-      const response = await fetch('/api/editor/ai-chat/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          articleKey,
-          postSlug,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('清空会话失败')
-      }
-
-      setMessages([])
-      toast.success('已清空当前文章会话')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '清空会话失败')
-    }
-  }, [articleKey, postSlug, toast])
 
   const sendMessage = useCallback(async (rawInput?: string) => {
     const nextInput = (rawInput ?? input).trim()
@@ -345,15 +334,9 @@ export function AIPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-transparent">
-      <div className="px-2 pb-3">
-        <div className="text-[12px] leading-5 text-[var(--editor-muted)]">
-          当前文章上下文
-        </div>
-      </div>
-
-      <div ref={listRef} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-2 pb-4">
+      <div ref={listRef} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 pb-4">
         {messages.length === 0 ? (
-          <div className="pt-1 text-sm leading-7 text-[var(--editor-muted)]">直接对当前文章提问或让 AI 修改内容。</div>
+          null
         ) : (
           messages.map((message) => (
             <div
@@ -378,12 +361,8 @@ export function AIPanel({
         )}
       </div>
 
-      <div className="px-1 pb-1">
-        <UiPanel inset="soft" className="rounded-[1.5rem] px-4 py-3">
-          <div className="mb-2 truncate text-[12px] leading-5 text-[var(--editor-muted)]">
-            {title.trim() || '当前文章'}
-          </div>
-
+      <div className="px-1 pb-1 pt-3">
+        <UiPanel inset="soft" className="rounded-[1.55rem] border-[color-mix(in_srgb,var(--ui-line)_88%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_98%,var(--ui-soft))] px-4 py-2.5 shadow-[0_10px_28px_rgb(var(--ui-shadow-rgb)/0.08)]">
           <UiTextarea
             ref={textareaRef}
             rows={1}
@@ -397,27 +376,33 @@ export function AIPanel({
               }
             }}
             placeholder="输入你的修改意图"
-            className="max-h-40 min-h-[92px]"
+            className="min-h-[3.5rem] max-h-36 overflow-y-auto text-[15px] leading-7 placeholder:text-[color-mix(in_srgb,var(--ui-muted)_66%,transparent)]"
           />
 
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <UiIconButton
-              onClick={() => void resetThread()}
-              title="清空当前文章会话"
-              aria-label="清空当前文章会话"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </UiIconButton>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <UiIconButton
+                tone="soft"
+                className="h-9 w-9 rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))]"
+                title="更多操作"
+                aria-label="更多操作"
+              >
+                <Plus className="h-4.5 w-4.5" />
+              </UiIconButton>
+            </div>
 
-            <UiIconButton
-              tone="soft"
-              onClick={() => void sendMessage()}
-              disabled={loading || !input.trim() || !editor}
-              title="发送"
-              aria-label="发送"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </UiIconButton>
+            <div className="flex items-center gap-2.5">
+              <UiIconButton
+                tone="soft"
+                onClick={() => void sendMessage()}
+                disabled={loading || !input.trim() || !editor}
+                title="发送"
+                aria-label="发送"
+                className="h-9 w-9 rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))]"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-[1.05rem] w-[1.05rem]" />}
+              </UiIconButton>
+            </div>
           </div>
         </UiPanel>
       </div>

@@ -7,8 +7,8 @@ function StatusBadge({ active }: { active: boolean }) {
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
         active
-          ? 'bg-emerald-500/10 text-emerald-700'
-          : 'bg-[var(--admin-soft)] text-[var(--admin-muted)]'
+          ? 'bg-[color-mix(in_srgb,var(--ui-success)_14%,transparent)] text-[var(--ui-success)]'
+          : 'bg-[var(--ui-soft)] text-[var(--ui-muted)]'
       }`}
     >
       {active ? '可用' : '未绑定'}
@@ -21,8 +21,8 @@ function FeatureBadge({ enabled }: { enabled: boolean }) {
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
         enabled
-          ? 'bg-[var(--editor-accent)]/10 text-[var(--editor-accent)]'
-          : 'bg-amber-500/10 text-amber-700'
+          ? 'bg-[color-mix(in_srgb,var(--ui-accent)_12%,transparent)] text-[var(--ui-accent)]'
+          : 'bg-[color-mix(in_srgb,var(--ui-warning)_14%,transparent)] text-[var(--ui-warning)]'
       }`}
     >
       {enabled ? '已启用' : '已降级'}
@@ -77,7 +77,7 @@ export function RuntimeCapabilitiesPanel({ capabilities }: { capabilities: Runti
         <div className="mb-3 text-sm font-semibold text-[var(--editor-ink)]">运行时绑定探测</div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {bindingItems.map((item) => (
-            <div key={item.key} className="flex items-center justify-between rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2">
+            <div key={item.key} className="flex items-center justify-between rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2">
               <span className="text-sm text-[var(--editor-ink)]">{item.label}</span>
               <StatusBadge active={item.active} />
             </div>
@@ -89,7 +89,7 @@ export function RuntimeCapabilitiesPanel({ capabilities }: { capabilities: Runti
         <div className="mb-3 text-sm font-semibold text-[var(--editor-ink)]">增强能力与回退策略</div>
         <div className="space-y-3">
           {featureItems.map((item) => (
-            <div key={item.key} className="rounded-lg border border-[var(--editor-line)] bg-[var(--background)] p-3">
+            <div key={item.key} className="rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-medium text-[var(--editor-ink)]">{item.label}</div>
                 <FeatureBadge enabled={item.enabled} />
@@ -101,7 +101,7 @@ export function RuntimeCapabilitiesPanel({ capabilities }: { capabilities: Runti
         </div>
       </div>
 
-      <div className="rounded-lg border border-dashed border-[var(--editor-line)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--editor-muted)]">
+      <div className="rounded-lg border border-dashed border-[var(--ui-line)] bg-[var(--ui-surface)] px-4 py-3 text-sm text-[var(--editor-muted)]">
         开源部署建议：默认只要求 `D1 + R2` 即可运行，`Queues / Workers AI / Vectorize` 都应作为可选增强，通过环境变量显式开启。
       </div>
     </div>

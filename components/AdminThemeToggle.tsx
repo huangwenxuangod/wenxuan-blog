@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
+import { UiIconButton } from '@/components/ui/primitives'
 import { BACKOFFICE_THEME_STORAGE_KEY, type BackofficeThemeMode } from '@/lib/backoffice-theme'
 
 function getPreferredAdminTheme(): BackofficeThemeMode {
@@ -27,6 +28,7 @@ export function AdminThemeToggle() {
 
   useEffect(() => {
     const initialTheme = getPreferredAdminTheme()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(initialTheme)
     applyAdminTheme(initialTheme)
     setMounted(true)
@@ -43,14 +45,13 @@ export function AdminThemeToggle() {
   const Icon = mounted && theme === 'dark' ? Sun : Moon
 
   return (
-    <button
-      type="button"
+    <UiIconButton
       onClick={toggleTheme}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--admin-line)] bg-[var(--admin-surface)] text-[var(--admin-ink)] transition-colors hover:bg-[var(--admin-soft)]"
+      className="h-10 w-10"
       title={nextLabel}
       aria-label={nextLabel}
     >
       <Icon className="h-4 w-4" strokeWidth={1.75} />
-    </button>
+    </UiIconButton>
   )
 }

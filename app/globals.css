@@ -88,8 +88,7 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-:root,
-html[data-admin-theme='light'] {
+:root {
   --ui-bg: #f5f4ed;
   --ui-panel: #f0eee6;
   --ui-surface: #faf9f5;
@@ -105,6 +104,31 @@ html[data-admin-theme='light'] {
   --ui-warning: #b36f1b;
   --ui-danger: #c65b5b;
   --ui-info: #7f7a72;
+}
+
+html[data-admin-theme='light'] {
+  --ui-bg: #ffffff;
+  --ui-panel: #ffffff;
+  --ui-surface: #ffffff;
+  --ui-soft: #f5f5f2;
+  --ui-line: #e9e9e4;
+  --ui-line-strong: #d8d8d2;
+  --ui-ink: #000000;
+  --ui-muted: #5f5f5b;
+  --ui-accent: #c96442;
+  --ui-accent-ink: #ffffff;
+  --ui-shadow-rgb: 0 0 0;
+  --ui-success: #2f8f63;
+  --ui-warning: #b36f1b;
+  --ui-danger: #c65b5b;
+  --ui-info: #6e6e69;
+  --ui-article-heading: #171614;
+  --ui-article-body: #2f2b26;
+  --ui-article-quote: #5d554c;
+  --ui-article-quote-border: #d8c7b5;
+  --ui-article-quote-nested-border: #e6dbcf;
+  --ui-article-quote-nested-bg: rgba(92, 77, 61, 0.045);
+  --ui-article-link: #8b5e3c;
 }
 
 html[data-admin-theme='dark'] {
@@ -123,6 +147,13 @@ html[data-admin-theme='dark'] {
   --ui-warning: #d9a13e;
   --ui-danger: #f08b86;
   --ui-info: #c2b8aa;
+  --ui-article-heading: #f4f1e8;
+  --ui-article-body: #e6e1d7;
+  --ui-article-quote: #ccc5b9;
+  --ui-article-quote-border: #8b6a4f;
+  --ui-article-quote-nested-border: #6d5644;
+  --ui-article-quote-nested-bg: rgba(217, 166, 121, 0.075);
+  --ui-article-link: #d7a47a;
 }
 
 html[data-backoffice-surface='true'],
@@ -130,6 +161,9 @@ html[data-backoffice-surface='true'] body,
 .backoffice-shell,
 .admin-shell,
 .editor-shell {
+  --background: var(--ui-bg);
+  --foreground: var(--ui-ink);
+
   --admin-bg: var(--ui-bg);
   --admin-panel: var(--ui-panel);
   --admin-surface: var(--ui-surface);
@@ -149,7 +183,7 @@ html[data-backoffice-surface='true'] body,
   --editor-muted: var(--ui-muted);
   --editor-accent: var(--ui-accent);
   --editor-accent-ink: var(--ui-accent-ink);
-  --editor-link: var(--ui-accent);
+  --editor-link: var(--ui-article-link, var(--ui-accent));
   --editor-code-bg: color-mix(in srgb, var(--ui-surface) 92%, var(--ui-panel));
   --editor-code-border: var(--ui-line);
   --editor-quote-bg: color-mix(in srgb, var(--ui-surface) 88%, var(--ui-panel));
@@ -163,15 +197,15 @@ html[data-backoffice-surface='true'] body,
   --editor-toc-level-4: color-mix(in srgb, var(--ui-muted) 98%, transparent);
   --stone-gray: color-mix(in srgb, var(--ui-muted) 86%, white);
   --border-warm: var(--ui-line);
+  --article-heading: var(--ui-article-heading, var(--ui-ink));
+  --article-body: var(--ui-article-body, var(--ui-ink));
+  --article-quote: var(--ui-article-quote, color-mix(in srgb, var(--ui-ink) 82%, var(--ui-muted)));
+  --article-quote-border: var(--ui-article-quote-border, color-mix(in srgb, var(--ui-line-strong) 72%, var(--ui-accent)));
+  --article-quote-nested-border: var(--ui-article-quote-nested-border, color-mix(in srgb, var(--ui-line) 92%, var(--ui-accent)));
+  --article-quote-nested-bg: var(--ui-article-quote-nested-bg, color-mix(in srgb, var(--ui-soft) 42%, transparent));
 
   background: var(--ui-bg);
   color: var(--ui-ink);
-}
-
-/* Focus states */
-*:focus-visible {
-  outline: 2px solid var(--editor-accent);
-  outline-offset: 2px;
 }
 
 /* Smooth scrolling */

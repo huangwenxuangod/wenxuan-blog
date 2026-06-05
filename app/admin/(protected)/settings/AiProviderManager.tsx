@@ -426,7 +426,7 @@ export function AiProviderManager() {
                   step={0.1}
                   value={editing.temperature}
                   onChange={e => updateEditing({ temperature: clampTemperature(Number(e.target.value)) })}
-                  className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                  className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                 />
               </div>
               <div>
@@ -446,7 +446,7 @@ export function AiProviderManager() {
                       updateEditing({ max_tokens: 2000 })
                     }
                   }}
-                  className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                  className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                 />
                 <div className="mt-1 text-xs text-[var(--editor-muted)]">留空默认 2000，支持任意正整数。</div>
               </div>
@@ -463,7 +463,7 @@ export function AiProviderManager() {
             </div>
 
             {testResult ? (
-              <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${testResult.success ? 'border-emerald-400/40 bg-emerald-500/10 text-[var(--editor-ink)]' : 'border-rose-400/40 bg-rose-500/10 text-[var(--editor-ink)]'}`}>
+              <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${testResult.success ? 'border-[color-mix(in_srgb,var(--ui-success)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-success)_12%,transparent)] text-[var(--ui-ink)]' : 'border-[color-mix(in_srgb,var(--ui-danger)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-danger)_12%,transparent)] text-[var(--ui-ink)]'}`}>
                 {testResult.success ? '✅ ' : '❌ '}
                 {testResult.message}
               </div>
@@ -489,7 +489,7 @@ export function AiProviderManager() {
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="rounded-lg bg-[var(--editor-accent)] px-4 py-2 text-sm font-semibold text-white hover:brightness-105 disabled:opacity-50"
+                className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-ink)] hover:brightness-105 disabled:opacity-50"
               >
                 {saving ? '保存中…' : '保存'}
               </button>

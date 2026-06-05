@@ -14,9 +14,8 @@ import {
   Send,
   PanelRightOpen,
   PanelRightClose,
-  ImageIcon,
-  WandSparkles,
-  X,
+  PanelLeftOpen,
+  PanelLeftClose,
 } from 'lucide-react'
 import {
   EditorContent,
@@ -40,6 +39,7 @@ import { EditorRightRail } from '@/components/editor/EditorRightRail'
 import { EditorTocRail } from '@/components/editor/EditorTocRail'
 import { WeChatPublishModal } from '@/components/WeChatPublishModal'
 import { useToast } from '@/components/Toast'
+import { AdminThemeToggle } from '@/components/AdminThemeToggle'
 import { AIModal } from '@/lib/ai-modal'
 import {
   COVER_IMAGE_OPTIMIZE_OPTIONS,
@@ -69,18 +69,18 @@ import { getSiteDisplayUrl } from '@/lib/site-config'
 import { resizeTextareaHeight, useAutoResizeTextarea } from '@/lib/textarea-autosize'
 import { UiButton, UiIconButton, UiPanel, UiTextarea, cx } from '@/components/ui/primitives'
 
-type SaveFeedback =
-  | { type: 'success' | 'error'; message: string; slug?: string }
-  | null
-
 type PublishStatus = 'public' | 'draft' | 'encrypted' | 'unlisted'
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error'
 
 const TOC_KEY = 'qmblog:toc-open'
 const AI_RAIL_KEY = 'qmblog:ai-rail-open'
+const AI_RAIL_WIDTH_KEY = 'qmblog:ai-rail-width'
 const AUTOSAVE_DEBOUNCE_MS = 1500
 const AUTOSAVE_MAX_RETRY_DELAY_MS = 10000
 const SITE_DISPLAY_URL = getSiteDisplayUrl()
+const DEFAULT_AI_RAIL_WIDTH = 372
+const MIN_AI_RAIL_WIDTH = 320
+const MAX_AI_RAIL_WIDTH = 640
 
 const EMPTY_DOCUMENT = {
   type: 'doc',
@@ -150,12 +150,12 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   // ── UI state ──
   const [tocOpen, setTocOpen] = useState(false)
   const [aiRailOpen, setAiRailOpen] = useState(true)
+  const [aiRailWidth, setAiRailWidth] = useState(DEFAULT_AI_RAIL_WIDTH)
   const [publishPanelOpen, setPublishPanelOpen] = useState(false)
   const [wechatPublishOpen, setWechatPublishOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [feedback, setFeedback] = useState<SaveFeedback>(null)
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [lastSavedAt, setLastSavedAt] = useState<number>(Date.now())
   const [referenceImageTarget, setReferenceImageTarget] = useState<EditorImageActionTarget | null>(null)
@@ -199,6 +199,10 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       setTocOpen(window.localStorage.getItem(TOC_KEY) === 'true')
       const storedAiRail = window.localStorage.getItem(AI_RAIL_KEY)
       setAiRailOpen(storedAiRail === null ? true : storedAiRail === 'true')
+      const storedAiRailWidth = Number(window.localStorage.getItem(AI_RAIL_WIDTH_KEY) || '')
+      if (Number.isFinite(storedAiRailWidth) && storedAiRailWidth > 0) {
+        setAiRailWidth(Math.min(MAX_AI_RAIL_WIDTH, Math.max(MIN_AI_RAIL_WIDTH, storedAiRailWidth)))
+      }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -207,8 +211,9 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(TOC_KEY, String(tocOpen))
       window.localStorage.setItem(AI_RAIL_KEY, String(aiRailOpen))
+      window.localStorage.setItem(AI_RAIL_WIDTH_KEY, String(aiRailWidth))
     }
-  }, [aiRailOpen, tocOpen])
+  }, [aiRailOpen, aiRailWidth, tocOpen])
 
   useEffect(() => {
     latestMetaRef.current = {
@@ -278,8 +283,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     handleInputModalConfirm,
     imageModal,
     inputModal,
-    openDocumentAIModal,
-    openDocumentImageModal,
   } = useEditorAuxiliaryModals({
     title,
     getDocumentText: () => editorRef.current?.getText({ blockSeparator: '\n\n' }).trim() || '',
@@ -502,6 +505,9 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
       console.error('Auto-save failed:', error)
       setSaveState('error')
+      if (retryAttempt === 0) {
+        toast.warning(error instanceof Error ? error.message : '自动保存失败，正在重试')
+      }
 
       const nextAttempt = retryAttempt + 1
       const delay = Math.min(AUTOSAVE_MAX_RETRY_DELAY_MS, 2000 * (2 ** retryAttempt))
@@ -515,7 +521,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         autosaveAbortRef.current = null
       }
     }
-  }, [abortAutosaveRequest, buildAutosaveSnapshot, draftReady, syncPersistedSlug])
+  }, [abortAutosaveRequest, buildAutosaveSnapshot, draftReady, syncPersistedSlug, toast])
 
   // ── Draft save ──
   const scheduleDraftSave = useCallback((
@@ -548,7 +554,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       onSetCover: (target) => {
         setCoverImage(target.src)
         markDirty({ coverImage: target.src })
-        setFeedback({ type: 'success', message: '已设为封面' })
+        toast.success('已设为封面')
       },
       onOpenReferenceImage: (target) => {
         setReferenceImageTarget(target)
@@ -557,20 +563,19 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         setCropImageTarget(target)
       },
     },
-  }), [markDirty])
+  }), [markDirty, toast])
 
   // ── File upload ──
   const uploadImageAndGetUrl = async (file: File): Promise<string> => {
     setUploadingImage(true)
     setUploadProgress(0)
-    setFeedback(null)
     try {
       const optimizedFile = await optimizeImageForUpload(file, EDITOR_IMAGE_OPTIMIZE_OPTIONS)
       const result = await uploadEditorFile(optimizedFile, (p) => setUploadProgress(p))
       if (editorRef.current) scheduleDraftSave(latestTitleRef.current, editorRef.current)
       return result.url
     } catch (error) {
-      setFeedback({ type: 'error', message: error instanceof Error ? error.message : '图片上传失败' })
+      toast.error(error instanceof Error ? error.message : '图片上传失败')
       throw error
     } finally {
       setUploadingImage(false)
@@ -589,8 +594,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       return
     }
     const editor = editorRef.current
-    if (!editor) { setFeedback({ type: 'error', message: '编辑器还没准备好' }); return }
-    setUploadingImage(true); setUploadProgress(0); setFeedback(null)
+    if (!editor) { toast.error('编辑器还没准备好'); return }
+    setUploadingImage(true); setUploadProgress(0)
     const marker = createUploadPlaceholderMarker()
     insertUploadPlaceholder(editor, file, marker)
     try {
@@ -600,7 +605,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       scheduleDraftSave(latestTitleRef.current, editor)
     } catch (error) {
       try { removeUploadPlaceholder(editor, marker) } catch {}
-      setFeedback({ type: 'error', message: error instanceof Error ? error.message : '文件上传失败' })
+      toast.error(error instanceof Error ? error.message : '文件上传失败')
     } finally {
       setUploadingImage(false); setUploadProgress(0)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -626,7 +631,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       setCoverImage(result.url)
       markDirty({ coverImage: result.url })
     } catch (error) {
-      setFeedback({ type: 'error', message: error instanceof Error ? error.message : '封面上传失败' })
+      toast.error(error instanceof Error ? error.message : '封面上传失败')
     } finally {
       setUploadingImage(false); setUploadProgress(0)
       if (coverInputRef.current) coverInputRef.current.value = ''
@@ -638,18 +643,18 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     const editor = editorRef.current
     const normalizedTitle = title.trim()
     const normalizedSlug = normalizePostSlug(slug)
-    if (!normalizedTitle) { setFeedback({ type: 'error', message: '先把文章标题写上。' }); return }
-    if (!editor) { setFeedback({ type: 'error', message: '编辑器还没准备好。' }); return }
+    if (!normalizedTitle) { toast.error('先把文章标题写上。'); return }
+    if (!editor) { toast.error('编辑器还没准备好。'); return }
     const content = editor.getText({ blockSeparator: '\n\n' }).trim()
     const html = editor.getHTML()
     const hasContent = content || /<(img|video|audio|iframe)\s/.test(html)
-    if (!hasContent) { setFeedback({ type: 'error', message: '正文还是空的。' }); return }
+    if (!hasContent) { toast.error('正文还是空的。'); return }
     const normalizedDescription = (description || buildAutoDescription(content) || '').trim()
 
     clearAutosaveTimers()
     abortAutosaveRequest()
 
-    setSaving(true); setSaveState('saving'); setFeedback(null)
+    setSaving(true); setSaveState('saving')
 
     try {
       const isEdit = editSlug !== null
@@ -706,13 +711,13 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         if (persistedSlug) {
           syncPersistedSlug(persistedSlug, editSlug, true)
         }
-        setFeedback({ type: 'success', message: '文章已更新。', slug: persistedSlug || editSlug || undefined })
+        toast.success('文章已更新。')
       } else {
         if (!description && normalizedDescription) {
           setDescription(normalizedDescription)
         }
         const msgs = { public: '已发布', draft: '草稿已保存', encrypted: '已发布（加密）', unlisted: '已发布（链接访问）' }
-        setFeedback({ type: 'success', message: `${msgs[publishStatus]}`, slug: result.slug })
+        toast.success(msgs[publishStatus])
         setTitle('')
         latestTitleRef.current = ''
         lastAutosaveSnapshotRef.current = null
@@ -721,7 +726,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       setPublishPanelOpen(false)
     } catch (error) {
       setSaveState('error')
-      setFeedback({ type: 'error', message: error instanceof Error ? error.message : '保存失败' })
+      toast.error(error instanceof Error ? error.message : '保存失败')
     } finally {
       setSaving(false)
     }
@@ -841,6 +846,15 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-40 border-b border-[var(--ui-line)] bg-[color-mix(in_srgb,var(--ui-bg)_92%,transparent)] backdrop-blur-lg">
         <div className="flex min-h-14 items-center gap-3 px-4 py-2">
+          <UiIconButton
+            onClick={() => setTocOpen(!tocOpen)}
+            title={tocOpen ? '收起目录' : '展开目录'}
+            aria-label={tocOpen ? '收起目录' : '展开目录'}
+            className="h-10 w-10"
+          >
+            {tocOpen ? <PanelLeftClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelLeftOpen className="h-[1.15rem] w-[1.15rem]" />}
+          </UiIconButton>
+
           {/* Left: Back */}
           <Link
             href="/admin/posts"
@@ -914,23 +928,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
               <FileDown className="h-[1.15rem] w-[1.15rem]" />
             </UiIconButton>
 
-            <UiIconButton
-              onClick={(e) => openDocumentAIModal(e.currentTarget)}
-              title="Ask AI（基于标题和正文）"
-              aria-label="Ask AI（基于标题和正文）"
-              className="h-10 w-10"
-            >
-              <WandSparkles className="h-[1.15rem] w-[1.15rem]" />
-            </UiIconButton>
-
-            <UiIconButton
-              onClick={openDocumentImageModal}
-              title="生成图片"
-              aria-label="生成图片"
-              className="h-10 w-10"
-            >
-              <ImageIcon className="h-[1.15rem] w-[1.15rem]" />
-            </UiIconButton>
+            <AdminThemeToggle />
 
             <UiIconButton
               onClick={() => setAiRailOpen(!aiRailOpen)}
@@ -1019,24 +1017,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           </div>
         </div>
 
-        {/* Feedback bar */}
-        {feedback && (
-          <div className="border-t border-[var(--ui-line)] px-4 py-2">
-            <div className={`flex items-center gap-2 rounded-[1rem] px-3 py-2 text-sm ${
-              feedback.type === 'success'
-                ? 'bg-[color-mix(in_srgb,var(--ui-success)_14%,transparent)] text-[var(--ui-success)]'
-                : 'bg-[color-mix(in_srgb,var(--ui-danger)_14%,transparent)] text-[var(--ui-danger)]'
-            }`}>
-              <span>{feedback.message}</span>
-              {feedback.slug && (
-                <a href={`/${feedback.slug}`} className="font-medium underline underline-offset-2">打开文章</a>
-              )}
-              <UiIconButton type="button" onClick={() => setFeedback(null)} className="ml-auto h-7 w-7" aria-label="关闭提示">
-                <X className="h-3.5 w-3.5" />
-              </UiIconButton>
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Hidden file inputs */}
@@ -1050,7 +1030,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           open={tocOpen}
           editor={editorRef.current}
           documentJson={currentDocumentJson}
-          onToggle={() => setTocOpen((current) => !current)}
         />
 
         {/* Main editor area */}
@@ -1070,7 +1049,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                   latestTitleRef.current = v
                   autoResizeTitle(e.target)
                   markDirty()
-                  if (feedback?.type === 'error') setFeedback(null)
                 }}
                 onPaste={(e) => {
                   const files = extractFilesFromClipboard(e)
@@ -1163,6 +1141,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         <EditorRightRail
           open={aiRailOpen}
           onClose={() => setAiRailOpen(false)}
+          width={aiRailWidth}
+          onWidthChange={setAiRailWidth}
           aiContent={(
             <AIPanel
               articleKey={articleKey}

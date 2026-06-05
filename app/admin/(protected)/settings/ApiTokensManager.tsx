@@ -104,24 +104,24 @@ export function ApiTokensManager() {
 
       {/* 新 Token 提示（只显示一次） */}
       {newToken && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2">
-          <p className="text-sm font-medium text-amber-800">
+        <div className="space-y-2 rounded-lg border border-[color-mix(in_srgb,var(--ui-warning)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-warning)_12%,var(--ui-surface))] p-4">
+          <p className="text-sm font-medium text-[var(--ui-warning)]">
             Token 已创建！请立即复制保存，此后不再显示完整 Token。
           </p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 text-sm bg-[var(--background)] border border-amber-200 rounded px-3 py-2 break-all font-mono text-[var(--editor-ink)]">
+            <code className="flex-1 break-all rounded border border-[color-mix(in_srgb,var(--ui-warning)_24%,transparent)] bg-[var(--ui-surface)] px-3 py-2 font-mono text-sm text-[var(--ui-ink)]">
               {newToken}
             </code>
             <button
               onClick={() => copyToken(newToken)}
-              className="shrink-0 px-3 py-2 text-sm bg-[var(--editor-accent)] text-white rounded-lg hover:brightness-105"
+              className="shrink-0 rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm text-[var(--ui-accent-ink)] hover:brightness-105"
             >
               复制
             </button>
           </div>
           <button
             onClick={() => setNewToken(null)}
-            className="text-xs text-amber-600 hover:underline"
+            className="text-xs text-[var(--ui-warning)] hover:underline"
           >
             我已保存，关闭此提示
           </button>
@@ -136,14 +136,12 @@ export function ApiTokensManager() {
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && createToken()}
           placeholder="Token 用途，如 Obsidian插件"
-          className="flex-1 px-3 py-2 text-sm border border-[var(--editor-line)] rounded-lg bg-[var(--background)] text-[var(--editor-ink)] placeholder:text-[var(--editor-muted)]
-                     focus:outline-none focus:border-[var(--editor-accent)]"
+          className="flex-1 rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] placeholder:text-[var(--ui-muted)] focus:border-[var(--ui-accent)] focus:outline-none"
         />
         <button
           onClick={createToken}
           disabled={creating || !newName.trim()}
-          className="px-4 py-2 text-sm bg-[var(--editor-accent)] text-white rounded-lg font-medium
-                     hover:brightness-105 disabled:opacity-50"
+          className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-medium text-[var(--ui-accent-ink)] hover:brightness-105 disabled:opacity-50"
         >
             {creating ? '创建中...' : '生成 Token'}
           </button>

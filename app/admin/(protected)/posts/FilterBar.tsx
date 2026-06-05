@@ -99,7 +99,7 @@ export function FilterBar({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="搜索标题、摘要或正文…"
-                className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 pl-9 pr-9 text-sm text-[var(--editor-ink)] placeholder:text-[var(--editor-muted)] transition-all focus:border-[var(--editor-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--editor-accent)]/20"
+                className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 pl-9 pr-9 text-sm text-[var(--ui-ink)] placeholder:text-[var(--ui-muted)] transition-all focus:border-[var(--ui-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--ui-accent)]/20"
               />
               <svg
                 width="14"

@@ -287,7 +287,7 @@ export function AiPostGeneratorsManager() {
                   onChange={(event) => updateItem(target, {
                     provider_mode: event.target.value === 'profile' ? 'profile' : 'workers_ai',
                   })}
-                  className="w-full rounded-xl border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                  className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2.5 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                 >
                   <option value="workers_ai">Workers AI</option>
                   <option value="profile">{isCover ? '已配置图片模型' : '已配置文本模型'}</option>
@@ -310,7 +310,7 @@ export function AiPostGeneratorsManager() {
                   <input
                     value={item.workers_model}
                     onChange={(event) => updateItem(target, { workers_model: event.target.value })}
-                    className="w-full rounded-xl border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                    className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2.5 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                     placeholder={isCover ? '@cf/black-forest-labs/flux-1-schnell' : '@cf/meta/llama-3.1-8b-instruct'}
                   />
                   {workersModelOptions.length > 0 ? (
@@ -357,7 +357,7 @@ export function AiPostGeneratorsManager() {
                     <select
                       value={item.aspect_ratio}
                       onChange={(event) => updateItem(target, { aspect_ratio: event.target.value as AIImageAspectRatio })}
-                      className="w-full rounded-xl border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                      className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2.5 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                     >
                       {AI_IMAGE_ASPECT_RATIO_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -371,7 +371,7 @@ export function AiPostGeneratorsManager() {
                     <select
                       value={item.resolution}
                       onChange={(event) => updateItem(target, { resolution: event.target.value as AIImageResolution })}
-                      className="w-full rounded-xl border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                      className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2.5 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                     >
                       {AI_IMAGE_RESOLUTION_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -392,7 +392,7 @@ export function AiPostGeneratorsManager() {
                       step={0.1}
                       value={item.temperature}
                       onChange={(event) => updateItem(target, { temperature: Number(event.target.value) })}
-                      className="w-full rounded-xl border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                      className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2.5 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                     />
                   </div>
                   <div>
@@ -405,7 +405,7 @@ export function AiPostGeneratorsManager() {
                         const nextValue = Number(event.target.value.replace(/[^\d]/g, ''))
                         updateItem(target, { max_tokens: Number.isFinite(nextValue) && nextValue > 0 ? nextValue : 0 })
                       }}
-                      className="w-full rounded-xl border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                      className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2.5 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                     />
                   </div>
                 </>
@@ -418,7 +418,7 @@ export function AiPostGeneratorsManager() {
                 rows={isCover ? 7 : 6}
                 value={item.prompt}
                 onChange={(event) => updateItem(target, { prompt: event.target.value })}
-                className="w-full rounded-2xl border border-[var(--editor-line)] bg-[var(--background)] px-3 py-3 text-sm leading-6 text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                className="w-full rounded-2xl border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-3 text-sm leading-6 text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
               />
             </div>
 
@@ -436,7 +436,7 @@ export function AiPostGeneratorsManager() {
                 type="button"
                 onClick={() => void saveItem(target)}
                 disabled={savingTarget === target}
-                className="inline-flex items-center justify-center rounded-xl bg-[var(--editor-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-xl bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-ink)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingTarget === target ? '保存中…' : '保存设置'}
               </button>

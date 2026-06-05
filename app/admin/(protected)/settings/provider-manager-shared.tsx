@@ -274,7 +274,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
           type="text"
           value={editing.name}
           onChange={(event) => onChange({ name: event.target.value } as Partial<T>)}
-          className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+          className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
         />
       </div>
       <div>
@@ -283,7 +283,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
           type="text"
           value={editing.provider_name || editing.provider}
           onChange={(event) => onChange({ provider_name: event.target.value } as Partial<T>)}
-          className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+          className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
         />
       </div>
 
@@ -293,7 +293,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
           type="url"
           value={editing.base_url}
           onChange={(event) => onChange({ base_url: event.target.value } as Partial<T>)}
-          className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+          className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
         />
       </div>
 
@@ -315,7 +315,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
           type="password"
           value={editing.api_key}
           onChange={(event) => onChange({ api_key: event.target.value } as Partial<T>)}
-          className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+          className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
         />
         {editing.api_key_masked ? (
           <div className="mt-1 text-xs text-[var(--editor-muted)]">已保存：{editing.api_key_masked}</div>
@@ -338,7 +338,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
           type="text"
           value={editing.model}
           onChange={(event) => onChange({ model: event.target.value } as Partial<T>)}
-          className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+          className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
         />
         {models.length > 0 ? (
           <div className="mt-2 space-y-2">

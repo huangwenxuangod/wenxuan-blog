@@ -17,7 +17,7 @@ export function CustomJsEditor({ initialValue, onSave, saving }: Props) {
         value={code}
         onChange={(e) => setCode(e.target.value)}
         rows={8}
-        className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] p-3 font-mono text-sm text-[var(--editor-ink)] placeholder:text-[var(--editor-muted)] outline-none focus:border-[var(--editor-accent)] transition-colors resize-y"
+        className="w-full resize-y rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] p-3 font-mono text-sm text-[var(--ui-ink)] placeholder:text-[var(--ui-muted)] outline-none transition-colors focus:border-[var(--ui-accent)]"
         placeholder={'<script>\n  // 在此粘贴统计代码\n</script>'}
       />
       <button

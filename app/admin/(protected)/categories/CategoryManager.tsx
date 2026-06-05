@@ -135,7 +135,7 @@ export function CategoryManager({ initialCategories }: { initialCategories: Cate
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="如：AI工具"
-              className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-ink)] transition"
+              className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none transition focus:border-[var(--ui-accent)]"
             />
           </div>
           <div className="flex-1">
@@ -145,13 +145,13 @@ export function CategoryManager({ initialCategories }: { initialCategories: Cate
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="如：ai-tools"
-              className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-ink)] transition"
+              className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none transition focus:border-[var(--ui-accent)]"
             />
           </div>
           <button
             type="submit"
             disabled={loading || !name.trim() || !slug.trim()}
-            className="px-4 py-2 text-sm rounded-lg bg-[var(--editor-ink)] text-white font-medium hover:brightness-110 transition disabled:opacity-50"
+            className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-medium text-[var(--ui-accent-ink)] transition hover:brightness-110 disabled:opacity-50"
           >
             {loading ? '添加中…' : '添加'}
           </button>
@@ -176,13 +176,13 @@ export function CategoryManager({ initialCategories }: { initialCategories: Cate
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="text-sm rounded border border-[var(--editor-line)] bg-[var(--background)] px-2 py-1 text-[var(--editor-ink)] outline-none focus:border-[var(--editor-ink)]"
+                    className="rounded border border-[var(--ui-line)] bg-[var(--ui-surface)] px-2 py-1 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                   />
                   <input
                     type="text"
                     value={editSlugVal}
                     onChange={(e) => setEditSlugVal(e.target.value)}
-                    className="text-xs font-mono rounded border border-[var(--editor-line)] bg-[var(--background)] px-2 py-1 text-[var(--editor-ink)] outline-none focus:border-[var(--editor-ink)]"
+                    className="rounded border border-[var(--ui-line)] bg-[var(--ui-surface)] px-2 py-1 text-xs font-mono text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                   />
                   <span className="text-xs text-[var(--editor-muted)] text-right tabular-nums">{cat.post_count}</span>
                   <div className="flex gap-2">

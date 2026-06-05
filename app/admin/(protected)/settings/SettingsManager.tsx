@@ -89,7 +89,7 @@ export function SettingsManager({
       content: (
         <div className="space-y-4">
           {msg && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+            <div className="rounded-lg border border-[color-mix(in_srgb,var(--ui-success)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-success)_12%,var(--ui-surface))] px-4 py-2 text-sm text-[var(--ui-success)]">
               {msg}
             </div>
           )}
@@ -112,7 +112,7 @@ export function SettingsManager({
       content: (
         <div className="space-y-4">
           {msg && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+            <div className="rounded-lg border border-[color-mix(in_srgb,var(--ui-success)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-success)_12%,var(--ui-surface))] px-4 py-2 text-sm text-[var(--ui-success)]">
               {msg}
             </div>
           )}

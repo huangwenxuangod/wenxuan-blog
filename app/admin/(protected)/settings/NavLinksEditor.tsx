@@ -43,7 +43,7 @@ export function NavLinksEditor({ initialValue, onSave, saving }: Props) {
     setLinks((prev) => { const n = [...prev]; [n[idx], n[idx + 1]] = [n[idx + 1], n[idx]]; return n })
   }
 
-  const inputCls = 'h-9 rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 text-sm text-[var(--editor-ink)] placeholder:text-[var(--editor-muted)] outline-none focus:border-[var(--editor-accent)] transition-colors'
+  const inputCls = 'h-9 rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 text-sm text-[var(--ui-ink)] placeholder:text-[var(--ui-muted)] outline-none transition-colors focus:border-[var(--ui-accent)]'
   const btnCls = 'h-9 px-3 rounded-lg text-sm font-medium transition-colors'
 
   return (

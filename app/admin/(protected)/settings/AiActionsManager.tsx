@@ -276,7 +276,7 @@ export function AiActionsManager() {
                   type="text"
                   value={editAction.action_key || ''}
                   onChange={e => setEditAction({ ...editAction, action_key: e.target.value })}
-                  className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                  className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                 />
               </div>
 
@@ -286,7 +286,7 @@ export function AiActionsManager() {
                   type="text"
                   value={editAction.label || ''}
                   onChange={e => setEditAction({ ...editAction, label: e.target.value })}
-                  className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                  className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                 />
               </div>
 
@@ -296,7 +296,7 @@ export function AiActionsManager() {
                   type="text"
                   value={editAction.description || ''}
                   onChange={e => setEditAction({ ...editAction, description: e.target.value })}
-                  className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                  className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                 />
               </div>
 
@@ -306,7 +306,7 @@ export function AiActionsManager() {
                   rows={5}
                   value={editAction.prompt || ''}
                   onChange={e => setEditAction({ ...editAction, prompt: e.target.value })}
-                  className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                  className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                 />
               </div>
 
@@ -320,7 +320,7 @@ export function AiActionsManager() {
                     step={0.1}
                     value={editAction.temperature ?? 0.6}
                     onChange={e => setEditAction({ ...editAction, temperature: Number(e.target.value) })}
-                    className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+                    className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
                   />
                 </div>
                 <div>
@@ -355,7 +355,7 @@ export function AiActionsManager() {
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="rounded-lg bg-[var(--editor-accent)] px-4 py-2 text-sm font-semibold text-white hover:brightness-105 disabled:opacity-50"
+                className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-ink)] hover:brightness-105 disabled:opacity-50"
               >
                 {saving ? '保存中…' : '保存'}
               </button>

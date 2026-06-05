@@ -24,6 +24,8 @@
 - 四套首页主题，移动端友好，开箱即用
 - **全新编辑器目录导轨 (Table of Contents)**：实时解析文档结构，自动生成带层级编号的目录，支持双向滚动高亮与平滑锚点跳转，状态持久化保存
 - **基于 Headless UI 的无障碍交互重构**：所有下拉菜单、弹窗、弹出层均采用 Headless UI 重构，提供顺滑的过渡动画、完美的键盘导航和焦点管理
+- **全局触觉交互规范 (Tactile Hover Feedback)**：框架级注入 Hover 指针规则，全站所有按钮、下拉菜单、选项列表、模拟按钮在悬停时自动展现 `cursor: pointer` 手势，禁用状态自动切换为 `cursor: not-allowed`，提供极佳的物理操控感
+- **智能品牌图标引擎 (Smart Brand Icons)**：导航栏智能检测 GitHub 和 Twitter/X 链接（支持大小写不敏感的标签名或 URL），全自动渲染为像素级完美、100% 视觉重量一致的现代 inline SVG 品牌图标
 - **Claude 极简美学设计规范**：深度定制的温暖羊皮纸色调、Anthropic Serif 衬线体字形与极简环形投影，带来静谧、专注的写作与阅读体验
 - Bubble Menu + Ask AI，选中文本就能改写、润色、扩写、翻译
 - AI 自动处理摘要、标签、SEO slug、封面图

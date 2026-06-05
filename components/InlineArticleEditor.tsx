@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
-import { ImageIcon, WandSparkles } from 'lucide-react'
 import {
   EditorContent,
   EditorInstance,
@@ -19,6 +18,7 @@ import { CategorySelector } from '@/components/CategorySelector'
 import { DownloadMarkdown } from '@/components/DownloadMarkdown'
 import { ImageGenerationModal } from '@/components/ImageGenerationModal'
 import { ImageCropModal } from '@/components/ImageCropModal'
+import { useToast } from '@/components/Toast'
 import { AIModal } from '@/lib/ai-modal'
 import { EDITOR_IMAGE_OPTIMIZE_OPTIONS, optimizeImageForUpload } from '@/lib/client-image'
 import {
@@ -81,10 +81,10 @@ export function InlineArticleEditor({
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploadingFile, setUploadingFile] = useState(false)
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [charCount, setCharCount] = useState(0)
   const [referenceImageTarget, setReferenceImageTarget] = useState<EditorImageActionTarget | null>(null)
   const [cropImageTarget, setCropImageTarget] = useState<EditorImageActionTarget | null>(null)
+  const toast = useToast()
 
   const checkDirty = useCallback((editor: EditorInstance, overrides?: {
     title?: string
@@ -115,14 +115,13 @@ export function InlineArticleEditor({
     if (!editor) return
 
     setSaving(true)
-    setFeedback(null)
 
     try {
       const newHtml = editor.getHTML()
       const content = editor.getText({ blockSeparator: '\n\n' }).trim()
       const trimmedTitle = title.trim()
       if (!trimmedTitle) {
-        setFeedback({ type: 'error', message: '标题不能为空' })
+        toast.error('标题不能为空')
         setSaving(false)
         return
       }
@@ -154,10 +153,9 @@ export function InlineArticleEditor({
       originalCategoryRef.current = selectedCategory
       originalCoverImageRef.current = coverImage
       setDirty(false)
-      setFeedback({ type: 'success', message: '已保存' })
-      setTimeout(() => setFeedback(null), 2000)
+      toast.success('已保存')
     } catch (err) {
-      setFeedback({ type: 'error', message: err instanceof Error ? err.message : '保存失败' })
+      toast.error(err instanceof Error ? err.message : '保存失败')
     } finally {
       setSaving(false)
     }
@@ -171,7 +169,6 @@ export function InlineArticleEditor({
     setSelectedCategory(originalCategoryRef.current)
     setCoverImage(originalCoverImageRef.current)
     setDirty(false)
-    setFeedback(null)
   }
 
   const {
@@ -182,8 +179,6 @@ export function InlineArticleEditor({
     handleInputModalConfirm,
     imageModal,
     inputModal,
-    openDocumentAIModal,
-    openDocumentImageModal,
   } = useEditorAuxiliaryModals({
     title,
     getDocumentText: () => editorRef.current?.getText({ blockSeparator: '\n\n' }).trim() || '',
@@ -223,7 +218,6 @@ export function InlineArticleEditor({
   // Image-only upload: returns URL for Novel's UploadImagesPlugin
   const uploadImageAndGetUrl = async (file: File): Promise<string> => {
     setUploadingFile(true)
-    setFeedback(null)
     try {
       const optimizedFile = await optimizeImageForUpload(file, EDITOR_IMAGE_OPTIMIZE_OPTIONS)
       const result = await uploadEditorFile(optimizedFile)
@@ -231,10 +225,7 @@ export function InlineArticleEditor({
       if (editor) checkDirty(editor)
       return result.url
     } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : '图片上传失败',
-      })
+      toast.error(error instanceof Error ? error.message : '图片上传失败')
       throw error
     } finally {
       setUploadingFile(false)
@@ -250,19 +241,18 @@ export function InlineArticleEditor({
         const url = await uploadImageAndGetUrl(file)
         const editor = editorRef.current
         if (editor) editor.chain().focus().setImage({ src: url, alt: file.name }).run()
-      } catch { /* error already shown via feedback */ }
+      } catch {}
       return
     }
 
     const editor = editorRef.current
 
     if (!editor) {
-      setFeedback({ type: 'error', message: '编辑器还没准备好，请稍后再试。' })
+      toast.error('编辑器还没准备好，请稍后再试。')
       return
     }
 
     setUploadingFile(true)
-    setFeedback(null)
 
     // 插入占位符
     const placeholderMarker = createUploadPlaceholderMarker()
@@ -279,10 +269,7 @@ export function InlineArticleEditor({
       console.error(error)
       // 移除占位符
       try { removeUploadPlaceholder(editor, placeholderMarker) } catch {}
-      setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : '文件上传失败',
-      })
+      toast.error(error instanceof Error ? error.message : '文件上传失败')
     } finally {
       setUploadingFile(false)
       if (fileInputRef.current) {
@@ -310,8 +297,7 @@ export function InlineArticleEditor({
         if (editorRef.current) {
           checkDirty(editorRef.current, { coverImage: target.src })
         }
-        setFeedback({ type: 'success', message: '已设为封面，记得保存' })
-        window.setTimeout(() => setFeedback((current) => current?.type === 'success' ? null : current), 1600)
+        toast.success('已设为封面，记得保存')
       },
       onOpenReferenceImage: (target) => {
         setReferenceImageTarget(target)
@@ -320,7 +306,7 @@ export function InlineArticleEditor({
         setCropImageTarget(target)
       },
     },
-  }), [checkDirty])
+  }), [checkDirty, toast])
 
   const handleSelectedFiles = async (files: FileList | File[] | null | undefined) => {
     const queue = files ? Array.from(files) : []
@@ -392,29 +378,7 @@ export function InlineArticleEditor({
             {charCount.toLocaleString()} 字
           </span>
         )}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={(e) => openDocumentAIModal(e.currentTarget)}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--editor-muted)] transition hover:bg-[var(--editor-soft)] hover:text-[var(--editor-accent)]"
-            title="Ask AI（基于标题和正文）"
-          >
-            <WandSparkles className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={openDocumentImageModal}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--editor-muted)] transition hover:bg-[var(--editor-soft)] hover:text-[var(--editor-accent)]"
-            title="生成图片"
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        {feedback ? (
-          <span className={`font-medium ${feedback.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {feedback.message}
-          </span>
-        ) : dirty ? (
+        {dirty ? (
           <>
             {charCount > 0 && <span className="text-[var(--editor-line)]" aria-hidden>|</span>}
             <button

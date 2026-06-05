@@ -2,15 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { EditorInstance, JSONContent } from 'novel'
-import { ChevronDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { buildEditorToc, flattenEditorToc, type EditorTocItem } from '@/lib/editor-toc'
-import { UiIconButton } from '@/components/ui/primitives'
+import { cx } from '@/components/ui/primitives'
 
 interface EditorTocRailProps {
   open: boolean
   editor: EditorInstance | null
   documentJson: JSONContent | null
-  onToggle: () => void
 }
 
 const TOC_EXPANDED_KEY = 'qmblog:toc-expanded'
@@ -68,14 +67,24 @@ function TocNode({
   const isActive = activeIndex === item.index
   const hasChildren = item.children.length > 0
   const isExpanded = hasChildren ? expandedIds.has(item.id) : false
+  const textClassName = item.level === 1
+    ? 'text-[13px] font-semibold tracking-[0.01em]'
+    : item.level === 2
+      ? 'text-[13px] font-medium'
+      : item.level === 3
+        ? 'text-[12.5px] font-normal text-[var(--editor-toc-level-3)]'
+        : 'text-[12.5px] font-normal text-[var(--editor-toc-level-4)]'
 
   return (
-    <div className="space-y-px">
+    <div className="space-y-0.5">
       <div
-        className="editor-toc-row group"
+        className={cx(
+          'group relative flex min-h-8 items-start gap-1.5 rounded-[0.85rem] pr-2 transition-colors',
+          'hover:bg-[color-mix(in_srgb,var(--ui-line)_22%,transparent)]',
+        )}
         data-active={isActive ? 'true' : 'false'}
       >
-        <div className="flex h-7 w-4 shrink-0 items-center justify-center">
+        <div className="flex h-8 w-5 shrink-0 items-center justify-center">
           {hasChildren ? (
             <button
               type="button"
@@ -84,28 +93,26 @@ function TocNode({
               aria-label={isExpanded ? '折叠小节' : '展开小节'}
               title={isExpanded ? '折叠小节' : '展开小节'}
             >
-              <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
             </button>
           ) : (
-            <span className="editor-toc-leaf h-1 w-1 rounded-full" />
+            <span className="block h-4 w-4" />
           )}
         </div>
 
         <button
           type="button"
           onClick={() => onJump(item)}
-          className="min-w-0 flex-1 cursor-pointer py-1 text-left"
+          className="min-w-0 flex-1 cursor-pointer py-1.5 text-left"
         >
           <div
-            className={`editor-toc-text truncate ${
-              item.level === 1
-                ? 'text-[15px] font-semibold leading-7'
-                : item.level === 2
-                  ? 'text-[14px] font-medium leading-6.5'
-                  : item.level === 3
-                    ? 'text-[13px] font-normal leading-6'
-                    : 'text-[13px] font-normal leading-6'
-            }`}
+            className={cx(
+              'editor-toc-text truncate leading-6.5',
+              textClassName,
+              isActive
+                ? 'font-semibold text-[var(--ui-ink)]'
+                : 'text-[color-mix(in_srgb,var(--ui-ink)_86%,var(--ui-muted))]',
+            )}
             data-level={String(item.level)}
           >
             {item.text}
@@ -114,7 +121,7 @@ function TocNode({
       </div>
 
       {hasChildren && isExpanded ? (
-        <div className="ml-3.5 pl-1.5">
+        <div className="ml-4.5 pl-1">
           {item.children.map((child) => (
             <TocNode
               key={child.id}
@@ -135,7 +142,6 @@ export function EditorTocRail({
   open,
   editor,
   documentJson,
-  onToggle,
 }: EditorTocRailProps) {
   const tocTree = useMemo(() => buildEditorToc(documentJson), [documentJson])
   const tocItems = useMemo(() => flattenEditorToc(tocTree), [tocTree])
@@ -254,28 +260,17 @@ export function EditorTocRail({
 
   return (
     <aside
-      className="relative shrink-0"
+      className={`shrink-0 overflow-hidden transition-[width,opacity] duration-200 ease-out ${open ? 'opacity-100' : 'opacity-0'}`}
       style={{
-        width: open ? 232 : 48,
+        width: open ? 224 : 0,
         position: 'sticky',
         top: '3.5rem',
         height: 'calc(100vh - 3.5rem)',
       }}
     >
-      <div className="flex h-full min-h-0 flex-col px-2 py-4">
-        <div className="flex justify-center pb-3">
-          <UiIconButton
-            onClick={onToggle}
-            title={open ? '收起目录' : '展开目录'}
-            aria-label={open ? '收起目录' : '展开目录'}
-            className="h-10 w-10"
-          >
-            {open ? <PanelLeftClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelLeftOpen className="h-[1.15rem] w-[1.15rem]" />}
-          </UiIconButton>
-        </div>
-
-        {open ? (
-          <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-6">
+      {open ? (
+        <div className="flex h-full min-h-0 flex-col border-r border-[color-mix(in_srgb,var(--ui-line)_72%,transparent)] bg-transparent px-3 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {tocTree.length === 0 ? null : (
               <div className="space-y-0.5">
                 {tocTree.map((item) => (
@@ -291,8 +286,8 @@ export function EditorTocRail({
               </div>
             )}
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </aside>
   )
 }

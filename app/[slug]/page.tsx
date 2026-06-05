@@ -98,7 +98,6 @@ export default async function PostPage({
   const post = await getPostBySlug(db, slug, getPublicContentCacheNamespace(env)).catch(() => null)
   if (!post) notFound()
   if (!isPubliclyAccessiblePost(post)) notFound()
-
   const headerData = await getSiteHeaderData(db)
   const categorySlugMap = new Map(headerData.categories.map((category) => [category.name, category.slug]))
   const activeCategorySlug = headerData.categories.find((category) => category.name === post.category)?.slug ?? null

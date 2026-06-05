@@ -193,7 +193,7 @@ export function WeChatBridgeManager() {
               value={baseUrl}
               onChange={(event) => setBaseUrl(event.target.value)}
               placeholder="https://bridge.example.com"
-              className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+              className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
             />
           </div>
 
@@ -206,7 +206,7 @@ export function WeChatBridgeManager() {
               value={token}
               onChange={(event) => setToken(event.target.value)}
               placeholder={config.token_masked ? `已保存：${config.token_masked}；留空表示不修改` : '输入 bridge token'}
-              className="w-full rounded-lg border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-ink)] outline-none focus:border-[var(--editor-accent)]"
+              className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
             />
             <p className="text-xs text-[var(--editor-muted)]">
               这里不保存公众号密钥。后续新增公众号，只需要更新 VPS 上的 bridge 账号清单。
@@ -215,7 +215,7 @@ export function WeChatBridgeManager() {
         </div>
 
         {testMessage && (
-          <div className="mt-4 rounded-xl border border-[var(--editor-line)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--editor-muted)]">
+          <div className="mt-4 rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-muted)]">
             {testMessage}
           </div>
         )}
@@ -233,7 +233,7 @@ export function WeChatBridgeManager() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-[var(--editor-accent)] px-3 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-50"
+            className="rounded-lg bg-[var(--ui-accent)] px-3 py-2 text-sm font-semibold text-[var(--ui-accent-ink)] transition hover:brightness-105 disabled:opacity-50"
           >
             {saving ? '保存中…' : '保存配置'}
           </button>
@@ -259,7 +259,7 @@ export function WeChatBridgeManager() {
           </button>
         </div>
 
-        <div className="mt-4 rounded-xl border border-[var(--editor-line)] bg-[var(--background)]">
+        <div className="mt-4 rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)]">
           {accounts.length > 0 ? (
             <ul className="divide-y divide-[var(--editor-line)]">
               {accounts.map((account) => (
