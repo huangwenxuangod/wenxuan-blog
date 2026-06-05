@@ -37,7 +37,7 @@ export function Modal({
   const confirmTone = {
     danger: 'bg-rose-500 text-white hover:bg-rose-600',
     warning: 'bg-amber-500 text-white hover:bg-amber-600',
-    info: 'bg-[var(--editor-accent)] text-[var(--editor-accent-ink)] hover:brightness-105',
+    info: 'bg-[var(--ui-accent)] text-[var(--ui-accent-ink)] hover:brightness-105',
   }[type]
 
   const handleConfirm = async () => {
@@ -60,7 +60,7 @@ export function Modal({
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <DialogPanel className="ui-modal-panel w-full max-w-md rounded-2xl transition duration-200 data-[closed]:scale-95 data-[closed]:opacity-0">
           <div className="flex items-start justify-between gap-4 px-6 pb-4 pt-6">
-            <DialogTitle as="h3" className="text-lg font-semibold text-[var(--editor-ink)]">
+            <DialogTitle as="h3" className="text-lg font-semibold text-[var(--ui-ink)]">
               {title}
             </DialogTitle>
             <button
@@ -76,7 +76,7 @@ export function Modal({
 
           {description ? (
             <div className="px-6 pb-6">
-              <p className="text-sm leading-7 text-[var(--editor-muted)]">{description}</p>
+              <p className="text-sm leading-7 text-[var(--ui-muted)]">{description}</p>
             </div>
           ) : null}
 
@@ -85,7 +85,7 @@ export function Modal({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="text-sm text-[var(--editor-muted)] transition hover:text-[var(--editor-ink)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="text-sm text-[var(--ui-muted)] transition hover:text-[var(--ui-ink)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {cancelText}
             </button>

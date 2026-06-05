@@ -193,7 +193,7 @@ function ResizableImageView(props: any) {
     ? createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[80] min-w-[220px] overflow-hidden rounded-2xl border border-[var(--editor-line)] bg-white p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.18)]"
+          className="fixed z-[80] min-w-[220px] overflow-hidden rounded-2xl border border-[var(--ui-line)] bg-[var(--ui-surface)] p-1.5 shadow-[0_18px_50px_rgb(var(--ui-shadow-rgb)/0.18)]"
           style={{ left: menuPosition.x, top: menuPosition.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >
@@ -324,7 +324,7 @@ function ResizableImageView(props: any) {
               const rect = event.currentTarget.getBoundingClientRect()
               openMenu(rect.left, rect.bottom + 8)
             }}
-            className="absolute -right-2 -top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--editor-line)] bg-white text-[var(--editor-muted)] shadow-sm transition hover:text-[var(--editor-ink)]"
+            className="absolute -right-2 -top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--ui-line)] bg-[var(--ui-surface)] text-[var(--ui-muted)] shadow-sm transition hover:text-[var(--ui-ink)]"
             aria-label="打开图片菜单"
             title="打开图片菜单"
           >

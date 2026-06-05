@@ -88,6 +88,86 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+:root,
+html[data-admin-theme='light'] {
+  --ui-bg: #f5f4ed;
+  --ui-panel: #f0eee6;
+  --ui-surface: #faf9f5;
+  --ui-soft: #ece8dd;
+  --ui-line: #e4dfd2;
+  --ui-line-strong: #cfc8b7;
+  --ui-ink: #141413;
+  --ui-muted: #6a665d;
+  --ui-accent: #c96442;
+  --ui-accent-ink: #faf9f5;
+  --ui-shadow-rgb: 23 20 16;
+  --ui-success: #2f8f63;
+  --ui-warning: #b36f1b;
+  --ui-danger: #c65b5b;
+  --ui-info: #7f7a72;
+}
+
+html[data-admin-theme='dark'] {
+  --ui-bg: #141413;
+  --ui-panel: #1d1c1a;
+  --ui-surface: #23211f;
+  --ui-soft: #2c2926;
+  --ui-line: #34302c;
+  --ui-line-strong: #4a443d;
+  --ui-ink: #f5f1e8;
+  --ui-muted: #b3ab9e;
+  --ui-accent: #e08a67;
+  --ui-accent-ink: #141413;
+  --ui-shadow-rgb: 0 0 0;
+  --ui-success: #62c08d;
+  --ui-warning: #d9a13e;
+  --ui-danger: #f08b86;
+  --ui-info: #c2b8aa;
+}
+
+html[data-backoffice-surface='true'],
+html[data-backoffice-surface='true'] body,
+.backoffice-shell,
+.admin-shell,
+.editor-shell {
+  --admin-bg: var(--ui-bg);
+  --admin-panel: var(--ui-panel);
+  --admin-surface: var(--ui-surface);
+  --admin-soft: var(--ui-soft);
+  --admin-line: var(--ui-line);
+  --admin-line-strong: var(--ui-line-strong);
+  --admin-ink: var(--ui-ink);
+  --admin-muted: var(--ui-muted);
+  --admin-accent: var(--ui-accent);
+  --admin-accent-ink: var(--ui-accent-ink);
+
+  --editor-app-bg: var(--ui-bg);
+  --editor-panel: var(--ui-panel);
+  --editor-soft: var(--ui-soft);
+  --editor-line: var(--ui-line);
+  --editor-ink: var(--ui-ink);
+  --editor-muted: var(--ui-muted);
+  --editor-accent: var(--ui-accent);
+  --editor-accent-ink: var(--ui-accent-ink);
+  --editor-link: var(--ui-accent);
+  --editor-code-bg: color-mix(in srgb, var(--ui-surface) 92%, var(--ui-panel));
+  --editor-code-border: var(--ui-line);
+  --editor-quote-bg: color-mix(in srgb, var(--ui-surface) 88%, var(--ui-panel));
+  --editor-selection: color-mix(in srgb, var(--ui-accent) 18%, transparent);
+  --editor-toc-hover-bg: color-mix(in srgb, var(--ui-soft) 56%, transparent);
+  --editor-toc-active-bg: color-mix(in srgb, var(--ui-accent) 10%, transparent);
+  --editor-toc-active-ink: color-mix(in srgb, var(--ui-accent) 80%, var(--ui-ink));
+  --editor-toc-caret: color-mix(in srgb, var(--ui-muted) 82%, transparent);
+  --editor-toc-bullet: color-mix(in srgb, var(--ui-muted) 34%, transparent);
+  --editor-toc-level-3: color-mix(in srgb, var(--ui-ink) 88%, transparent);
+  --editor-toc-level-4: color-mix(in srgb, var(--ui-muted) 98%, transparent);
+  --stone-gray: color-mix(in srgb, var(--ui-muted) 86%, white);
+  --border-warm: var(--ui-line);
+
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+}
+
 /* Focus states */
 *:focus-visible {
   outline: 2px solid var(--editor-accent);
@@ -111,6 +191,25 @@ body {
       transform: translateY(0);
     }
   }
+}
+
+/* Interactive Cursor Pointer Rules */
+button,
+select,
+[role="button"],
+[role="listbox"],
+[role="option"],
+[role="combobox"],
+[role="menuitem"],
+.cursor-pointer-hover {
+  cursor: pointer !important;
+}
+
+button:disabled,
+select:disabled,
+[role="button"]:disabled,
+.cursor-not-allowed {
+  cursor: not-allowed !important;
 }
 
 .editor-surface {
@@ -208,12 +307,17 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--editor-muted);
+  color: var(--ui-muted);
   transition: color 160ms ease, opacity 160ms ease;
 }
 
 .editor-quiet-icon-button:hover {
-  color: var(--editor-ink);
+  color: var(--ui-ink);
+}
+
+.ui-primitives-shell {
+  border: 1px solid color-mix(in srgb, var(--ui-line) 84%, transparent);
+  background: color-mix(in srgb, var(--ui-bg) 94%, var(--ui-panel));
 }
 
 .editor-toc-row {
@@ -334,39 +438,39 @@ body {
 .ui-control {
   min-height: 2.25rem;
   width: 100%;
-  border: 1px solid color-mix(in srgb, var(--editor-line) 88%, transparent);
-  background: color-mix(in srgb, var(--background) 100%, transparent);
-  color: var(--editor-ink);
+  border: 1px solid color-mix(in srgb, var(--ui-line) 88%, transparent);
+  background: color-mix(in srgb, var(--ui-bg) 100%, transparent);
+  color: var(--ui-ink);
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, opacity 160ms ease;
 }
 
 .ui-control:hover {
-  border-color: color-mix(in srgb, var(--editor-muted) 24%, var(--editor-line));
+  border-color: color-mix(in srgb, var(--ui-muted) 24%, var(--ui-line));
 }
 
 .ui-control:focus,
 .ui-control:focus-visible {
-  border-color: color-mix(in srgb, var(--editor-accent) 52%, var(--editor-line));
+  border-color: color-mix(in srgb, var(--ui-accent) 52%, var(--ui-line));
   outline: none;
   box-shadow: none;
 }
 
 .ui-control-disabled {
-  background: var(--editor-soft);
-  color: var(--stone-gray);
+  background: var(--ui-soft);
+  color: var(--ui-muted);
   cursor: not-allowed;
 }
 
 .ui-popover {
-  border: 1px solid color-mix(in srgb, var(--editor-line) 88%, transparent);
-  background: color-mix(in srgb, var(--editor-panel) 96%, transparent);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ui-line) 88%, transparent);
+  background: color-mix(in srgb, var(--ui-panel) 96%, transparent);
+  box-shadow: 0 12px 32px rgb(var(--ui-shadow-rgb) / 0.08);
 }
 
 .ui-modal-panel {
-  border: 1px solid color-mix(in srgb, var(--editor-line) 88%, transparent);
-  background: var(--editor-panel);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16);
+  border: 1px solid color-mix(in srgb, var(--ui-line) 88%, transparent);
+  background: var(--ui-panel);
+  box-shadow: 0 18px 48px rgb(var(--ui-shadow-rgb) / 0.16);
 }
 
 .ui-tab-trigger {
@@ -375,16 +479,16 @@ body {
   min-height: 2.5rem;
   cursor: pointer;
   align-items: center;
-  color: var(--editor-muted);
+  color: var(--ui-muted);
   transition: color 160ms ease;
 }
 
 .ui-tab-trigger:hover {
-  color: var(--editor-ink);
+  color: var(--ui-ink);
 }
 
 .ui-tab-trigger[data-selected="true"] {
-  color: var(--editor-accent);
+  color: var(--ui-accent);
 }
 
 :is(.novel-prose, .rich-content) {

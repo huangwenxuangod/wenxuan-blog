@@ -8,7 +8,7 @@ function StatusBadge({ active }: { active: boolean }) {
       className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
         active
           ? 'bg-emerald-500/10 text-emerald-700'
-          : 'bg-slate-500/10 text-slate-600'
+          : 'bg-[var(--admin-soft)] text-[var(--admin-muted)]'
       }`}
     >
       {active ? '可用' : '未绑定'}

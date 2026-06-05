@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, Mic, Send } from 'lucide-react'
+import { Loader2, RotateCcw, Send } from 'lucide-react'
 import type { EditorInstance, JSONContent } from 'novel'
 import { useToast } from '@/components/Toast'
+import { UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
 import { insertGeneratedImageAtPosition } from '@/lib/editor-file-upload'
 import { replaceEditorRangeWithMarkdown } from '@/lib/editor-markdown'
 
@@ -343,16 +344,16 @@ export function AIPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--background)]">
-      <div className="px-5 py-4">
-        <div className="text-sm font-medium text-[var(--editor-ink)]">Assistant</div>
+    <div className="flex h-full min-h-0 flex-col bg-transparent">
+      <div className="px-2 pb-3">
+        <div className="text-[12px] leading-5 text-[var(--editor-muted)]">
+          当前文章上下文
+        </div>
       </div>
 
-      <div ref={listRef} className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-6">
+      <div ref={listRef} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-2 pb-4">
         {messages.length === 0 ? (
-          <div className="pt-2 text-sm leading-7 text-[var(--editor-muted)]">
-            从这里直接和 AI 对话，它会基于当前文章上下文回答。
-          </div>
+          <div className="pt-1 text-sm leading-7 text-[var(--editor-muted)]">直接对当前文章提问或让 AI 修改内容。</div>
         ) : (
           messages.map((message) => (
             <div
@@ -360,9 +361,9 @@ export function AIPanel({
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[88%] text-sm leading-7 ${
+                className={`max-w-[90%] text-sm leading-7 ${
                   message.role === 'user'
-                    ? 'rounded-2xl bg-[color-mix(in_srgb,var(--editor-line)_55%,white)] px-4 py-3 text-[var(--editor-ink)]'
+                    ? 'rounded-[1.15rem] bg-[color-mix(in_srgb,var(--editor-line)_62%,transparent)] px-4 py-3 text-[var(--editor-ink)]'
                     : 'px-0 py-0 text-[var(--editor-ink)]'
                 }`}
               >
@@ -377,57 +378,48 @@ export function AIPanel({
         )}
       </div>
 
-      <div className="px-5 pb-5">
-        <div className="rounded-[28px] border border-[color-mix(in_srgb,var(--editor-line)_88%,white)] bg-[color-mix(in_srgb,white_82%,var(--editor-soft))] px-4 py-3 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
-          <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--editor-line)_38%,white)] px-3 py-2 text-sm text-[var(--editor-ink)]">
-            <span className="shrink-0">📄</span>
-            <span className="truncate">{title.trim() || '当前文章'}</span>
+      <div className="px-1 pb-1">
+        <UiPanel inset="soft" className="rounded-[1.5rem] px-4 py-3">
+          <div className="mb-2 truncate text-[12px] leading-5 text-[var(--editor-muted)]">
+            {title.trim() || '当前文章'}
           </div>
 
-          <div className="flex items-end gap-3">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault()
-                  void sendMessage()
-                }
-              }}
-              placeholder="消息"
-              className="max-h-40 min-h-[84px] flex-1 resize-none border-0 bg-transparent py-1 text-base leading-7 text-[var(--editor-ink)] outline-none placeholder:text-[color-mix(in_srgb,var(--editor-muted)_74%,transparent)]"
-            />
-          </div>
+          <UiTextarea
+            ref={textareaRef}
+            rows={1}
+            variant="composer"
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault()
+                void sendMessage()
+              }
+            }}
+            placeholder="输入你的修改意图"
+            className="max-h-40 min-h-[92px]"
+          />
 
-          <div className="mt-3 flex items-center justify-end gap-4 text-[var(--editor-ink)]">
-            <button
-              type="button"
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <UiIconButton
               onClick={() => void resetThread()}
-              className="editor-quiet-icon-button h-9 w-9 shrink-0 cursor-pointer"
               title="清空当前文章会话"
+              aria-label="清空当前文章会话"
             >
-              <span className="text-xl leading-none">∞</span>
-            </button>
-            <button
-              type="button"
-              disabled
-              className="editor-quiet-icon-button h-9 w-9 shrink-0 cursor-not-allowed opacity-45"
-              title="语音输入"
-            >
-              <Mic className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
+              <RotateCcw className="h-4 w-4" />
+            </UiIconButton>
+
+            <UiIconButton
+              tone="soft"
               onClick={() => void sendMessage()}
               disabled={loading || !input.trim() || !editor}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--editor-line)_62%,white)] text-[var(--editor-ink)] transition hover:bg-[color-mix(in_srgb,var(--editor-line)_80%,white)] disabled:cursor-not-allowed disabled:opacity-40"
+              title="发送"
+              aria-label="发送"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </button>
+            </UiIconButton>
           </div>
-        </div>
+        </UiPanel>
       </div>
     </div>
   )

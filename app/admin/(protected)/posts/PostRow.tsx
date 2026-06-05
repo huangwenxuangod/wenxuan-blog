@@ -267,7 +267,7 @@ export function PostRow({ post, categories }: PostRowProps) {
               post.status === 'published'
                 ? 'bg-emerald-500'
                 : post.status === 'deleted'
-                ? 'bg-gray-400'
+                ? 'bg-[var(--admin-line-strong)]'
                 : 'bg-amber-500'
             }`}
             title={post.status === 'published' ? '已发布' : post.status === 'deleted' ? '已删除' : '草稿'}
@@ -437,7 +437,7 @@ export function PostRow({ post, categories }: PostRowProps) {
                 post.status === 'published'
                   ? 'bg-emerald-500'
                   : post.status === 'deleted'
-                  ? 'bg-gray-400'
+                  ? 'bg-[var(--admin-line-strong)]'
                   : 'bg-amber-500'
               }`}
             />

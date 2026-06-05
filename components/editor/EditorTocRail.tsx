@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { EditorInstance, JSONContent } from 'novel'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { buildEditorToc, flattenEditorToc, type EditorTocItem } from '@/lib/editor-toc'
+import { UiIconButton } from '@/components/ui/primitives'
 
 interface EditorTocRailProps {
   open: boolean
   editor: EditorInstance | null
   documentJson: JSONContent | null
+  onToggle: () => void
 }
 
 const TOC_EXPANDED_KEY = 'qmblog:toc-expanded'
@@ -133,6 +135,7 @@ export function EditorTocRail({
   open,
   editor,
   documentJson,
+  onToggle,
 }: EditorTocRailProps) {
   const tocTree = useMemo(() => buildEditorToc(documentJson), [documentJson])
   const tocItems = useMemo(() => flattenEditorToc(tocTree), [tocTree])
@@ -251,20 +254,29 @@ export function EditorTocRail({
 
   return (
     <aside
-      className={`relative shrink-0 transition-[width,opacity,padding] duration-200 ease-in-out ${open ? 'opacity-100' : 'overflow-hidden opacity-0'}`}
+      className="relative shrink-0"
       style={{
-        width: open ? 248 : 0,
+        width: open ? 232 : 48,
         position: 'sticky',
         top: '3.5rem',
         height: 'calc(100vh - 3.5rem)',
       }}
     >
-      {open ? (
-        <div className="flex h-full min-h-0 flex-col pr-2 pt-4">
+      <div className="flex h-full min-h-0 flex-col px-2 py-4">
+        <div className="flex justify-center pb-3">
+          <UiIconButton
+            onClick={onToggle}
+            title={open ? '收起目录' : '展开目录'}
+            aria-label={open ? '收起目录' : '展开目录'}
+            className="h-10 w-10"
+          >
+            {open ? <PanelLeftClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelLeftOpen className="h-[1.15rem] w-[1.15rem]" />}
+          </UiIconButton>
+        </div>
+
+        {open ? (
           <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-6">
-            {tocTree.length === 0 ? (
-              <div className="px-2 py-2 text-sm leading-7 text-[var(--editor-muted)]">还没有可导航的标题</div>
-            ) : (
+            {tocTree.length === 0 ? null : (
               <div className="space-y-0.5">
                 {tocTree.map((item) => (
                   <TocNode
@@ -279,8 +291,8 @@ export function EditorTocRail({
               </div>
             )}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </aside>
   )
 }

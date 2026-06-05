@@ -696,7 +696,7 @@ export function FormattingBubble() {
       shouldShow={({ editor: currentEditor }) => {
         return shouldShowEditorBubble(currentEditor.state.selection, currentEditor.isEditable)
       }}
-      className="overflow-hidden rounded-xl border border-[var(--editor-line)] bg-white shadow-[0_12px_30px_rgba(37,32,24,0.12)]"
+      className="overflow-hidden rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] shadow-[0_12px_30px_rgb(var(--ui-shadow-rgb)/0.12)]"
     >
       {/* ── 工具栏（始终可见）── */}
       <div className="flex items-center gap-0.5 p-1">
@@ -859,15 +859,15 @@ export function FormattingBubble() {
           {/* Color panel */}
           {mode === 'color' && (
             <div className="min-w-[248px] p-2">
-              <div className="flex items-center gap-2 rounded-lg bg-[var(--editor-soft)] p-1">
+          <div className="flex items-center gap-2 rounded-lg bg-[var(--editor-soft)] p-1">
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setColorTarget('text')}
                   className={`flex-1 rounded-md px-3 py-1.5 text-sm transition ${
                     colorTarget === 'text'
-                      ? 'bg-white text-[var(--editor-ink)] shadow-sm'
-                      : 'text-[var(--editor-muted)] hover:text-[var(--editor-ink)]'
+                      ? 'bg-[var(--ui-surface)] text-[var(--ui-ink)] shadow-sm'
+                      : 'text-[var(--ui-muted)] hover:text-[var(--ui-ink)]'
                   }`}
                 >
                   文字
@@ -878,8 +878,8 @@ export function FormattingBubble() {
                   onClick={() => setColorTarget('highlight')}
                   className={`flex-1 rounded-md px-3 py-1.5 text-sm transition ${
                     colorTarget === 'highlight'
-                      ? 'bg-white text-[var(--editor-ink)] shadow-sm'
-                      : 'text-[var(--editor-muted)] hover:text-[var(--editor-ink)]'
+                      ? 'bg-[var(--ui-surface)] text-[var(--ui-ink)] shadow-sm'
+                      : 'text-[var(--ui-muted)] hover:text-[var(--ui-ink)]'
                   }`}
                 >
                   背景
@@ -923,11 +923,11 @@ export function FormattingBubble() {
                         style={colorTarget === 'text'
                           ? {
                               color: colorOption.value || 'var(--editor-ink)',
-                              background: colorOption.value ? `${colorOption.value}18` : 'white',
+                              background: colorOption.value ? `${colorOption.value}18` : 'var(--ui-surface)',
                             }
                           : {
-                              background: colorOption.value || 'white',
-                              color: 'var(--editor-ink)',
+                              background: colorOption.value || 'var(--ui-surface)',
+                              color: 'var(--ui-ink)',
                             }}
                       >
                         A
@@ -1051,7 +1051,7 @@ export function EditorFooter({ saveStatus }: { saveStatus: DraftSaveStatus }) {
       } ${
         saveStatus === 'saving'
           ? 'bg-[var(--editor-soft)] text-[var(--stone-gray)]'
-          : 'bg-emerald-50 text-emerald-600'
+          : 'bg-[color-mix(in_srgb,var(--ui-success)_14%,transparent)] text-[var(--ui-success)]'
       }`}>
         {saveStatus === 'saving' ? '正在保存…' : '已保存'}
       </span>
@@ -1061,7 +1061,7 @@ export function EditorFooter({ saveStatus }: { saveStatus: DraftSaveStatus }) {
 
 export function SlashMenu() {
   return (
-    <EditorCommand className="z-50 h-auto max-h-[340px] w-80 overflow-y-auto rounded-md border border-[var(--editor-line)] bg-white p-1 shadow-[0_20px_40px_rgba(37,32,24,0.14)]">
+    <EditorCommand className="z-50 h-auto max-h-[340px] w-80 overflow-y-auto rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] p-1 shadow-[0_20px_40px_rgb(var(--ui-shadow-rgb)/0.14)]">
       <EditorCommandEmpty className="px-3 py-2 text-sm text-[var(--editor-muted)]">没找到匹配项</EditorCommandEmpty>
       <EditorCommandList>
         {suggestionItems.map((item) => (

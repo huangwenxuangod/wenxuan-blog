@@ -165,13 +165,13 @@ export function FilterBar({
                 onClick={() => updateFilter('status', item.value)}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors ${
                   activeStatus === item.value
-                    ? 'bg-[var(--editor-accent)] text-white font-medium'
-                    : 'bg-[var(--editor-panel)] text-[var(--editor-muted)] hover:bg-[var(--editor-soft)] hover:text-[var(--editor-ink)]'
+                    ? 'bg-[var(--admin-accent)] text-[var(--admin-bg)] font-medium'
+                    : 'bg-[var(--admin-surface)] text-[var(--admin-muted)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-ink)]'
                 }`}
               >
                 <span>{item.label}</span>
                 <span className={`rounded-full px-1.5 py-0.5 text-xs tabular-nums ${
-                  activeStatus === item.value ? 'bg-white/15 text-white' : 'bg-[var(--background)] text-[var(--editor-muted)]'
+                  activeStatus === item.value ? 'bg-white/15 text-[var(--admin-bg)]' : 'bg-[var(--admin-bg)] text-[var(--admin-muted)]'
                 }`}>
                   {item.count}
                 </span>

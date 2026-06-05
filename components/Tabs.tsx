@@ -27,7 +27,7 @@ export function Tabs({ tabs, defaultTab }: TabsProps) {
               key={tab.id}
               className={({ selected }) => cx(
                 'ui-tab-trigger px-0 py-2 text-sm font-medium outline-none',
-                selected && 'text-[var(--editor-accent)]',
+                selected && 'text-[var(--ui-accent)]',
               )}
             >
               {({ selected }) => (
@@ -36,7 +36,7 @@ export function Tabs({ tabs, defaultTab }: TabsProps) {
                   <span
                     className={cx(
                       'absolute inset-x-0 bottom-0 h-px bg-transparent transition-colors',
-                      selected && 'bg-[var(--editor-accent)]',
+                      selected && 'bg-[var(--ui-accent)]',
                     )}
                   />
                 </>

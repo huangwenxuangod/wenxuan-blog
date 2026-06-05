@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { Suspense, useState, type FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { AdminThemeToggle } from '@/components/AdminThemeToggle'
+import { BackofficeThemeScope } from '@/components/BackofficeThemeScope'
 
 function AdminLoginForm() {
   const [password, setPassword] = useState('')
@@ -50,12 +52,17 @@ function AdminLoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--editor-app-bg)] flex items-center justify-center px-4">
+    <div className="admin-shell min-h-screen bg-[var(--admin-bg)] flex items-center justify-center px-4 text-[var(--admin-ink)]">
+      <BackofficeThemeScope />
+      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+        <AdminThemeToggle />
+      </div>
+
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="mb-12 text-center">
-          <h1 className="text-2xl font-bold text-[var(--editor-ink)]">文轩</h1>
-          <p className="mt-2 text-sm text-[var(--editor-muted)]">管理后台</p>
+          <h1 className="text-2xl font-bold text-[var(--admin-ink)]">文轩</h1>
+          <p className="mt-2 text-sm text-[var(--admin-muted)]">管理后台</p>
         </div>
 
         {/* 登录表单 */}
@@ -64,7 +71,7 @@ function AdminLoginForm() {
             <div>
               <label
                 htmlFor="password"
-                className="mb-3 block text-[11px] font-semibold tracking-[0.16em] text-[var(--editor-muted)] uppercase"
+                className="mb-3 block text-[11px] font-semibold tracking-[0.16em] text-[var(--admin-muted)] uppercase"
               >
                 管理密码
               </label>
@@ -79,12 +86,12 @@ function AdminLoginForm() {
                 placeholder="请输入管理密码"
                 autoFocus
                 autoComplete="current-password"
-                className="w-full rounded-2xl border border-[color-mix(in_srgb,var(--editor-line)_88%,white)] bg-[color-mix(in_srgb,white_84%,var(--editor-soft))] px-4 py-3 text-sm text-[var(--editor-ink)] outline-none transition placeholder:text-[color-mix(in_srgb,var(--editor-muted)_78%,transparent)] focus:border-[color-mix(in_srgb,var(--editor-accent)_44%,white)] focus:bg-[color-mix(in_srgb,white_92%,var(--editor-soft))]"
+                className="w-full rounded-2xl border border-[var(--admin-line)] bg-[var(--admin-surface)] px-4 py-3 text-sm text-[var(--admin-ink)] outline-none transition placeholder:text-[color-mix(in_srgb,var(--admin-muted)_78%,transparent)] focus:border-[var(--admin-accent)] focus:bg-[var(--admin-panel)]"
               />
             </div>
 
             {error && (
-              <p className="border-l border-rose-300 pl-3 text-sm leading-7 text-rose-600">
+              <p className="border-l border-rose-400 pl-3 text-sm leading-7 text-rose-600 dark:text-rose-400">
                 {error}
               </p>
             )}
@@ -93,17 +100,17 @@ function AdminLoginForm() {
               <button
                 type="submit"
                 disabled={loading || !password}
-                className="flex w-full items-center justify-center rounded-full bg-[var(--editor-ink)] px-4 py-3 text-sm font-medium text-[var(--editor-app-bg)] transition hover:opacity-92 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex w-full items-center justify-center rounded-full bg-[var(--admin-ink)] px-4 py-3 text-sm font-medium text-[var(--admin-bg)] transition hover:opacity-92 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loading ? '登录中…' : '登录'}
               </button>
-              <div className="text-center text-[11px] text-[var(--editor-muted)]">仅管理员可访问</div>
+              <div className="text-center text-[11px] text-[var(--admin-muted)]">仅管理员可访问</div>
             </div>
           </form>
         </div>
 
-        <p className="mt-8 text-center text-xs text-[var(--editor-muted)]">
-          <Link href="/" className="hover:text-[var(--editor-ink)] transition-colors">
+        <p className="mt-8 text-center text-xs text-[var(--admin-muted)]">
+          <Link href="/" className="hover:text-[var(--admin-ink)] transition-colors">
             ← 返回博客首页
           </Link>
         </p>

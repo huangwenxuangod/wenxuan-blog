@@ -419,7 +419,7 @@ export function AIModal({
   return (
     <div
       ref={modalRef}
-      className="fixed z-50 w-[520px] rounded-xl border border-[var(--editor-line)] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex flex-col"
+      className="fixed z-50 flex w-[520px] flex-col rounded-2xl border border-[var(--ui-line)] bg-[var(--ui-panel)] shadow-[0_20px_50px_rgb(var(--ui-shadow-rgb)/0.15)]"
       style={{
         ...(showAbove
           ? { bottom: `${viewportH - position.top + 16}px` }
@@ -439,7 +439,7 @@ export function AIModal({
             <button
               type="button"
               onClick={() => setHistoryOpen((value) => !value)}
-              className="inline-flex items-center gap-1 rounded-full border border-[var(--editor-line)] px-2.5 py-1 text-xs text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--ui-line)] px-2.5 py-1 text-xs text-[var(--ui-ink)] transition hover:bg-[var(--ui-soft)]"
             >
               <History className="h-3.5 w-3.5" />
               历史生成
@@ -448,14 +448,14 @@ export function AIModal({
         </div>
 
         {hasSelectionContext && hasDocumentContext && (
-          <div className="flex items-center gap-2 rounded-lg bg-[var(--editor-soft)] p-1">
+          <div className="flex items-center gap-2 rounded-xl bg-[var(--ui-soft)] p-1">
             <button
               type="button"
               onClick={() => setContextMode('selection')}
               className={`flex-1 rounded-md px-3 py-1.5 text-sm transition ${
                 effectiveContext === 'selection'
-                  ? 'bg-white text-[var(--editor-ink)] shadow-sm'
-                  : 'text-[var(--editor-muted)] hover:text-[var(--editor-ink)]'
+                  ? 'bg-[var(--ui-surface)] text-[var(--ui-ink)] shadow-sm'
+                  : 'text-[var(--ui-muted)] hover:text-[var(--ui-ink)]'
               }`}
             >
               选中文本
@@ -465,8 +465,8 @@ export function AIModal({
               onClick={() => setContextMode('document')}
               className={`flex-1 rounded-md px-3 py-1.5 text-sm transition ${
                 effectiveContext === 'document'
-                  ? 'bg-white text-[var(--editor-ink)] shadow-sm'
-                  : 'text-[var(--editor-muted)] hover:text-[var(--editor-ink)]'
+                  ? 'bg-[var(--ui-surface)] text-[var(--ui-ink)] shadow-sm'
+                  : 'text-[var(--ui-muted)] hover:text-[var(--ui-ink)]'
               }`}
             >
               标题 + 正文
@@ -495,7 +495,7 @@ export function AIModal({
               }
             }}
             disabled={aiLoading}
-            className="w-full rounded-lg border border-[var(--editor-line)] bg-white pl-10 pr-3 py-2.5 text-sm text-[var(--editor-ink)] placeholder:text-[var(--stone-gray)] outline-none focus:border-[var(--editor-accent)] focus:ring-1 focus:ring-[var(--editor-accent)] disabled:opacity-50"
+            className="w-full rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] py-2.5 pl-10 pr-3 text-sm text-[var(--ui-ink)] placeholder:text-[var(--ui-muted)] outline-none focus:border-[var(--ui-accent)] focus:ring-1 focus:ring-[var(--ui-accent)] disabled:opacity-50"
           />
         </div>
         <div className="text-[11px] text-[var(--editor-muted)]">
@@ -515,7 +515,7 @@ export function AIModal({
                     type="button"
                     onClick={() => applyAiAction(action.action_key, undefined, action.label)}
                     disabled={aiLoading}
-                    className="rounded-full border border-[var(--editor-line)] bg-white px-4 py-1.5 text-sm text-[var(--editor-ink)] transition hover:border-[var(--editor-accent)] hover:bg-[var(--editor-soft)] disabled:opacity-50"
+                    className="rounded-full border border-[var(--ui-line)] bg-[var(--ui-surface)] px-4 py-1.5 text-sm text-[var(--ui-ink)] transition hover:border-[var(--ui-accent)] hover:bg-[var(--ui-soft)] disabled:opacity-50"
                     title={action.description}
                   >
                     {action.label}
@@ -527,7 +527,7 @@ export function AIModal({
                     type="button"
                     onClick={() => applyAiAction('custom', action.prompt, action.label)}
                     disabled={aiLoading || !hasDocumentContext}
-                    className="rounded-full border border-[var(--editor-line)] bg-white px-4 py-1.5 text-sm text-[var(--editor-ink)] transition hover:border-[var(--editor-accent)] hover:bg-[var(--editor-soft)] disabled:opacity-50"
+                    className="rounded-full border border-[var(--ui-line)] bg-[var(--ui-surface)] px-4 py-1.5 text-sm text-[var(--ui-ink)] transition hover:border-[var(--ui-accent)] hover:bg-[var(--ui-soft)] disabled:opacity-50"
                     title={action.description}
                   >
                     {action.label}
@@ -538,11 +538,11 @@ export function AIModal({
         )}
 
         {historyOpen && historyItems.length > 0 && (
-          <div className="space-y-2 rounded-xl border border-[var(--editor-line)] bg-[var(--editor-panel)] p-3">
+          <div className="space-y-2 rounded-xl border border-[var(--ui-line)] bg-[var(--ui-panel)] p-3">
             <div className="text-xs font-medium text-[var(--editor-muted)]">最近生成</div>
             <div className="space-y-2">
               {historyItems.map((item) => (
-                <div key={item.id} className="rounded-lg border border-[var(--editor-line)] bg-white p-3">
+                <div key={item.id} className="rounded-xl border border-[var(--ui-line)] bg-[var(--ui-surface)] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-[var(--editor-ink)]">
@@ -565,7 +565,7 @@ export function AIModal({
                     <button
                       type="button"
                       onClick={() => copyToClipboard(item.output)}
-                      className="rounded-lg border border-[var(--editor-line)] px-3 py-1.5 text-sm text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition"
+                      className="rounded-lg border border-[var(--ui-line)] px-3 py-1.5 text-sm text-[var(--ui-ink)] transition hover:bg-[var(--ui-soft)]"
                     >
                       复制
                     </button>
@@ -578,7 +578,7 @@ export function AIModal({
                         }
                         insertAtCursor(item.output)
                       }}
-                      className="rounded-lg border border-[var(--editor-line)] px-3 py-1.5 text-sm text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition"
+                      className="rounded-lg border border-[var(--ui-line)] px-3 py-1.5 text-sm text-[var(--ui-ink)] transition hover:bg-[var(--ui-soft)]"
                     >
                       插入
                     </button>
@@ -586,7 +586,7 @@ export function AIModal({
                       <button
                         type="button"
                         onClick={() => applyAiAsTitle(item.output)}
-                        className="rounded-lg border border-[var(--editor-line)] px-3 py-1.5 text-sm text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition"
+                        className="rounded-lg border border-[var(--ui-line)] px-3 py-1.5 text-sm text-[var(--ui-ink)] transition hover:bg-[var(--ui-soft)]"
                       >
                         使用首行作标题
                       </button>
@@ -595,7 +595,7 @@ export function AIModal({
                       <button
                         type="button"
                         onClick={() => replaceWithAi(item.output)}
-                        className="rounded-lg bg-[var(--editor-accent)] px-3 py-1.5 text-sm font-medium text-white hover:brightness-105 transition"
+                        className="rounded-lg bg-[var(--ui-accent)] px-3 py-1.5 text-sm font-medium text-[var(--ui-accent-ink)] transition hover:brightness-105"
                       >
                         替换
                       </button>
@@ -608,7 +608,7 @@ export function AIModal({
         )}
 
         {aiLoading && (
-          <div className="flex items-center gap-2 rounded-lg bg-[var(--editor-soft)] px-3 py-2.5 text-sm text-[var(--editor-muted)]">
+          <div className="flex items-center gap-2 rounded-lg bg-[var(--ui-soft)] px-3 py-2.5 text-sm text-[var(--ui-muted)]">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>AI 正在生成...</span>
           </div>
@@ -635,7 +635,7 @@ export function AIModal({
               <button
                 type="button"
                 onClick={() => copyToClipboard()}
-                className="absolute top-2 right-2 flex items-center justify-center h-7 w-7 rounded-md bg-white/80 backdrop-blur border border-[var(--editor-line)] text-[var(--editor-muted)] hover:text-[var(--editor-ink)] hover:bg-white transition"
+                className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-md border border-[var(--ui-line)] bg-[color-mix(in_srgb,var(--ui-surface)_88%,transparent)] text-[var(--ui-muted)] backdrop-blur transition hover:bg-[var(--ui-surface)] hover:text-[var(--ui-ink)]"
                 title="复制"
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -647,14 +647,14 @@ export function AIModal({
                   <button
                     type="button"
                     onClick={() => insertAiBelow()}
-                    className="rounded-lg border border-[var(--editor-line)] px-3 py-1.5 text-sm font-medium text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition"
+                    className="rounded-lg border border-[var(--ui-line)] px-3 py-1.5 text-sm font-medium text-[var(--ui-ink)] transition hover:bg-[var(--ui-soft)]"
                   >
                     插入下方
                   </button>
                   <button
                     type="button"
                     onClick={() => replaceWithAi()}
-                    className="rounded-lg bg-[var(--editor-accent)] px-3 py-1.5 text-sm font-medium text-white hover:brightness-105 transition"
+                    className="rounded-lg bg-[var(--ui-accent)] px-3 py-1.5 text-sm font-medium text-[var(--ui-accent-ink)] transition hover:brightness-105"
                   >
                     替换选区
                   </button>
@@ -665,7 +665,7 @@ export function AIModal({
                     <button
                       type="button"
                       onClick={() => applyAiAsTitle()}
-                      className="rounded-lg border border-[var(--editor-line)] px-3 py-1.5 text-sm font-medium text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition"
+                      className="rounded-lg border border-[var(--ui-line)] px-3 py-1.5 text-sm font-medium text-[var(--ui-ink)] transition hover:bg-[var(--ui-soft)]"
                     >
                       使用首行作标题
                     </button>
@@ -673,7 +673,7 @@ export function AIModal({
                   <button
                     type="button"
                     onClick={() => insertAtCursor()}
-                    className="rounded-lg bg-[var(--editor-accent)] px-3 py-1.5 text-sm font-medium text-white hover:brightness-105 transition"
+                    className="rounded-lg bg-[var(--ui-accent)] px-3 py-1.5 text-sm font-medium text-[var(--ui-accent-ink)] transition hover:brightness-105"
                   >
                     插入到光标处
                   </button>

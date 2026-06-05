@@ -67,6 +67,7 @@ import { resolvePostCoverImage } from '@/lib/default-cover-images'
 import { buildAutoDescription, normalizePostSlug } from '@/lib/post-utils'
 import { getSiteDisplayUrl } from '@/lib/site-config'
 import { resizeTextareaHeight, useAutoResizeTextarea } from '@/lib/textarea-autosize'
+import { UiButton, UiIconButton, UiPanel, UiTextarea, cx } from '@/components/ui/primitives'
 
 type SaveFeedback =
   | { type: 'success' | 'error'; message: string; slug?: string }
@@ -75,7 +76,8 @@ type SaveFeedback =
 type PublishStatus = 'public' | 'draft' | 'encrypted' | 'unlisted'
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error'
 
-const SIDEBAR_KEY = 'qmblog:sidebar-open'
+const TOC_KEY = 'qmblog:toc-open'
+const AI_RAIL_KEY = 'qmblog:ai-rail-open'
 const AUTOSAVE_DEBOUNCE_MS = 1500
 const AUTOSAVE_MAX_RETRY_DELAY_MS = 10000
 const SITE_DISPLAY_URL = getSiteDisplayUrl()
@@ -146,7 +148,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [slug, setSlug] = useState(initialData?.slug || '')
 
   // ── UI state ──
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [tocOpen, setTocOpen] = useState(false)
+  const [aiRailOpen, setAiRailOpen] = useState(true)
   const [publishPanelOpen, setPublishPanelOpen] = useState(false)
   const [wechatPublishOpen, setWechatPublishOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -191,18 +194,21 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     }
     setDraftReady(true)
 
-    // Load sidebar preference
+    // Load rail preferences
     if (typeof window !== 'undefined') {
-      setSidebarOpen(window.localStorage.getItem(SIDEBAR_KEY) === 'true')
+      setTocOpen(window.localStorage.getItem(TOC_KEY) === 'true')
+      const storedAiRail = window.localStorage.getItem(AI_RAIL_KEY)
+      setAiRailOpen(storedAiRail === null ? true : storedAiRail === 'true')
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Persist sidebar preference
+  // Persist rail preferences
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(SIDEBAR_KEY, String(sidebarOpen))
+      window.localStorage.setItem(TOC_KEY, String(tocOpen))
+      window.localStorage.setItem(AI_RAIL_KEY, String(aiRailOpen))
     }
-  }, [sidebarOpen])
+  }, [aiRailOpen, tocOpen])
 
   useEffect(() => {
     latestMetaRef.current = {
@@ -801,7 +807,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
   useEffect(() => {
     resizeTextareaHeight(titleRef.current)
-  }, [title, sidebarOpen, draftReady])
+  }, [title, tocOpen, aiRailOpen, draftReady])
 
   // ── Status config ──
   const STATUS_CONFIG = [
@@ -815,10 +821,9 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const saveStatusText = saveState === 'saved' ? `已保存 · ${relativeTime(lastSavedAt)}` :
     saveState === 'dirty' ? '未保存' : saveState === 'saving' ? '保存中…' : '保存失败'
 
-  const saveStatusColor = saveState === 'saved' ? 'text-emerald-600' :
-    saveState === 'error' ? 'text-orange-500' : 'text-[var(--stone-gray)]'
+  const saveStatusColor = saveState === 'saved' ? 'text-[var(--ui-success)]' :
+    saveState === 'error' ? 'text-[var(--ui-warning)]' : 'text-[var(--ui-muted)]'
 
-  const showSidebar = sidebarOpen
   const currentDocumentJson = editorRef.current?.getJSON() || initialContent
   const currentDocumentText = editorRef.current?.getText({ blockSeparator: '\n\n' }).trim() || ''
   const articleKey = editSlug
@@ -832,28 +837,28 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   }, [editSlug, slug])
 
   return (
-    <div className="min-h-screen bg-[var(--editor-app-bg)]">
+    <div className="backoffice-shell editor-shell min-h-screen bg-[var(--ui-bg)] text-[var(--ui-ink)]">
       {/* ── Sticky Header ── */}
-      <header className="sticky top-0 z-40 h-14 border-b border-[var(--editor-line)] bg-[color-mix(in_srgb,var(--background)_90%,transparent)] backdrop-blur-lg">
-        <div className="flex h-full items-center gap-2 px-4">
+      <header className="sticky top-0 z-40 border-b border-[var(--ui-line)] bg-[color-mix(in_srgb,var(--ui-bg)_92%,transparent)] backdrop-blur-lg">
+        <div className="flex min-h-14 items-center gap-3 px-4 py-2">
           {/* Left: Back */}
           <Link
             href="/admin/posts"
             className="flex items-center gap-1 shrink-0 text-sm text-[var(--editor-muted)] hover:text-[var(--editor-ink)] transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-[1.15rem] w-[1.15rem]" />
             <span className="hidden sm:inline">文章列表</span>
           </Link>
 
           <div className="mx-1 h-4 w-px bg-[var(--editor-line)]" />
 
           {/* Center: Save status + Word count */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className={`flex items-center gap-1.5 text-sm min-w-[140px] ${saveStatusColor}`}>
               <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${
-                saveState === 'saved' ? 'bg-emerald-500' :
-                saveState === 'dirty' ? 'bg-gray-300' :
-                saveState === 'saving' ? 'bg-gray-400 animate-pulse' : 'bg-orange-500'
+                saveState === 'saved' ? 'bg-[var(--ui-success)]' :
+                saveState === 'dirty' ? 'bg-[var(--ui-line-strong)]' :
+                saveState === 'saving' ? 'bg-[var(--ui-muted)] animate-pulse' : 'bg-[var(--ui-warning)]'
               }`} />
               <span className="truncate">{saveStatusText}</span>
             </div>
@@ -882,60 +887,59 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-1">
-            <button
-              type="button"
+            <UiIconButton
               onClick={handleCopyWechat}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--editor-muted)] hover:bg-[var(--editor-soft)] hover:text-[var(--editor-accent)] transition"
               title="复制公众号格式"
+              aria-label="复制公众号格式"
+              className="h-10 w-10"
             >
-              <Copy className="h-4 w-4" />
-            </button>
+              <Copy className="h-[1.15rem] w-[1.15rem]" />
+            </UiIconButton>
 
-            <button
-              type="button"
+            <UiIconButton
               onClick={handleOpenWechatPublish}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--editor-muted)] hover:bg-[var(--editor-soft)] hover:text-[var(--editor-accent)] transition"
               title="发布到公众号"
+              aria-label="发布到公众号"
+              className="h-10 w-10"
             >
-              <Send className="h-4 w-4" />
-            </button>
+              <Send className="h-[1.15rem] w-[1.15rem]" />
+            </UiIconButton>
 
-            <button
-              type="button"
+            <UiIconButton
               onClick={handleDownloadPdf}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--editor-muted)] hover:bg-[var(--editor-soft)] hover:text-[var(--editor-accent)] transition"
               title="下载 PDF"
+              aria-label="下载 PDF"
+              className="h-10 w-10"
             >
-              <FileDown className="h-4 w-4" />
-            </button>
+              <FileDown className="h-[1.15rem] w-[1.15rem]" />
+            </UiIconButton>
 
-            <button
-              type="button"
+            <UiIconButton
               onClick={(e) => openDocumentAIModal(e.currentTarget)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--editor-muted)] hover:bg-[var(--editor-soft)] hover:text-[var(--editor-accent)] transition"
               title="Ask AI（基于标题和正文）"
+              aria-label="Ask AI（基于标题和正文）"
+              className="h-10 w-10"
             >
-              <WandSparkles className="h-4 w-4" />
-            </button>
+              <WandSparkles className="h-[1.15rem] w-[1.15rem]" />
+            </UiIconButton>
 
-            <button
-              type="button"
+            <UiIconButton
               onClick={openDocumentImageModal}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--editor-muted)] hover:bg-[var(--editor-soft)] hover:text-[var(--editor-accent)] transition"
               title="生成图片"
+              aria-label="生成图片"
+              className="h-10 w-10"
             >
-              <ImageIcon className="h-4 w-4" />
-            </button>
+              <ImageIcon className="h-[1.15rem] w-[1.15rem]" />
+            </UiIconButton>
 
-            {/* Sidebar toggle */}
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--editor-muted)] hover:bg-[var(--editor-soft)] transition"
-              title={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
+            <UiIconButton
+              onClick={() => setAiRailOpen(!aiRailOpen)}
+              title={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}
+              aria-label={aiRailOpen ? '收起 AI 对话' : '展开 AI 对话'}
+              className="h-10 w-10"
             >
-              {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-            </button>
+              {aiRailOpen ? <PanelRightClose className="h-[1.15rem] w-[1.15rem]" /> : <PanelRightOpen className="h-[1.15rem] w-[1.15rem]" />}
+            </UiIconButton>
 
             <div className="mx-0.5 h-5 w-px bg-[var(--editor-line)]" />
 
@@ -944,29 +948,31 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
             {/* Publish button + dropdown */}
             <div className="relative" ref={publishPanelRef}>
-              <div className="inline-flex">
-                <button
+              <div className="inline-flex items-center gap-px rounded-[1rem] bg-[var(--editor-accent)] p-0.5">
+                <UiButton
                   type="button"
                   onClick={handleSave}
                   disabled={saving || uploadingImage}
-                  className="inline-flex items-center gap-1.5 rounded-l-lg bg-[var(--editor-accent)] pl-3 pr-2 py-1.5 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
+                  tone="solid"
+                  className="rounded-[0.9rem] bg-transparent px-3.5 text-[var(--ui-accent-ink)] hover:bg-white/8"
                 >
-                  <Globe className="h-3.5 w-3.5" />
+                  <Globe className="h-[1.05rem] w-[1.05rem]" />
                   {saving ? '保存中…' : editSlug ? '更新' : '发布'}
-                </button>
-                <button
+                </UiButton>
+                <UiIconButton
                   type="button"
                   onClick={() => setPublishPanelOpen(!publishPanelOpen)}
-                  className="inline-flex items-center rounded-r-lg bg-[var(--editor-accent)] px-1.5 py-1.5 text-white border-l border-white/25 hover:brightness-105 transition"
+                  tone="solid"
+                  className="h-10 w-10 rounded-[0.9rem] bg-transparent text-[var(--ui-accent-ink)] hover:bg-white/8"
+                  aria-label="切换发布菜单"
                 >
-                  <ChevronUp className={`h-3.5 w-3.5 transition-transform ${publishPanelOpen ? 'rotate-180' : ''}`} />
-                </button>
+                  <ChevronUp className={`h-[1.05rem] w-[1.05rem] transition-transform ${publishPanelOpen ? 'rotate-180' : ''}`} />
+                </UiIconButton>
               </div>
 
               {/* Publish panel dropdown */}
               {publishPanelOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-[var(--editor-line)] bg-[var(--editor-panel)] shadow-xl z-50 overflow-hidden">
-                  <div className="px-4 pt-3 pb-2 text-xs font-semibold text-[var(--editor-muted)] uppercase tracking-wider">选择发布状态</div>
+                <UiPanel className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-[1.35rem] p-2 shadow-[0_20px_48px_rgb(var(--ui-shadow-rgb)/0.12)]">
                   {STATUS_CONFIG.map(({ key, label, desc, Icon }) => {
                     const active = publishStatus === key
                     return (
@@ -974,7 +980,12 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                         key={key}
                         type="button"
                         onClick={() => setPublishStatus(key)}
-                        className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--editor-soft)] transition ${active ? 'bg-[var(--editor-accent)]/5' : ''}`}
+                        className={cx(
+                          'flex w-full items-start gap-3 rounded-[1rem] px-3 py-3 text-left transition',
+                          active
+                            ? 'bg-[color-mix(in_srgb,var(--editor-accent)_10%,transparent)]'
+                            : 'hover:bg-[color-mix(in_srgb,var(--ui-line)_44%,transparent)]',
+                        )}
                       >
                         <Icon className={`h-5 w-5 mt-0.5 shrink-0 ${active ? 'text-[var(--editor-accent)]' : 'text-[var(--editor-muted)]'}`} />
                         <div className="flex-1 min-w-0">
@@ -986,27 +997,23 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                     )
                   })}
 
-                  <div className="border-t border-[var(--editor-line)] px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => { setPublishStatus('draft'); handleSave() }}
-                        disabled={saving}
-                        className="px-3 py-1.5 text-sm text-[var(--editor-ink)] border border-[var(--editor-line)] rounded-lg hover:bg-[var(--editor-soft)] transition disabled:opacity-50"
-                      >
-                        保存草稿
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="px-3 py-1.5 text-sm font-semibold text-white bg-[var(--editor-accent)] rounded-lg hover:brightness-105 transition disabled:opacity-50"
-                      >
-                        {saving ? '保存中…' : editSlug ? '更新文章' : '发布'}
-                      </button>
-                    </div>
+                  <div className="mt-2 flex justify-end gap-2 border-t border-[var(--editor-line)] px-1 pt-3">
+                    <UiButton
+                      onClick={() => { setPublishStatus('draft'); handleSave() }}
+                      disabled={saving}
+                      tone="soft"
+                    >
+                      保存草稿
+                    </UiButton>
+                    <UiButton
+                      onClick={handleSave}
+                      disabled={saving}
+                      tone="solid"
+                    >
+                      {saving ? '保存中…' : editSlug ? '更新文章' : '发布'}
+                    </UiButton>
                   </div>
-                </div>
+                </UiPanel>
               )}
             </div>
           </div>
@@ -1014,15 +1021,19 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
         {/* Feedback bar */}
         {feedback && (
-          <div className="border-t border-[var(--editor-line)] px-4 py-2">
-            <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
-              feedback.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
+          <div className="border-t border-[var(--ui-line)] px-4 py-2">
+            <div className={`flex items-center gap-2 rounded-[1rem] px-3 py-2 text-sm ${
+              feedback.type === 'success'
+                ? 'bg-[color-mix(in_srgb,var(--ui-success)_14%,transparent)] text-[var(--ui-success)]'
+                : 'bg-[color-mix(in_srgb,var(--ui-danger)_14%,transparent)] text-[var(--ui-danger)]'
             }`}>
               <span>{feedback.message}</span>
               {feedback.slug && (
                 <a href={`/${feedback.slug}`} className="font-medium underline underline-offset-2">打开文章</a>
               )}
-              <button type="button" onClick={() => setFeedback(null)} className="ml-auto"><X className="h-3.5 w-3.5" /></button>
+              <UiIconButton type="button" onClick={() => setFeedback(null)} className="ml-auto h-7 w-7" aria-label="关闭提示">
+                <X className="h-3.5 w-3.5" />
+              </UiIconButton>
             </div>
           </div>
         )}
@@ -1036,21 +1047,23 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       {/* ── Main layout: editor + sidebar ── */}
       <div className="flex">
         <EditorTocRail
-          open={showSidebar}
+          open={tocOpen}
           editor={editorRef.current}
           documentJson={currentDocumentJson}
+          onToggle={() => setTocOpen((current) => !current)}
         />
 
         {/* Main editor area */}
         <main className="flex-1 min-w-0">
-          <div className="mx-auto max-w-4xl px-4 pt-10 pb-8 sm:px-6">
+          <div className="mx-auto max-w-4xl px-4 pb-8 pt-10 sm:px-6">
             {/* Title input */}
             <div className="pb-4">
-              <textarea
+              <UiTextarea
                 ref={titleRef}
                 placeholder="无标题"
                 value={title}
                 rows={1}
+                variant="title"
                 onChange={(e) => {
                   const v = e.target.value
                   setTitle(v)
@@ -1073,7 +1086,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                     editorRef.current?.chain().focus().run()
                   }
                 }}
-                className="editor-title-textarea block w-full appearance-none bg-transparent p-0 m-0 resize-none overflow-hidden border-0 rounded-none shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-4xl font-bold leading-tight tracking-tight text-[var(--editor-ink)] placeholder:text-[var(--stone-gray)]"
+                className="editor-title-textarea block w-full overflow-hidden placeholder:text-[var(--stone-gray)]"
                 style={{ minHeight: '52px' }}
               />
             </div>
@@ -1148,8 +1161,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           </div>
         </main>
         <EditorRightRail
-          open={showSidebar}
-          onClose={() => setSidebarOpen(false)}
+          open={aiRailOpen}
+          onClose={() => setAiRailOpen(false)}
           aiContent={(
             <AIPanel
               articleKey={articleKey}

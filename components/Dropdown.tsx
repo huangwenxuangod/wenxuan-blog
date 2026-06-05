@@ -66,9 +66,9 @@ export function Dropdown({
               onChange={(event) => setQuery(event.target.value)}
               placeholder={selectedOption ? undefined : placeholder}
               title={selectedOption?.title}
-              className="h-full flex-1 border-0 bg-transparent p-0 text-sm text-[var(--editor-ink)] outline-none placeholder:text-[var(--editor-muted)]"
+              className="h-full flex-1 border-0 bg-transparent p-0 text-sm text-[var(--ui-ink)] outline-none placeholder:text-[var(--ui-muted)]"
             />
-            <ComboboxButton className="flex h-8 w-5 cursor-pointer items-center justify-center text-[var(--stone-gray)]">
+            <ComboboxButton className="flex h-8 w-5 cursor-pointer items-center justify-center text-[var(--ui-muted)]">
               <ChevronDown className="h-4 w-4" />
             </ComboboxButton>
           </div>
@@ -83,13 +83,13 @@ export function Dropdown({
           )}
         >
           {searchEnabled ? (
-            <div className="border-b border-[var(--editor-line)] p-2">
+            <div className="border-b border-[var(--ui-line)] p-2">
               <div className="ui-control rounded-md px-3">
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="搜索..."
-                  className="h-8 w-full border-0 bg-transparent p-0 text-sm text-[var(--editor-ink)] outline-none placeholder:text-[var(--editor-muted)]"
+                  className="h-8 w-full border-0 bg-transparent p-0 text-sm text-[var(--ui-ink)] outline-none placeholder:text-[var(--ui-muted)]"
                 />
               </div>
             </div>
@@ -97,7 +97,7 @@ export function Dropdown({
 
           <div className="max-h-60 overflow-y-auto py-1">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-center text-sm text-[var(--editor-muted)]">
+              <div className="px-3 py-2 text-center text-sm text-[var(--ui-muted)]">
                 无匹配结果
               </div>
             ) : (
@@ -106,7 +106,7 @@ export function Dropdown({
                   key={option.value}
                   value={option.value}
                   title={option.title}
-                  className="group flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-[var(--editor-ink)] transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_34%,transparent)] data-[selected]:text-[var(--editor-accent)]"
+                  className="group flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-[var(--ui-ink)] transition data-[focus]:bg-[color-mix(in_srgb,var(--ui-line)_34%,transparent)] data-[selected]:text-[var(--ui-accent)]"
                 >
                   <span>{option.label}</span>
                   <Check className="h-4 w-4 shrink-0 opacity-0 transition group-data-[selected]:opacity-100" />

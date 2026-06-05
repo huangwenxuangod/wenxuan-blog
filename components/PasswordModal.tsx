@@ -96,15 +96,15 @@ export function PasswordModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="bg-[var(--editor-panel)] rounded-lg shadow-xl max-w-md w-full animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--ui-line)] bg-[var(--ui-panel)] shadow-[0_20px_48px_rgb(var(--ui-shadow-rgb)/0.16)] animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-start justify-between p-6 pb-4">
-          <h3 className="text-lg font-semibold text-[var(--editor-ink)]">
+          <h3 className="text-lg font-semibold text-[var(--ui-ink)]">
             密码保护
           </h3>
           <button
             onClick={onClose}
-            className="text-[var(--stone-gray)] hover:text-[var(--editor-ink)] transition-colors"
+            className="text-[var(--ui-muted)] hover:text-[var(--ui-ink)] transition-colors"
             aria-label="关闭"
           >
             <X className="w-5 h-5" />
@@ -116,7 +116,7 @@ export function PasswordModal({
           {isEncrypted ? (
             <>
               <div>
-                <label className="block text-xs font-medium text-[var(--editor-muted)] mb-2">
+                <label className="mb-2 block text-xs font-medium text-[var(--ui-muted)]">
                   访问密码
                 </label>
                 <div className="flex gap-2">
@@ -124,12 +124,12 @@ export function PasswordModal({
                     type="text"
                     value={password}
                     readOnly
-                    className="flex-1 px-3 py-2 text-sm rounded-md border border-[var(--editor-line)] bg-[var(--editor-soft)] text-[var(--editor-ink)]"
+                    className="flex-1 rounded-xl border border-[var(--ui-line)] bg-[var(--ui-soft)] px-3 py-2 text-sm text-[var(--ui-ink)]"
                   />
                   <button
                     type="button"
                     onClick={() => copyToClipboard(password, 'password')}
-                    className="px-3 py-2 text-sm rounded-md border border-[var(--editor-line)] bg-[var(--background)] text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition-colors"
+                    className="rounded-xl border border-[var(--ui-line)] bg-[var(--ui-bg)] px-3 py-2 text-sm text-[var(--ui-ink)] hover:bg-[var(--ui-soft)] transition-colors"
                   >
                     {copied === 'password' ? '✓' : '复制'}
                   </button>
@@ -137,7 +137,7 @@ export function PasswordModal({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[var(--editor-muted)] mb-2">
+                <label className="mb-2 block text-xs font-medium text-[var(--ui-muted)]">
                   分享链接（含密码）
                 </label>
                 <div className="flex gap-2">
@@ -145,17 +145,17 @@ export function PasswordModal({
                     type="text"
                     value={fullUrl}
                     readOnly
-                    className="flex-1 px-3 py-2 text-xs rounded-md border border-[var(--editor-line)] bg-[var(--editor-soft)] text-[var(--editor-muted)] font-mono"
+                    className="flex-1 rounded-xl border border-[var(--ui-line)] bg-[var(--ui-soft)] px-3 py-2 font-mono text-xs text-[var(--ui-muted)]"
                   />
                   <button
                     type="button"
                     onClick={() => copyToClipboard(fullUrl, 'url')}
-                    className="px-3 py-2 text-sm rounded-md border border-[var(--editor-line)] bg-[var(--background)] text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] transition-colors"
+                    className="rounded-xl border border-[var(--ui-line)] bg-[var(--ui-bg)] px-3 py-2 text-sm text-[var(--ui-ink)] hover:bg-[var(--ui-soft)] transition-colors"
                   >
                     {copied === 'url' ? '✓' : '复制'}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-[var(--stone-gray)]">
+                <p className="mt-2 text-xs text-[var(--ui-muted)]">
                   链接中已包含密码，可直接访问
                 </p>
               </div>
@@ -164,21 +164,21 @@ export function PasswordModal({
                 type="button"
                 onClick={handleToggleEncryption}
                 disabled={loading}
-                className="w-full px-4 py-2 text-sm font-medium text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors disabled:opacity-50"
+                className="w-full rounded-xl border border-rose-300 px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50"
               >
                 {loading ? '处理中...' : '取消密码保护'}
               </button>
             </>
           ) : (
             <>
-              <p className="text-sm text-[var(--editor-muted)]">
+              <p className="text-sm text-[var(--ui-muted)]">
                 启用密码保护后，文章将不会在首页、RSS 和搜索结果中显示，只能通过直接链接+密码访问。
               </p>
               <button
                 type="button"
                 onClick={handleToggleEncryption}
                 disabled={loading}
-                className="w-full px-4 py-2 text-sm font-semibold bg-[var(--editor-accent)] text-white rounded-lg hover:brightness-105 transition-all disabled:opacity-50"
+                className="w-full rounded-xl bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-ink)] hover:brightness-105 transition-all disabled:opacity-50"
               >
                 {loading ? '处理中...' : '启用密码保护'}
               </button>

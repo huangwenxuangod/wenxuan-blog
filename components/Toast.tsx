@@ -68,19 +68,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const accentColor = {
-    success: 'var(--editor-accent)',
-    error: '#c65b5b',
-    warning: '#b8873a',
-    info: 'var(--stone-gray)',
+    success: 'var(--ui-success)',
+    error: 'var(--ui-danger)',
+    warning: 'var(--ui-warning)',
+    info: 'var(--ui-info)',
   }[toast.type]
 
   return (
     <div
       className="pointer-events-auto flex min-w-[220px] max-w-sm items-start gap-3 rounded-xl border px-3.5 py-3 shadow-[0_12px_28px_rgba(0,0,0,0.12)] backdrop-blur-md animate-in slide-in-from-right-full duration-300"
       style={{
-        background: 'color-mix(in srgb, var(--editor-panel) 94%, transparent)',
-        borderColor: 'var(--editor-line)',
-        color: 'var(--editor-ink)',
+        background: 'color-mix(in srgb, var(--ui-panel) 94%, transparent)',
+        borderColor: 'var(--ui-line)',
+        color: 'var(--ui-ink)',
       }}
     >
       <span
@@ -91,7 +91,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       <p className="flex-1 text-sm leading-6">{toast.message}</p>
       <button
         onClick={onClose}
-        className="flex-shrink-0 rounded p-0.5 text-[var(--editor-muted)] transition hover:bg-[var(--editor-soft)] hover:text-[var(--editor-ink)]"
+        className="flex-shrink-0 rounded p-0.5 text-[var(--ui-muted)] transition hover:bg-[var(--ui-soft)] hover:text-[var(--ui-ink)]"
         aria-label="关闭"
       >
         <X className="w-4 h-4" />

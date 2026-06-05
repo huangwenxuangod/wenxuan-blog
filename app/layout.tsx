@@ -5,6 +5,7 @@ import { GlobalShortcuts } from "@/components/GlobalShortcuts";
 import { ToastProvider } from "@/components/Toast";
 import { CustomJsInjector } from "@/components/CustomJsInjector";
 import { FONT_CONFIG, THEME_OPTIONS, THEME_STORAGE_KEY, normalizeTheme } from "@/lib/appearance";
+import { BACKOFFICE_THEME_STORAGE_KEY } from "@/lib/backoffice-theme";
 import { getAppCloudflareEnv } from "@/lib/cloudflare";
 import { getSetting } from "@/lib/db";
 import { resolveDefaultSiteCoverImage } from "@/lib/default-cover-images";
@@ -117,6 +118,7 @@ export default async function RootLayout({
   var k = "${bodyFont || ''}";
   var defaultTheme = "${defaultTheme}";
   var themeStorageKey = "${THEME_STORAGE_KEY}";
+  var backofficeThemeStorageKey = "${BACKOFFICE_THEME_STORAGE_KEY}";
   var validThemes = ${JSON.stringify(validThemes)};
   function isTheme(value) {
     return validThemes.indexOf(value) !== -1;
@@ -146,6 +148,12 @@ export default async function RootLayout({
   }
   applyFont(k);
   applyTheme(defaultTheme);
+  try {
+    var savedBackofficeTheme = window.localStorage.getItem(backofficeThemeStorageKey);
+    if (savedBackofficeTheme === 'light' || savedBackofficeTheme === 'dark') {
+      document.documentElement.setAttribute('data-admin-theme', savedBackofficeTheme);
+    }
+  } catch (e) {}
   try {
     var savedTheme = window.localStorage.getItem(themeStorageKey);
     if (isTheme(savedTheme)) applyTheme(savedTheme);
