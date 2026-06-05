@@ -338,6 +338,23 @@
 - **设置面板路由拆分**：在 `SettingsManager.tsx` 中，将所有独立的管理子面板（如 `ThemeManager`、`AiProviderManager`、`BackupManager` 等）全部改用 `next/dynamic` 异步加载，首屏首包体积剧减 80% 以上。
 - **重型依赖运行时导入**：`html2canvas`、`fflate`、`html2pdf.js` 与 `docx` 等重型底层库全部采用运行时 `await import(...)` 按需异步导入，确保用户不使用对应功能时，绝对不下载任何相关字节，完美适配 Cloudflare Workers 的体积限制。
 
+### 7.11 编辑器与系统设置分类管理联动同步 (Category Selector Sync)
+
+- **动态重新挂载**：在编辑器中，顶部的文章分类下拉选择器（`CategorySelector`）支持通过声明式 `key={categoryRefreshKey}` 进行重新挂载。
+- **联动刷新**：当用户在编辑器内置的“系统设置” Modal 中新增、修改或删除了分类，关闭 Modal 的瞬间会自动递增 `categoryRefreshKey`。这会强制分类下拉选择器重新挂载并向 API 发起请求，确保在不刷新页面的情况下，最新的分类配置 100% 实时同步到编辑器中。
+
+### 7.12 Home 键双向折叠侧边栏快捷键 (Home Key Dual-Sidebar Toggle Shortcuts)
+
+- **极客组合键**：在编辑器页面，支持通过 Home 组合键实现双向侧边栏的极致流畅折叠与展开：
+  - **折叠/展开左栏 (TOC)**：按住键盘左侧修饰键（`左 Alt` / `左 Ctrl` / `左 Shift`）或 `左方向键` + `Home` 键。
+  - **折叠/展开右栏 (AI 助手)**：按住键盘右侧修饰键（`右 Alt` / `右 Ctrl` / `右 Shift`）或 `右方向键` + `Home` 键。
+- **独立偏好配置**：我们在系统设置中新增了独立的“偏好设置 (Preferences)”标签页，提供了一键开启或关闭该快捷键的开关，并支持在关闭设置 Modal 后即时热加载更新，无需重新加载页面。
+
+### 7.13 极致的后台路由代码拆分 (Extreme Admin Route Code-splitting)
+
+- **Server Components 动态导入**：为了使后台首屏加载以及服务端渲染（SSR）性能达到极限，我们在 `/admin/posts`、`/admin/settings` 和 `/admin/categories` 路由的 Next.js Server Components 中，将重型的 Client Components（如 `PostsTableClient`、`SettingsManager`、`CategoryManager`）全部通过 `next/dynamic` 动态导入。
+- **按需打包与瞬间加载**：该方案避免了将繁重的交互逻辑和表格控制组件混入初始页面主包中，将后台首包体积压缩到了极限，完美适配 Cloudflare Workers 的体积和响应速度约束。
+
 ---
 
 ## 8. 常用开发与校验命令

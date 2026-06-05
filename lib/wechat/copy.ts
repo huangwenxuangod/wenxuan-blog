@@ -451,6 +451,51 @@ type DocxInlineContext = {
   code?: boolean
 }
 
+type DocxBlockContext = {
+  quote?: boolean
+}
+
+function getDocxQuoteParagraphOptions(docx: DocxModule): Pick<IParagraphOptions, 'indent' | 'border'> {
+  return {
+    indent: { left: 360 },
+    border: {
+      left: {
+        style: docx.BorderStyle.SINGLE,
+        color: 'D0C8BA',
+        size: 8,
+        space: 12,
+      },
+    },
+  }
+}
+
+function withDocxBlockContext(
+  options: IParagraphOptions,
+  context: DocxBlockContext,
+  docx: DocxModule,
+): IParagraphOptions {
+  if (!context.quote) {
+    return options
+  }
+
+  const quoteOptions = getDocxQuoteParagraphOptions(docx)
+  const currentLeftIndent = Number(options.indent?.left ?? 0)
+  const quoteLeftIndent = Number(quoteOptions.indent?.left ?? 0)
+
+  return {
+    ...options,
+    indent: {
+      ...options.indent,
+      ...quoteOptions.indent,
+      left: currentLeftIndent + quoteLeftIndent,
+    },
+    border: {
+      ...options.border,
+      ...quoteOptions.border,
+    },
+  }
+}
+
 function createDocxTextRun(
   text: string,
   context: DocxInlineContext,
@@ -539,6 +584,7 @@ async function convertDocxList(
   list: HTMLElement,
   docx: DocxModule,
   level = 0,
+  context: DocxBlockContext = {},
 ): Promise<import('docx').Paragraph[]> {
   const paragraphs: import('docx').Paragraph[] = []
   const isOrdered = list.tagName.toLowerCase() === 'ol'
@@ -559,7 +605,7 @@ async function convertDocxList(
 
     const inlineChildren = await collectDocxInlineChildren(inlineContainer, docx)
     if (inlineChildren.length) {
-      paragraphs.push(new docx.Paragraph({
+      paragraphs.push(new docx.Paragraph(withDocxBlockContext({
         children: isOrdered
           ? [createDocxTextRun(`${index + 1}. `, {}, docx), ...inlineChildren]
           : inlineChildren,
@@ -568,11 +614,11 @@ async function convertDocxList(
           ? { left: 360 * (level + 1) }
           : undefined,
         spacing: { after: 120 },
-      }))
+      }, context, docx)))
     }
 
     for (const nestedList of nestedLists) {
-      paragraphs.push(...await convertDocxList(nestedList, docx, level + 1))
+      paragraphs.push(...await convertDocxList(nestedList, docx, level + 1, context))
     }
   }
 
@@ -582,19 +628,20 @@ async function convertDocxList(
 async function convertDocxBlockElement(
   element: HTMLElement,
   docx: DocxModule,
+  context: DocxBlockContext = {},
 ): Promise<import('docx').Paragraph[]> {
   const tagName = element.tagName.toLowerCase()
 
   if (['ul', 'ol'].includes(tagName)) {
-    return convertDocxList(element, docx)
+    return convertDocxList(element, docx, 0, context)
   }
 
   if (tagName === 'hr') {
     return [
-      new docx.Paragraph({
+      new docx.Paragraph(withDocxBlockContext({
         thematicBreak: true,
         spacing: { before: 240, after: 240 },
-      }),
+      }, context, docx)),
     ]
   }
 
@@ -616,60 +663,35 @@ async function convertDocxBlockElement(
     })
 
     return [
-      new docx.Paragraph({
+      new docx.Paragraph(withDocxBlockContext({
         children,
         spacing: { before: 160, after: 200 },
         indent: { left: 240, right: 120 },
         shading: {
           fill: 'F3F4F6',
         },
-      }),
+      }, context, docx)),
     ]
   }
 
   if (tagName === 'blockquote') {
     const paragraphs: import('docx').Paragraph[] = []
     const blockChildren = Array.from(element.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
+    const quoteContext: DocxBlockContext = { ...context, quote: true }
 
     if (blockChildren.length > 0) {
       for (const child of blockChildren) {
-        const nestedParagraphs = await convertDocxBlockElement(child, docx)
-        for (const paragraph of nestedParagraphs) {
-          const pAny = paragraph as any
-          pAny.options = pAny.options || {}
-          pAny.options.indent = {
-            ...(pAny.options.indent || {}),
-            left: 360,
-          }
-          pAny.options.border = {
-            left: {
-              color: 'D0C8BA',
-              size: 8,
-              space: 12,
-              style: 'single',
-            },
-          }
-        }
-        paragraphs.push(...nestedParagraphs)
+        paragraphs.push(...await convertDocxBlockElement(child, docx, quoteContext))
       }
       return paragraphs
     }
 
     const children = await collectDocxInlineChildren(element, docx)
     return children.length ? [
-      new docx.Paragraph({
+      new docx.Paragraph(withDocxBlockContext({
         children,
-        indent: { left: 360 },
-        border: {
-          left: {
-            color: 'D0C8BA',
-            size: 8,
-            space: 12,
-            style: 'single',
-          },
-        },
         spacing: { before: 160, after: 200 },
-      }),
+      }, quoteContext, docx)),
     ] : []
   }
 
@@ -679,13 +701,13 @@ async function convertDocxBlockElement(
 
     if (blockChildren.length > 0) {
       for (const child of blockChildren) {
-        paragraphs.push(...await convertDocxBlockElement(child, docx))
+        paragraphs.push(...await convertDocxBlockElement(child, docx, context))
       }
       return paragraphs
     }
 
     const children = await collectDocxInlineChildren(element, docx)
-    return children.length ? [new docx.Paragraph({ children, spacing: { after: 180 } })] : []
+    return children.length ? [new docx.Paragraph(withDocxBlockContext({ children, spacing: { after: 180 } }, context, docx))] : []
   }
 
   if (tagName === 'table') {
@@ -693,10 +715,10 @@ async function convertDocxBlockElement(
       .map((row) => Array.from(row.querySelectorAll('th,td')).map((cell) => cell.textContent?.trim() || '').filter(Boolean).join(' | '))
       .filter(Boolean)
 
-    return rows.map((row) => new docx.Paragraph({
+    return rows.map((row) => new docx.Paragraph(withDocxBlockContext({
       children: [new docx.TextRun({ text: row, font: 'Courier New', size: 20 })],
       spacing: { after: 120 },
-    }))
+    }, context, docx)))
   }
 
   const children = await collectDocxInlineChildren(element, docx)
@@ -712,7 +734,7 @@ async function convertDocxBlockElement(
       : { after: 180 },
   }
 
-  return [new docx.Paragraph(paragraphOptions)]
+  return [new docx.Paragraph(withDocxBlockContext(paragraphOptions, context, docx))]
 }
 
 async function buildDocxDocumentChildren(
