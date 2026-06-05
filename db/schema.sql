@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS posts (
   content TEXT NOT NULL,
   html TEXT NOT NULL,
   description TEXT,
-  category TEXT DEFAULT '未分类',
+  category TEXT DEFAULT 'AI',
   tags TEXT, -- JSON 数组字符串
   status TEXT DEFAULT 'published' CHECK(status IN ('draft', 'published', 'deleted')),
   password TEXT, -- 文章密码，NULL 表示公开
@@ -216,6 +216,5 @@ CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token);
 
 -- 插入默认分类
 INSERT OR IGNORE INTO categories (name, slug) VALUES
-  ('未分类', 'uncategorized'),
   ('AI工具', 'ai-tools'),
   ('AI', 'ai');

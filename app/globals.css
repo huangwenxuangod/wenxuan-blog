@@ -1616,10 +1616,10 @@ select:focus-visible {
   margin: 2em 0;
 }
 
-/* Dark Mode Overrides for Code inside Share Card */
-.share-card-container.bg-\[\#121212\] .share-card-prose code {
+/* Dark mode share-card overrides should track the explicit theme attr, not a generated Tailwind class */
+[data-share-theme='dark'] .share-card-prose code {
   background-color: rgba(255, 255, 255, 0.1);
 }
-.share-card-container.bg-\[\#121212\] .share-card-prose pre {
+[data-share-theme='dark'] .share-card-prose pre {
   background-color: rgba(255, 255, 255, 0.05);
 }

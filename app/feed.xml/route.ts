@@ -54,7 +54,7 @@ export async function GET() {
       <guid isPermaLink="true">${SITE_URL}/${p.slug}</guid>
       <description>${escapeXml(p.description || '')}</description>
       <content:encoded><![CDATA[${p.html || ''}]]></content:encoded>
-      <category>${escapeXml(p.category || '未分类')}</category>
+      <category>${escapeXml(p.category || 'AI')}</category>
       <pubDate>${pubDate}</pubDate>
     </item>`
     })

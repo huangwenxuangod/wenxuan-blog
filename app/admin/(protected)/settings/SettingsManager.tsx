@@ -59,6 +59,7 @@ interface Props {
   initialBodyFont: string
   initialDefaultTheme: string
   initialRuntimeCapabilities: RuntimeCapabilities
+  initialHomeShortcutEnabled?: string
 }
 
 export function SettingsManager({
@@ -68,9 +69,11 @@ export function SettingsManager({
   initialBodyFont,
   initialDefaultTheme,
   initialRuntimeCapabilities,
+  initialHomeShortcutEnabled = 'true',
 }: Props) {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [homeShortcutEnabled, setHomeShortcutEnabled] = useState(initialHomeShortcutEnabled === 'true')
 
   const persistSetting = async (key: string, value: string) => {
     const res = await fetch('/api/admin/settings', {
@@ -167,6 +170,46 @@ export function SettingsManager({
           onSave={saveThemeSettings}
           saving={saving}
         />
+      ),
+    },
+    {
+      id: 'preferences',
+      label: '偏好设置',
+      content: (
+        <div className="space-y-4">
+          {msg && (
+            <div className="rounded-lg border border-[color-mix(in_srgb,var(--ui-success)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-success)_12%,var(--ui-surface))] px-4 py-2 text-sm text-[var(--ui-success)]">
+              {msg}
+            </div>
+          )}
+          <div className="rounded-xl border border-[var(--editor-line)] bg-[var(--editor-panel)] p-5">
+            <h4 className="text-sm font-medium text-[var(--editor-ink)] mb-1">编辑器快捷键</h4>
+            <p className="text-xs text-[var(--editor-muted)] mb-4">
+              配置编辑器中的高效快捷操作。
+            </p>
+            <div className="flex items-center justify-between py-3 border-t border-[var(--editor-line)]">
+              <div>
+                <span className="text-sm font-medium text-[var(--editor-ink)] block">Home 键侧边栏双向折叠</span>
+                <span className="text-xs text-[var(--editor-muted)] block mt-0.5 max-w-lg">
+                  按住左键 (左 Arrow/Alt/Ctrl) + Home 折叠左栏；按住右键 (右 Arrow/Alt/Ctrl) + Home 折叠右栏。
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={homeShortcutEnabled}
+                  onChange={(e) => {
+                    const val = e.target.checked
+                    setHomeShortcutEnabled(val)
+                    save('home_shortcut_enabled', val ? 'true' : 'false')
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-6 bg-[var(--editor-soft)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--editor-accent)]"></div>
+              </label>
+            </div>
+          </div>
+        </div>
       ),
     },
     {

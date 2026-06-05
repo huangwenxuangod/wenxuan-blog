@@ -30,14 +30,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
 
       for (const category of categories) {
-        if (category.slug && category.name !== '未分类') {
-          entries.push({
-            url: `${baseUrl}/category/${category.slug}`,
-            lastModified: new Date(),
-            changeFrequency: 'weekly',
-            priority: 0.6,
-          })
-        }
+        if (!category.slug) continue
+        entries.push({
+          url: `${baseUrl}/category/${category.slug}`,
+          lastModified: new Date(),
+          changeFrequency: 'weekly',
+          priority: 0.6,
+        })
       }
     }
   } catch {}

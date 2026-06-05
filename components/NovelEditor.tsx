@@ -298,6 +298,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [shareLongImageOpen, setShareLongImageOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [categoryRefreshKey, setCategoryRefreshKey] = useState(0)
+  const [homeShortcutEnabled, setHomeShortcutEnabled] = useState(true)
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [settingsData, setSettingsData] = useState<{
     navLinks: string
@@ -306,7 +307,19 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     bodyFont: string
     defaultTheme: string
     runtimeCapabilities: RuntimeCapabilities
+    homeShortcutEnabled: string
   } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/admin/settings?key=home_shortcut_enabled')
+      .then((res) => res.json())
+      .then((data: any) => {
+        if (data && data.value !== undefined) {
+          setHomeShortcutEnabled(data.value === 'true')
+        }
+      })
+      .catch(() => {})
+  }, [categoryRefreshKey])
 
   const handleOpenSettings = async () => {
     setSettingsModalOpen(true)
@@ -328,6 +341,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         categories: categoriesJson.categories || [],
         bodyFont: settingsJson.body_font || '',
         defaultTheme: settingsJson.default_theme || '',
+        homeShortcutEnabled: settingsJson.home_shortcut_enabled || 'true',
         runtimeCapabilities: {
           bindings: {
             d1: true,
@@ -499,6 +513,12 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     return () => document.removeEventListener('mousedown', handler)
   }, [publishPanelOpen])
 
+  const activeKeys = useRef<Set<string>>(new Set())
+  const homeShortcutEnabledRef = useRef(homeShortcutEnabled)
+  useEffect(() => {
+    homeShortcutEnabledRef.current = homeShortcutEnabled
+  }, [homeShortcutEnabled])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -509,10 +529,52 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       if (e.key === 'Escape') {
         setPublishPanelOpen(false)
       }
+
+      if (homeShortcutEnabledRef.current) {
+        activeKeys.current.add(e.code)
+
+        if (e.key === 'Home') {
+          const hasLeft =
+            activeKeys.current.has('ArrowLeft') ||
+            activeKeys.current.has('AltLeft') ||
+            activeKeys.current.has('ControlLeft') ||
+            activeKeys.current.has('ShiftLeft')
+
+          const hasRight =
+            activeKeys.current.has('ArrowRight') ||
+            activeKeys.current.has('AltRight') ||
+            activeKeys.current.has('ControlRight') ||
+            activeKeys.current.has('ShiftRight')
+
+          if (hasLeft) {
+            e.preventDefault()
+            setTocOpen((prev) => !prev)
+          } else if (hasRight) {
+            e.preventDefault()
+            setAiRailOpen((prev) => !prev)
+          }
+        }
+      }
     }
+
+    const keyupHandler = (e: KeyboardEvent) => {
+      activeKeys.current.delete(e.code)
+    }
+
+    const blurHandler = () => {
+      activeKeys.current.clear()
+    }
+
     document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  })
+    document.addEventListener('keyup', keyupHandler)
+    window.addEventListener('blur', blurHandler)
+
+    return () => {
+      document.removeEventListener('keydown', handler)
+      document.removeEventListener('keyup', keyupHandler)
+      window.removeEventListener('blur', blurHandler)
+    }
+  }, [])
 
   const {
     aiModal,
@@ -2021,6 +2083,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                       initialBodyFont={settingsData.bodyFont}
                       initialDefaultTheme={settingsData.defaultTheme}
                       initialRuntimeCapabilities={settingsData.runtimeCapabilities}
+                      initialHomeShortcutEnabled={settingsData.homeShortcutEnabled}
                     />
                   </div>
                 ) : (

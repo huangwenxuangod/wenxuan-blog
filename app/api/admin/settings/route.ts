@@ -26,12 +26,14 @@ export async function GET(req: NextRequest) {
       const custom_js = await getSetting(route.db, 'custom_js') || ''
       const body_font = await getSetting(route.db, 'body_font') || ''
       const default_theme = await getSetting(route.db, 'default_theme') || ''
+      const home_shortcut_enabled = await getSetting(route.db, 'home_shortcut_enabled') || 'true'
 
       return jsonOk({
         nav_links,
         custom_js,
         body_font,
-        default_theme
+        default_theme,
+        home_shortcut_enabled
       })
     }
 

@@ -168,6 +168,7 @@ export function ShareLongImageModal({
               <div
                 ref={cardRef}
                 id="share-card-container"
+                data-share-theme={theme}
                 className={cx(
                   'w-[520px] p-10 flex flex-col transition-colors duration-200',
                   theme === 'parchment' && 'bg-[#f5f4ed] text-[#2c2621]',

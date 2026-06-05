@@ -24,7 +24,7 @@ async function runProcessPostAiJob(env: BackgroundJobEnv, postId: number) {
   const updates: Parameters<typeof updatePost>[2] = {}
   const autoDescription = buildAutoDescription(post.content)
 
-  if (!post.category || post.category === '未分类') {
+  if (!post.category) {
     updates.category = aiResult.category
   }
 

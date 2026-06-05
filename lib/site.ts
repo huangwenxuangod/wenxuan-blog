@@ -39,7 +39,7 @@ export async function getSiteHeaderData(db: D1Database): Promise<{
     }
 
     categories = categoryRows
-      .filter((category) => category.slug && category.name && category.name !== '未分类')
+      .filter((category) => category.slug && category.name)
       .map((category) => ({
         name: category.name,
         slug: category.slug,

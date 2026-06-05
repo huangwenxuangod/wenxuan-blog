@@ -4,10 +4,12 @@ import juice from 'juice'
 import { saveBlobFile } from '@/lib/client-download'
 import { buildWechatExportCss, normalizeWechatExportHtml, type WechatExportStyleTokens } from './export-style'
 import type { WechatStylePresetId } from './style-presets'
+import type { IParagraphOptions, ParagraphChild } from 'docx'
 
 type ExportMode = 'clipboard' | 'pdf'
 
 type Html2PdfFactory = typeof import('html2pdf.js').default
+type DocxModule = typeof import('docx')
 
 const URL_ATTRIBUTES = [
   ['img', 'src'],
@@ -337,6 +339,420 @@ function buildWechatClipboardHtml(title: string, html: string, preset: WechatSty
   }
 }
 
+const DOCX_MAX_IMAGE_WIDTH = 520
+const DOCX_MAX_IMAGE_HEIGHT = 1200
+
+function getDocxHeadingLevel(tagName: string, docx: DocxModule) {
+  switch (tagName.toLowerCase()) {
+    case 'h1':
+      return docx.HeadingLevel.HEADING_1
+    case 'h2':
+      return docx.HeadingLevel.HEADING_2
+    case 'h3':
+      return docx.HeadingLevel.HEADING_3
+    case 'h4':
+      return docx.HeadingLevel.HEADING_4
+    case 'h5':
+      return docx.HeadingLevel.HEADING_5
+    case 'h6':
+      return docx.HeadingLevel.HEADING_6
+    default:
+      return undefined
+  }
+}
+
+function clampDocxImageSize(width: number, height: number) {
+  if (!width || !height) {
+    return {
+      width: DOCX_MAX_IMAGE_WIDTH,
+      height: Math.round(DOCX_MAX_IMAGE_WIDTH * 0.625),
+    }
+  }
+
+  const widthScale = DOCX_MAX_IMAGE_WIDTH / width
+  const heightScale = DOCX_MAX_IMAGE_HEIGHT / height
+  const scale = Math.min(widthScale, heightScale, 1)
+
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  }
+}
+
+function getImageType(mimeType: string) {
+  if (mimeType.includes('png')) return 'png' as const
+  if (mimeType.includes('gif')) return 'gif' as const
+  if (mimeType.includes('bmp')) return 'bmp' as const
+  return 'jpg' as const
+}
+
+async function readBlobDimensions(blob: Blob) {
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(blob)
+    const dimensions = {
+      width: bitmap.width,
+      height: bitmap.height,
+    }
+    bitmap.close()
+    return dimensions
+  }
+
+  const objectUrl = URL.createObjectURL(blob)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => reject(new Error('图片尺寸读取失败'))
+      img.src = objectUrl
+    })
+
+    return {
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+async function buildDocxImageRun(
+  image: HTMLImageElement,
+  docx: DocxModule,
+) {
+  const src = image.getAttribute('src')?.trim()
+  if (!src) return null
+
+  const response = await fetch(src)
+  if (!response.ok) {
+    throw new Error(`图片下载失败: ${response.status}`)
+  }
+
+  const blob = await response.blob()
+  const data = await blob.arrayBuffer()
+  const dims = await readBlobDimensions(blob)
+  const dimensions = clampDocxImageSize(dims.width, dims.height)
+
+  return new docx.ImageRun({
+    type: getImageType(blob.type || image.src),
+    data,
+    transformation: dimensions,
+    altText: {
+      title: image.alt || '图片',
+      description: image.alt || '图片',
+      name: image.alt || '图片',
+    },
+  })
+}
+
+type DocxInlineContext = {
+  bold?: boolean
+  italics?: boolean
+  underline?: boolean
+  code?: boolean
+}
+
+function createDocxTextRun(
+  text: string,
+  context: DocxInlineContext,
+  docx: DocxModule,
+) {
+  return new docx.TextRun({
+    text,
+    bold: context.bold,
+    italics: context.italics,
+    underline: context.underline ? {} : undefined,
+    font: context.code ? 'Courier New' : undefined,
+    size: context.code ? 20 : undefined,
+  })
+}
+
+async function collectDocxInlineChildren(
+  parent: ParentNode,
+  docx: DocxModule,
+  context: DocxInlineContext = {},
+): Promise<ParagraphChild[]> {
+  const children: ParagraphChild[] = []
+
+  for (const node of Array.from(parent.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent?.replace(/\u00a0/g, ' ') || ''
+      if (text.trim()) {
+        children.push(createDocxTextRun(text, context, docx))
+      }
+      continue
+    }
+
+    if (!(node instanceof HTMLElement)) {
+      continue
+    }
+
+    const tagName = node.tagName.toLowerCase()
+
+    if (tagName === 'br') {
+      children.push(new docx.TextRun({ text: '', break: 1 }))
+      continue
+    }
+
+    if (tagName === 'img') {
+      try {
+        const imageRun = await buildDocxImageRun(node as HTMLImageElement, docx)
+        if (imageRun) {
+          children.push(imageRun)
+        }
+      } catch {
+        const fallbackText = node.getAttribute('alt')?.trim() || node.getAttribute('src')?.trim() || '图片'
+        children.push(createDocxTextRun(`[图片] ${fallbackText}`, context, docx))
+      }
+      continue
+    }
+
+    const nextContext: DocxInlineContext = {
+      bold: context.bold || ['strong', 'b'].includes(tagName),
+      italics: context.italics || ['em', 'i'].includes(tagName),
+      underline: context.underline || tagName === 'u',
+      code: context.code || tagName === 'code',
+    }
+
+    const nestedChildren = await collectDocxInlineChildren(node, docx, nextContext)
+    if (!nestedChildren.length) {
+      continue
+    }
+
+    if (tagName === 'a') {
+      const link = node.getAttribute('href')?.trim()
+      if (link) {
+        children.push(new docx.ExternalHyperlink({
+          link,
+          children: nestedChildren,
+        }))
+        continue
+      }
+    }
+
+    children.push(...nestedChildren)
+  }
+
+  return children
+}
+
+async function convertDocxList(
+  list: HTMLElement,
+  docx: DocxModule,
+  level = 0,
+): Promise<import('docx').Paragraph[]> {
+  const paragraphs: import('docx').Paragraph[] = []
+  const isOrdered = list.tagName.toLowerCase() === 'ol'
+  const items = Array.from(list.children).filter((child): child is HTMLLIElement => child.tagName.toLowerCase() === 'li')
+
+  for (const [index, item] of items.entries()) {
+    const inlineContainer = document.createElement('div')
+    const nestedLists: HTMLElement[] = []
+
+    for (const child of Array.from(item.childNodes)) {
+      if (child instanceof HTMLElement && ['ul', 'ol'].includes(child.tagName.toLowerCase())) {
+        nestedLists.push(child)
+        continue
+      }
+
+      inlineContainer.appendChild(child.cloneNode(true))
+    }
+
+    const inlineChildren = await collectDocxInlineChildren(inlineContainer, docx)
+    if (inlineChildren.length) {
+      paragraphs.push(new docx.Paragraph({
+        children: isOrdered
+          ? [createDocxTextRun(`${index + 1}. `, {}, docx), ...inlineChildren]
+          : inlineChildren,
+        bullet: isOrdered ? undefined : { level: Math.min(level, 8) },
+        indent: isOrdered
+          ? { left: 360 * (level + 1) }
+          : undefined,
+        spacing: { after: 120 },
+      }))
+    }
+
+    for (const nestedList of nestedLists) {
+      paragraphs.push(...await convertDocxList(nestedList, docx, level + 1))
+    }
+  }
+
+  return paragraphs
+}
+
+async function convertDocxBlockElement(
+  element: HTMLElement,
+  docx: DocxModule,
+): Promise<import('docx').Paragraph[]> {
+  const tagName = element.tagName.toLowerCase()
+
+  if (['ul', 'ol'].includes(tagName)) {
+    return convertDocxList(element, docx)
+  }
+
+  if (tagName === 'hr') {
+    return [
+      new docx.Paragraph({
+        thematicBreak: true,
+        spacing: { before: 240, after: 240 },
+      }),
+    ]
+  }
+
+  if (tagName === 'pre') {
+    const code = element.textContent?.replace(/\r\n/g, '\n').trimEnd() || ''
+    if (!code) return []
+
+    const lines = code.split('\n')
+    const children: ParagraphChild[] = []
+    lines.forEach((line, index) => {
+      children.push(new docx.TextRun({
+        text: line,
+        font: 'Courier New',
+        size: 20,
+      }))
+      if (index < lines.length - 1) {
+        children.push(new docx.TextRun({ text: '', break: 1 }))
+      }
+    })
+
+    return [
+      new docx.Paragraph({
+        children,
+        spacing: { before: 160, after: 200 },
+        indent: { left: 240, right: 120 },
+        shading: {
+          fill: 'F3F4F6',
+        },
+      }),
+    ]
+  }
+
+  if (tagName === 'blockquote') {
+    const paragraphs: import('docx').Paragraph[] = []
+    const blockChildren = Array.from(element.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
+
+    if (blockChildren.length > 0) {
+      for (const child of blockChildren) {
+        const nestedParagraphs = await convertDocxBlockElement(child, docx)
+        for (const paragraph of nestedParagraphs) {
+          const pAny = paragraph as any
+          pAny.options = pAny.options || {}
+          pAny.options.indent = {
+            ...(pAny.options.indent || {}),
+            left: 360,
+          }
+          pAny.options.border = {
+            left: {
+              color: 'D0C8BA',
+              size: 8,
+              space: 12,
+              style: 'single',
+            },
+          }
+        }
+        paragraphs.push(...nestedParagraphs)
+      }
+      return paragraphs
+    }
+
+    const children = await collectDocxInlineChildren(element, docx)
+    return children.length ? [
+      new docx.Paragraph({
+        children,
+        indent: { left: 360 },
+        border: {
+          left: {
+            color: 'D0C8BA',
+            size: 8,
+            space: 12,
+            style: 'single',
+          },
+        },
+        spacing: { before: 160, after: 200 },
+      }),
+    ] : []
+  }
+
+  if (tagName === 'figure' || tagName === 'div' || tagName === 'section' || tagName === 'article') {
+    const paragraphs: import('docx').Paragraph[] = []
+    const blockChildren = Array.from(element.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
+
+    if (blockChildren.length > 0) {
+      for (const child of blockChildren) {
+        paragraphs.push(...await convertDocxBlockElement(child, docx))
+      }
+      return paragraphs
+    }
+
+    const children = await collectDocxInlineChildren(element, docx)
+    return children.length ? [new docx.Paragraph({ children, spacing: { after: 180 } })] : []
+  }
+
+  if (tagName === 'table') {
+    const rows = Array.from(element.querySelectorAll('tr'))
+      .map((row) => Array.from(row.querySelectorAll('th,td')).map((cell) => cell.textContent?.trim() || '').filter(Boolean).join(' | '))
+      .filter(Boolean)
+
+    return rows.map((row) => new docx.Paragraph({
+      children: [new docx.TextRun({ text: row, font: 'Courier New', size: 20 })],
+      spacing: { after: 120 },
+    }))
+  }
+
+  const children = await collectDocxInlineChildren(element, docx)
+  if (!children.length) return []
+
+  const heading = getDocxHeadingLevel(tagName, docx)
+
+  const paragraphOptions: IParagraphOptions = {
+    children,
+    heading,
+    spacing: heading
+      ? { before: 280, after: 120 }
+      : { after: 180 },
+  }
+
+  return [new docx.Paragraph(paragraphOptions)]
+}
+
+async function buildDocxDocumentChildren(
+  title: string,
+  html: string,
+  docx: DocxModule,
+) {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const contentRoot = doc.querySelector('.wechat-export-content') || doc.body
+  const children: import('docx').Paragraph[] = [
+    new docx.Paragraph({
+      text: title,
+      heading: docx.HeadingLevel.TITLE,
+      spacing: { after: 240 },
+    }),
+  ]
+
+  for (const node of Array.from(contentRoot.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent?.trim()
+      if (text) {
+        children.push(new docx.Paragraph({
+          children: [new docx.TextRun(text)],
+          spacing: { after: 180 },
+        }))
+      }
+      continue
+    }
+
+    if (!(node instanceof HTMLElement)) {
+      continue
+    }
+
+    children.push(...await convertDocxBlockElement(node, docx))
+  }
+
+  return children
+}
+
 type BridgeImageVariant = 'content' | 'cover'
 
 function rewriteBridgeImageUrl(input: string, variant: BridgeImageVariant) {
@@ -615,7 +1031,6 @@ export async function downloadArticleAsDocx(
   const normalizedHtml = normalizeExportMarkup(html, 'clipboard')
   const css = buildWechatExportCss(readWechatExportStyleTokens(), preset)
   const fragment = buildWechatExportFragment(normalizedTitle, normalizedHtml)
-
   const exportedHtml = `<!doctype html>
 <html lang="zh-CN">
   <head>
@@ -625,36 +1040,17 @@ export async function downloadArticleAsDocx(
   <body>${fragment}</body>
 </html>`
 
-  const { Document, Packer, Paragraph, TextRun } = await import('docx')
-  const doc = new Document({
+  const docx = await import('docx')
+  const children = await buildDocxDocumentChildren(normalizedTitle, exportedHtml, docx)
+  const documentFile = new docx.Document({
     sections: [
       {
-        children: [
-          new Paragraph({
-            spacing: { after: 240 },
-            children: [
-              new TextRun({
-                text: normalizedTitle,
-                bold: true,
-                size: 32,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [
-              new TextRun(
-                new DOMParser()
-                  .parseFromString(exportedHtml, 'text/html')
-                  .body.textContent?.trim() || '',
-              ),
-            ],
-          }),
-        ],
+        children,
       },
     ],
   })
 
-  const blob = await Packer.toBlob(doc)
+  const blob = await docx.Packer.toBlob(documentFile)
   await saveBlobFile(blob, `${normalizedTitle}.docx`, {
     types: [
       {
