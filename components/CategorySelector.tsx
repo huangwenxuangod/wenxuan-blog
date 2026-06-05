@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react'
+import { useEffect, useMemo, useState } from 'react'
+import { Check, ChevronDown } from 'lucide-react'
 
 interface Category {
   name: string
@@ -19,8 +21,6 @@ interface CategoriesResponse {
 
 export function CategorySelector({ value, onChange, className = '' }: CategorySelectorProps) {
   const [categories, setCategories] = useState<Category[]>([])
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch('/api/admin/categories')
@@ -32,82 +32,38 @@ export function CategorySelector({ value, onChange, className = '' }: CategorySe
       .catch(() => {})
   }, [])
 
-  // 点击外部关闭
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  // 键盘操作
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [open])
-
-  const allCategories = [
+  const allCategories = useMemo(() => ([
     { name: '未分类', slug: 'uncategorized' },
     ...categories.filter((c) => c.name !== '未分类'),
-  ]
+  ]), [categories])
+
+  const selectedCategory = allCategories.find((cat) => cat.name === value) || allCategories[0]
 
   return (
-    <div ref={ref} className={`relative ${className}`}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="h-9 min-w-[120px] text-sm font-medium rounded-lg border border-[var(--editor-line)] bg-[var(--editor-soft)] text-[var(--editor-ink)] pl-3 pr-8 outline-none cursor-pointer hover:bg-[var(--border-warm)] focus:ring-1 focus:ring-[var(--editor-accent)] transition-colors text-left relative"
-      >
-        <span className="truncate block">{value || '未分类'}</span>
-        <svg
-          className={`absolute right-2.5 top-1/2 -translate-y-1/2 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M3 4.5 6 7.5 9 4.5" />
-        </svg>
-      </button>
+    <Listbox value={selectedCategory.name} onChange={onChange}>
+      <div className={`relative ${className}`}>
+        <ListboxButton className="group flex min-h-9 min-w-[92px] cursor-pointer items-center justify-between gap-2 text-left text-[14px] leading-none text-[var(--editor-ink)] outline-none transition-colors hover:text-[var(--editor-accent)]">
+          <span className="truncate">{selectedCategory.name}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--editor-muted)] transition duration-150 group-data-[hover]:text-[var(--editor-ink)] group-data-[open]:rotate-180" />
+        </ListboxButton>
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[160px] rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] shadow-lg py-1 max-h-60 overflow-y-auto">
+        <ListboxOptions
+          anchor="bottom end"
+          transition
+          className="z-50 mt-2 min-w-[180px] bg-[var(--background)] py-1 text-[14px] text-[var(--editor-ink)] shadow-[0_12px_32px_rgba(0,0,0,0.08)] outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0"
+        >
           {allCategories.map((cat) => (
-            <button
+            <ListboxOption
               key={cat.slug}
-              type="button"
-              onClick={() => {
-                onChange(cat.name)
-                setOpen(false)
-              }}
-              className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                cat.name === value
-                  ? 'bg-[var(--editor-accent)]/8 text-[var(--editor-accent)] font-medium'
-                  : 'text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]'
-              }`}
+              value={cat.name}
+              className="group flex cursor-pointer items-center justify-between gap-3 px-3 py-2 text-left transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_34%,transparent)]"
             >
-              {cat.name}
-            </button>
+              <span className="truncate group-data-[selected]:text-[var(--editor-accent)]">{cat.name}</span>
+              <Check className="h-3.5 w-3.5 shrink-0 opacity-0 transition group-data-[selected]:opacity-100 group-data-[selected]:text-[var(--editor-accent)]" />
+            </ListboxOption>
           ))}
-          {allCategories.length === 1 && (
-            <div className="px-3 py-2 text-xs text-[var(--stone-gray)]">
-              暂无其他分类
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+        </ListboxOptions>
+      </div>
+    </Listbox>
   )
 }

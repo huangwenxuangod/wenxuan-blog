@@ -46,6 +46,9 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Heading4,
+  Heading5,
+  Heading6,
   Highlighter,
   ImagePlus,
   List,
@@ -207,6 +210,27 @@ const TEXT_OPTIONS: Array<{
     apply: (editor) => editor.chain().focus().setHeading({ level: 3 }).run(),
   },
   {
+    id: 'h4',
+    label: '标题 4',
+    icon: <Heading4 className="h-4 w-4" />,
+    isActive: (editor) => editor.isActive('heading', { level: 4 }),
+    apply: (editor) => editor.chain().focus().setHeading({ level: 4 }).run(),
+  },
+  {
+    id: 'h5',
+    label: '标题 5',
+    icon: <Heading5 className="h-4 w-4" />,
+    isActive: (editor) => editor.isActive('heading', { level: 5 }),
+    apply: (editor) => editor.chain().focus().setHeading({ level: 5 }).run(),
+  },
+  {
+    id: 'h6',
+    label: '标题 6',
+    icon: <Heading6 className="h-4 w-4" />,
+    isActive: (editor) => editor.isActive('heading', { level: 6 }),
+    apply: (editor) => editor.chain().focus().setHeading({ level: 6 }).run(),
+  },
+  {
     id: 'bullet',
     label: '项目列表',
     icon: <List className="h-4 w-4" />,
@@ -280,8 +304,12 @@ export type {
 
 export const suggestionItems = createSuggestionItems([
   { title: '正文', description: '切回普通段落继续写作。', searchTerms: ['text', 'paragraph', 'p'], icon: <CommandIcon label="T" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).setParagraph().run() } },
+  { title: '一级标题', description: '插入文章主标题或章节标题。', searchTerms: ['heading', 'h1', 'title'], icon: <CommandIcon label="H1" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).setHeading({ level: 1 }).run() } },
   { title: '二级标题', description: '插入中等层级的小节标题。', searchTerms: ['heading', 'h2', 'subtitle'], icon: <CommandIcon label="H2" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).setHeading({ level: 2 }).run() } },
   { title: '三级标题', description: '插入更细一级的小标题。', searchTerms: ['heading', 'h3', 'small'], icon: <CommandIcon label="H3" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).setHeading({ level: 3 }).run() } },
+  { title: '四级标题', description: '插入更深一层的结构标题。', searchTerms: ['heading', 'h4'], icon: <CommandIcon label="H4" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).setHeading({ level: 4 }).run() } },
+  { title: '五级标题', description: '插入辅助层级的小标题。', searchTerms: ['heading', 'h5'], icon: <CommandIcon label="H5" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).setHeading({ level: 5 }).run() } },
+  { title: '六级标题', description: '插入最细粒度的标题。', searchTerms: ['heading', 'h6'], icon: <CommandIcon label="H6" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).setHeading({ level: 6 }).run() } },
   { title: '项目列表', description: '创建无序列表。', searchTerms: ['bullet', 'list', 'unordered'], icon: <CommandIcon label="•" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).toggleBulletList().run() } },
   { title: '编号列表', description: '创建带顺序的编号列表。', searchTerms: ['ordered', 'list', 'number'], icon: <CommandIcon label="1." />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).toggleOrderedList().run() } },
   { title: '待办列表', description: '插入可以勾选的任务清单。', searchTerms: ['todo', 'task', 'checkbox'], icon: <CommandIcon label="[]" />, command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).toggleTaskList().run() } },
@@ -382,7 +410,7 @@ export interface EditorExtensionOptions {
 
 export function createEditorExtensions(options: EditorExtensionOptions = {}) {
   return [
-    StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+    StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] } }),
     TextStyle,
     Color,
     HighlightExtension,

@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
   const result = await runAiEditorAgent({
     userMessage,
     history: history
-      .filter((item) => item.role === 'user' || item.role === 'assistant')
+      .filter((item): item is typeof item & { role: 'user' | 'assistant' } => item.role === 'user' || item.role === 'assistant')
       .map((item) => ({
         role: item.role,
         content: item.content,
@@ -133,15 +133,18 @@ export async function POST(req: NextRequest) {
         error: '图片存储未配置，无法自动插图',
       }
     } else {
-      const plannedImages = Array.isArray(result.tool.payload?.images)
+      const imagePayload = result.tool.payload && 'images' in result.tool.payload
         ? result.tool.payload.images
+        : null
+      const plannedImages = Array.isArray(imagePayload)
+        ? imagePayload
         : []
 
       const generatedImages = []
       for (const item of plannedImages.slice(0, 6)) {
         const generated = await generateEditorImage({
           action: 'custom',
-          prompt: item.prompt,
+          userPrompt: item.prompt,
           articleTitle: body.title,
           contextText: item.reason,
           aspectRatio: item.aspectRatio,
@@ -179,12 +182,15 @@ export async function POST(req: NextRequest) {
   })
 
   if (result.tool && result.tool.name !== 'reply_only') {
+    const toolPayload = responsePayload.tool && typeof responsePayload.tool === 'object' && 'payload' in responsePayload.tool
+      ? (responsePayload.tool as { payload?: unknown }).payload
+      : null
     await appendAiArticleMessage(db, {
       threadId: thread.id,
       role: 'tool',
       content: result.tool.name,
       toolName: result.tool.name,
-      toolPayload: JSON.stringify(responsePayload.tool?.payload || null),
+      toolPayload: JSON.stringify(toolPayload || null),
     })
   }
 

@@ -22,6 +22,9 @@
 
 - 前台、后台都能编辑，所见即所得，接近飞书 / Notion 的写作体验
 - 四套首页主题，移动端友好，开箱即用
+- **全新编辑器目录导轨 (Table of Contents)**：实时解析文档结构，自动生成带层级编号的目录，支持双向滚动高亮与平滑锚点跳转，状态持久化保存
+- **基于 Headless UI 的无障碍交互重构**：所有下拉菜单、弹窗、弹出层均采用 Headless UI 重构，提供顺滑的过渡动画、完美的键盘导航和焦点管理
+- **Claude 极简美学设计规范**：深度定制的温暖羊皮纸色调、Anthropic Serif 衬线体字形与极简环形投影，带来静谧、专注的写作与阅读体验
 - Bubble Menu + Ask AI，选中文本就能改写、润色、扩写、翻译
 - AI 自动处理摘要、标签、SEO slug、封面图
 - AI 生图模型和模板配置、最近生成记录、插入和替换工作流
@@ -136,6 +139,8 @@ npm run preview
 - Next.js 16
 - React 19
 - TypeScript
+- Tailwind CSS v4 (新一代高速样式引擎)
+- Headless UI (@headlessui/react 无障碍交互组件)
 - OpenNext for Cloudflare
 - Cloudflare Workers
 - Cloudflare D1

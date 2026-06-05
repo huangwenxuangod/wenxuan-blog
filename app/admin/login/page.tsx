@@ -52,22 +52,19 @@ function AdminLoginForm() {
   return (
     <div className="min-h-screen bg-[var(--editor-app-bg)] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#1f6f59] text-white text-xl font-bold mb-4">
-            乔
-          </div>
+        {/* Header */}
+        <div className="mb-12 text-center">
           <h1 className="text-2xl font-bold text-[var(--editor-ink)]">文轩</h1>
-          <p className="text-sm text-[var(--editor-muted)] mt-1">管理后台</p>
+          <p className="mt-2 text-sm text-[var(--editor-muted)]">管理后台</p>
         </div>
 
         {/* 登录表单 */}
-        <div className="bg-[var(--editor-panel)] rounded-2xl border border-[var(--editor-line)] shadow-[0_8px_28px_rgba(37,32,24,0.08)] p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <form onSubmit={handleSubmit} className="space-y-8">
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-[var(--editor-ink)] mb-2"
+                className="mb-3 block text-[11px] font-semibold tracking-[0.16em] text-[var(--editor-muted)] uppercase"
               >
                 管理密码
               </label>
@@ -82,27 +79,30 @@ function AdminLoginForm() {
                 placeholder="请输入管理密码"
                 autoFocus
                 autoComplete="current-password"
-                className="w-full border border-[var(--editor-line)] rounded-lg px-3.5 py-2.5 text-sm text-[var(--editor-ink)] bg-[var(--editor-app-bg)] outline-none transition focus:border-[#1f6f59] focus:ring-2 focus:ring-[#1f6f59]/10 placeholder:text-[var(--editor-muted)]"
+                className="w-full rounded-2xl border border-[color-mix(in_srgb,var(--editor-line)_88%,white)] bg-[color-mix(in_srgb,white_84%,var(--editor-soft))] px-4 py-3 text-sm text-[var(--editor-ink)] outline-none transition placeholder:text-[color-mix(in_srgb,var(--editor-muted)_78%,transparent)] focus:border-[color-mix(in_srgb,var(--editor-accent)_44%,white)] focus:bg-[color-mix(in_srgb,white_92%,var(--editor-soft))]"
               />
             </div>
 
             {error && (
-              <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-3 py-2">
+              <p className="border-l border-rose-300 pl-3 text-sm leading-7 text-rose-600">
                 {error}
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading || !password}
-              className="w-full bg-[#1f6f59] text-white rounded-lg py-2.5 text-sm font-semibold hover:brightness-105 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? '登录中…' : '登录'}
-            </button>
+            <div className="space-y-3">
+              <button
+                type="submit"
+                disabled={loading || !password}
+                className="flex w-full items-center justify-center rounded-full bg-[var(--editor-ink)] px-4 py-3 text-sm font-medium text-[var(--editor-app-bg)] transition hover:opacity-92 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {loading ? '登录中…' : '登录'}
+              </button>
+              <div className="text-center text-[11px] text-[var(--editor-muted)]">仅管理员可访问</div>
+            </div>
           </form>
         </div>
 
-        <p className="text-center mt-6 text-xs text-[var(--editor-muted)]">
+        <p className="mt-8 text-center text-xs text-[var(--editor-muted)]">
           <Link href="/" className="hover:text-[var(--editor-ink)] transition-colors">
             ← 返回博客首页
           </Link>

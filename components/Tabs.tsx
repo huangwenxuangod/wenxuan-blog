@@ -1,49 +1,58 @@
 'use client'
 
-import { useState, ReactNode } from 'react'
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
+import { cx } from '@/components/ui/primitives'
+import type { ReactNode } from 'react'
 
-interface Tab {
+interface TabItem {
   id: string
   label: string
   content: ReactNode
 }
 
 interface TabsProps {
-  tabs: Tab[]
+  tabs: TabItem[]
   defaultTab?: string
 }
 
 export function Tabs({ tabs, defaultTab }: TabsProps) {
-  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
-
-  const activeContent = tabs.find(t => t.id === activeTab)?.content
+  const defaultIndex = Math.max(0, tabs.findIndex((tab) => tab.id === defaultTab))
 
   return (
-    <div>
-      {/* Tab 导航 */}
-      <div className="border-b border-[var(--editor-line)] mb-6">
-        <div className="flex gap-1">
-          {tabs.map(tab => (
-            <button
+    <TabGroup defaultIndex={defaultIndex}>
+      <div className="border-b border-[var(--editor-line)] pb-1">
+        <TabList className="flex flex-wrap gap-x-5 gap-y-2">
+          {tabs.map((tab) => (
+            <Tab
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
-                activeTab === tab.id
-                  ? 'text-[var(--editor-accent)]'
-                  : 'text-[var(--editor-muted)] hover:text-[var(--editor-ink)]'
-              }`}
-            >
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--editor-accent)]" />
+              className={({ selected }) => cx(
+                'ui-tab-trigger px-0 py-2 text-sm font-medium outline-none',
+                selected && 'text-[var(--editor-accent)]',
               )}
-            </button>
+            >
+              {({ selected }) => (
+                <>
+                  {tab.label}
+                  <span
+                    className={cx(
+                      'absolute inset-x-0 bottom-0 h-px bg-transparent transition-colors',
+                      selected && 'bg-[var(--editor-accent)]',
+                    )}
+                  />
+                </>
+              )}
+            </Tab>
           ))}
-        </div>
+        </TabList>
       </div>
 
-      {/* Tab 内容 */}
-      <div>{activeContent}</div>
-    </div>
+      <TabPanels className="pt-6">
+        {tabs.map((tab) => (
+          <TabPanel key={tab.id}>
+            {tab.content}
+          </TabPanel>
+        ))}
+      </TabPanels>
+    </TabGroup>
   )
 }

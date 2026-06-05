@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, Check } from 'lucide-react'
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react'
+import { Check, ChevronDown } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { cx } from '@/components/ui/primitives'
 
 interface DropdownOption {
   value: string
@@ -29,140 +31,91 @@ export function Dropdown({
   disabled = false,
   menuPlacement = 'bottom',
 }: DropdownProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [query, setQuery] = useState('')
 
-  const selectedOption = options.find(opt => opt.value === value)
+  const selectedOption = options.find((option) => option.value === value) || null
 
-  const filteredOptions = options.filter(opt =>
-    `${opt.label} ${opt.searchText || ''}`.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredOptions = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    if (!keyword) return options
+    return options.filter((option) => (
+      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(keyword)
+    ))
+  }, [options, query])
 
-  // 点击外部关闭
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-        setSearchQuery('')
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      // 自动聚焦搜索框
-      setTimeout(() => searchInputRef.current?.focus(), 0)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen])
-
-  // ESC 键关闭
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false)
-        setSearchQuery('')
-      }
-    }
-
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen])
-
-  const handleSelect = (optionValue: string) => {
-    onChange(optionValue)
-    setIsOpen(false)
-    setSearchQuery('')
-  }
+  const searchEnabled = options.length > 5
 
   return (
-    <div ref={dropdownRef} className={`relative ${className}`}>
-      {/* 触发按钮 */}
-      <button
-        type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
-        className={`
-          w-full px-3 py-2 rounded-lg border text-sm text-left
-          flex items-center justify-between gap-2
-          transition-colors
-          ${disabled
-            ? 'bg-[var(--editor-soft)] text-[var(--stone-gray)] cursor-not-allowed'
-            : 'bg-[var(--background)] border-[var(--editor-line)] text-[var(--editor-ink)] hover:border-[var(--editor-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--editor-accent)]/20'
-          }
-        `}
-      >
-        <span
-          className={selectedOption ? '' : 'text-[var(--editor-muted)]'}
-          title={selectedOption?.title}
-        >
-          {selectedOption?.label || placeholder}
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 text-[var(--stone-gray)] transition-transform ${
-            isOpen ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
+    <Combobox
+      value={value}
+      onChange={(nextValue: string | null) => {
+        if (typeof nextValue === 'string') onChange(nextValue)
+      }}
+      disabled={disabled}
+      nullable
+    >
+      <div className={cx('relative', className)}>
+        <div className={cx(
+          'ui-control rounded-lg px-3',
+          disabled && 'ui-control-disabled',
+        )}>
+          <div className="flex min-h-[2.25rem] items-center gap-2">
+            <ComboboxInput
+              aria-label={placeholder}
+              displayValue={() => selectedOption?.label || ''}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={selectedOption ? undefined : placeholder}
+              title={selectedOption?.title}
+              className="h-full flex-1 border-0 bg-transparent p-0 text-sm text-[var(--editor-ink)] outline-none placeholder:text-[var(--editor-muted)]"
+            />
+            <ComboboxButton className="flex h-8 w-5 cursor-pointer items-center justify-center text-[var(--stone-gray)]">
+              <ChevronDown className="h-4 w-4" />
+            </ComboboxButton>
+          </div>
+        </div>
 
-      {/* 下拉菜单 */}
-      {isOpen && (
-        <div
-          className={`absolute z-50 w-full overflow-hidden rounded-lg border border-[var(--editor-line)] bg-[var(--editor-panel)] shadow-lg ${
-            menuPlacement === 'top' ? 'bottom-full mb-1' : 'mt-1'
-          }`}
-        >
-          {/* 搜索框 */}
-          {options.length > 5 && (
-            <div className="p-2 border-b border-[var(--editor-line)]">
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索..."
-                className="w-full px-3 py-1.5 text-sm rounded border border-[var(--editor-line)] bg-[var(--background)] text-[var(--editor-ink)] placeholder:text-[var(--editor-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--editor-accent)]/20"
-              />
-            </div>
+        <ComboboxOptions
+          anchor={menuPlacement === 'top' ? 'top start' : 'bottom start'}
+          transition
+          className={cx(
+            'ui-popover z-50 w-[var(--input-width)] overflow-hidden rounded-lg outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0',
+            menuPlacement === 'top' ? 'mb-2' : 'mt-2',
           )}
+        >
+          {searchEnabled ? (
+            <div className="border-b border-[var(--editor-line)] p-2">
+              <div className="ui-control rounded-md px-3">
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜索..."
+                  className="h-8 w-full border-0 bg-transparent p-0 text-sm text-[var(--editor-ink)] outline-none placeholder:text-[var(--editor-muted)]"
+                />
+              </div>
+            </div>
+          ) : null}
 
-          {/* 选项列表 */}
-          <div className="max-h-60 overflow-y-auto">
+          <div className="max-h-60 overflow-y-auto py-1">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-[var(--editor-muted)] text-center">
+              <div className="px-3 py-2 text-center text-sm text-[var(--editor-muted)]">
                 无匹配结果
               </div>
             ) : (
               filteredOptions.map((option) => (
-                <button
+                <ComboboxOption
                   key={option.value}
-                  type="button"
-                  onClick={() => handleSelect(option.value)}
+                  value={option.value}
                   title={option.title}
-                  className={`
-                    w-full px-3 py-2 text-sm text-left
-                    flex items-center justify-between gap-2
-                    transition-colors
-                    ${option.value === value
-                      ? 'bg-[var(--editor-accent)]/10 text-[var(--editor-accent)]'
-                      : 'text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]'
-                    }
-                  `}
+                  className="group flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-[var(--editor-ink)] transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_34%,transparent)] data-[selected]:text-[var(--editor-accent)]"
                 >
                   <span>{option.label}</span>
-                  {option.value === value && (
-                    <Check className="w-4 h-4 text-[var(--editor-accent)]" />
-                  )}
-                </button>
+                  <Check className="h-4 w-4 shrink-0 opacity-0 transition group-data-[selected]:opacity-100" />
+                </ComboboxOption>
               ))
             )}
           </div>
-        </div>
-      )}
-    </div>
+        </ComboboxOptions>
+      </div>
+    </Combobox>
   )
 }

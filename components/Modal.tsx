@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import { X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { cx } from '@/components/ui/primitives'
 
 interface ModalProps {
   isOpen: boolean
@@ -26,37 +28,20 @@ export function Modal({
   type = 'info',
   closeOnConfirm = true,
 }: ModalProps) {
-  const modalRef = useRef<HTMLDivElement>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!isOpen) return
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [isOpen, onClose])
-
-  useEffect(() => {
-    if (!isOpen) {
-      setSubmitting(false)
-    }
+    if (!isOpen) setSubmitting(false)
   }, [isOpen])
 
-  if (!isOpen) return null
-
-  const buttonColor = {
-    danger: 'bg-rose-500 hover:bg-rose-600 text-white',
-    warning: 'bg-amber-500 hover:bg-amber-600 text-white',
-    info: 'bg-[var(--editor-accent)] hover:brightness-105 text-white',
+  const confirmTone = {
+    danger: 'bg-rose-500 text-white hover:bg-rose-600',
+    warning: 'bg-amber-500 text-white hover:bg-amber-600',
+    info: 'bg-[var(--editor-accent)] text-[var(--editor-accent-ink)] hover:brightness-105',
   }[type]
 
   const handleConfirm = async () => {
     if (!onConfirm || submitting) return
-
     setSubmitting(true)
     try {
       const result = await onConfirm()
@@ -69,60 +54,57 @@ export function Modal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !submitting) onClose()
-      }}
-    >
-      <div
-        ref={modalRef}
-        className="bg-[var(--editor-panel)] rounded-lg shadow-xl max-w-md w-full animate-in zoom-in-95 duration-200"
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between p-6 pb-4">
-          <h3 className="text-lg font-semibold text-[var(--editor-ink)]">
-            {title}
-          </h3>
-          <button
-            onClick={onClose}
-            disabled={submitting}
-            className="text-[var(--stone-gray)] hover:text-[var(--editor-ink)] transition-colors"
-            aria-label="关闭"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={isOpen} onClose={submitting ? () => {} : onClose} className="relative z-50">
+      <DialogBackdrop className="fixed inset-0 bg-black/45 transition duration-200 data-[closed]:opacity-0" />
 
-        {/* Body */}
-        {description && (
-          <div className="px-6 pb-6">
-            <p className="text-sm text-[var(--editor-muted)]">
-              {description}
-            </p>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-[var(--editor-panel)] rounded-b-lg">
-          <button
-            onClick={onClose}
-            disabled={submitting}
-            className="px-4 py-2 text-sm font-medium text-[var(--editor-muted)] hover:text-[var(--editor-ink)] transition-colors"
-          >
-            {cancelText}
-          </button>
-          {onConfirm && (
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="ui-modal-panel w-full max-w-md rounded-2xl transition duration-200 data-[closed]:scale-95 data-[closed]:opacity-0">
+          <div className="flex items-start justify-between gap-4 px-6 pb-4 pt-6">
+            <DialogTitle as="h3" className="text-lg font-semibold text-[var(--editor-ink)]">
+              {title}
+            </DialogTitle>
             <button
-              onClick={handleConfirm}
+              type="button"
+              onClick={onClose}
               disabled={submitting}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${buttonColor}`}
+              className="editor-quiet-icon-button h-8 w-8 shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="关闭"
             >
-              {submitting ? '处理中…' : confirmText}
+              <X className="h-4 w-4" />
             </button>
-          )}
-        </div>
+          </div>
+
+          {description ? (
+            <div className="px-6 pb-6">
+              <p className="text-sm leading-7 text-[var(--editor-muted)]">{description}</p>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-end gap-3 px-6 pb-6">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="text-sm text-[var(--editor-muted)] transition hover:text-[var(--editor-ink)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {cancelText}
+            </button>
+            {onConfirm ? (
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={submitting}
+                className={cx(
+                  'rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40',
+                  confirmTone,
+                )}
+              >
+                {submitting ? '处理中…' : confirmText}
+              </button>
+            ) : null}
+          </div>
+        </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   )
 }

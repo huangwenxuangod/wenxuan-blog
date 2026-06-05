@@ -10,19 +10,25 @@ export default async function EditorPage({
 }: {
   searchParams: Promise<{ edit?: string; slug?: string; new?: string }>
 }) {
+  const params = await searchParams
+  const allowLocalPreview =
+    process.env.NODE_ENV === 'development'
+    && params.new === '1'
+    && process.env.ENABLE_EDITOR_DEV_PREVIEW === '1'
+
   // 鉴权：只有登录的管理员才能访问编辑器
   const cookieStore = await cookies()
   const cookieValue = cookieStore.get(COOKIE_NAME)?.value
-  const isAuthenticated = await isAdminAuthenticated(cookieValue)
+  const isAuthenticated = allowLocalPreview
+    ? true
+    : await isAdminAuthenticated(cookieValue)
 
   if (!isAuthenticated) {
-    const params = await searchParams
     const editSlug = params.edit ?? params.slug
     const editParam = editSlug ? `?edit=${editSlug}` : params.new === '1' ? '?new=1' : ''
     redirect(`/admin/login?redirect_to=${encodeURIComponent(`/editor${editParam}`)}`)
   }
 
-  const params = await searchParams
   const edit = params.edit ?? params.slug
   const isNew = params.new === '1'
 

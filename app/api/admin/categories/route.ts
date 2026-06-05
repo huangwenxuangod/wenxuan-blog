@@ -35,6 +35,10 @@ export async function GET(req: NextRequest) {
     const categories = await getCategories(route.db)
     return jsonOk({ categories })
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (message.includes('no such table: categories')) {
+      return jsonOk({ categories: [] })
+    }
     return jsonError(String(err), 500)
   }
 }

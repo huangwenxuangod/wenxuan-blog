@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, RefreshCw, Send, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Loader2, Mic, Send } from 'lucide-react'
 import type { EditorInstance, JSONContent } from 'novel'
 import { useToast } from '@/components/Toast'
 import { insertGeneratedImageAtPosition } from '@/lib/editor-file-upload'
@@ -120,12 +120,6 @@ export function AIPanel({
   const listRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
-  const suggestedPrompts = useMemo(() => ([
-    '帮我润色这段文章的开头',
-    '给这篇文章补一个更有力的结尾',
-    '为这篇文章自动配图',
-  ]), [])
-
   const loadHistory = useCallback(async () => {
     try {
       const search = new URLSearchParams({
@@ -150,7 +144,9 @@ export function AIPanel({
       }
 
       const nextMessages = (data.messages || [])
-        .filter((item) => item.role === 'user' || item.role === 'assistant')
+        .filter((item): item is { id: number; role: 'user' | 'assistant'; content: string } => (
+          item.role === 'user' || item.role === 'assistant'
+        ))
         .map((item) => ({
           id: `db-${item.id}`,
           role: item.role,
@@ -341,67 +337,39 @@ export function AIPanel({
     return (
       <div className="flex h-full items-center justify-center text-sm text-[var(--editor-muted)]">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        载入 AI 会话中…
+        载入中
       </div>
     )
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--background)]">
-      <div className="flex items-center justify-between border-b border-[var(--editor-line)] px-4 py-3">
-        <div>
-          <div className="text-sm font-semibold text-[var(--editor-ink)]">AI 助手</div>
-          <div className="text-xs text-[var(--editor-muted)]">仅作用于当前文章</div>
-        </div>
-        <button
-          type="button"
-          onClick={() => void resetThread()}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--editor-muted)] transition hover:bg-[var(--editor-soft)] hover:text-[var(--editor-ink)]"
-          title="清空当前文章会话"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
+      <div className="px-5 py-4">
+        <div className="text-sm font-medium text-[var(--editor-ink)]">Assistant</div>
       </div>
 
-      <div ref={listRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div ref={listRef} className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-6">
         {messages.length === 0 ? (
-          <div className="space-y-4 pt-6">
-            <div className="rounded-2xl border border-dashed border-[var(--editor-line)] bg-[var(--editor-panel)]/70 px-4 py-5 text-sm leading-6 text-[var(--editor-muted)]">
-              这里是当前文章专属的 AI 对话框。你可以让它润色、补写、改段落，或者直接为文章自动配图。
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {suggestedPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => {
-                    setInput(prompt)
-                    textareaRef.current?.focus()
-                  }}
-                  className="rounded-full border border-[var(--editor-line)] bg-white px-3 py-1.5 text-xs text-[var(--editor-ink)] transition hover:border-[var(--editor-accent)]/40 hover:bg-[var(--editor-soft)]"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+          <div className="pt-2 text-sm leading-7 text-[var(--editor-muted)]">
+            从这里直接和 AI 对话，它会基于当前文章上下文回答。
           </div>
         ) : (
           messages.map((message) => (
             <div
               key={message.id}
-              className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                className={`max-w-[88%] text-sm leading-7 ${
                   message.role === 'user'
-                    ? 'bg-[var(--editor-accent)] text-white'
-                    : 'border border-[var(--editor-line)] bg-white text-[var(--editor-ink)]'
+                    ? 'rounded-2xl bg-[color-mix(in_srgb,var(--editor-line)_55%,white)] px-4 py-3 text-[var(--editor-ink)]'
+                    : 'px-0 py-0 text-[var(--editor-ink)]'
                 }`}
               >
-                {message.content || (
-                  message.id === streamingId
-                    ? <span className="text-[var(--editor-muted)]">AI 正在思考…</span>
-                    : ''
+                {message.role === 'assistant' && !message.content && message.id === streamingId ? (
+                  <span className="text-[var(--editor-muted)]">AI 正在思考…</span>
+                ) : (
+                  message.content
                 )}
               </div>
             </div>
@@ -409,26 +377,14 @@ export function AIPanel({
         )}
       </div>
 
-      <div className="border-t border-[var(--editor-line)] px-4 py-4">
-        <div className="mb-3 flex flex-wrap gap-2">
-          {suggestedPrompts.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              onClick={() => void sendMessage(prompt)}
-              disabled={loading || !editor}
-              className="rounded-full border border-[var(--editor-line)] bg-white px-3 py-1.5 text-xs text-[var(--editor-ink)] transition hover:border-[var(--editor-accent)]/40 hover:bg-[var(--editor-soft)] disabled:opacity-50"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
+      <div className="px-5 pb-5">
+        <div className="rounded-[28px] border border-[color-mix(in_srgb,var(--editor-line)_88%,white)] bg-[color-mix(in_srgb,white_82%,var(--editor-soft))] px-4 py-3 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+          <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--editor-line)_38%,white)] px-3 py-2 text-sm text-[var(--editor-ink)]">
+            <span className="shrink-0">📄</span>
+            <span className="truncate">{title.trim() || '当前文章'}</span>
+          </div>
 
-        <div className="rounded-[24px] border border-[var(--editor-line)] bg-white p-2 shadow-sm">
-          <div className="flex items-end gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[var(--editor-soft)] text-[var(--editor-accent)]">
-              <Sparkles className="h-4 w-4" />
-            </div>
+          <div className="flex items-end gap-3">
             <textarea
               ref={textareaRef}
               rows={1}
@@ -440,22 +396,37 @@ export function AIPanel({
                   void sendMessage()
                 }
               }}
-              placeholder="告诉 AI 你想怎么改这篇文章…"
-              className="max-h-40 min-h-[40px] flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-6 text-[var(--editor-ink)] outline-none"
+              placeholder="消息"
+              className="max-h-40 min-h-[84px] flex-1 resize-none border-0 bg-transparent py-1 text-base leading-7 text-[var(--editor-ink)] outline-none placeholder:text-[color-mix(in_srgb,var(--editor-muted)_74%,transparent)]"
             />
+          </div>
+
+          <div className="mt-3 flex items-center justify-end gap-4 text-[var(--editor-ink)]">
+            <button
+              type="button"
+              onClick={() => void resetThread()}
+              className="editor-quiet-icon-button h-9 w-9 shrink-0 cursor-pointer"
+              title="清空当前文章会话"
+            >
+              <span className="text-xl leading-none">∞</span>
+            </button>
+            <button
+              type="button"
+              disabled
+              className="editor-quiet-icon-button h-9 w-9 shrink-0 cursor-not-allowed opacity-45"
+              title="语音输入"
+            >
+              <Mic className="h-4 w-4" />
+            </button>
             <button
               type="button"
               onClick={() => void sendMessage()}
               disabled={loading || !input.trim() || !editor}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--editor-accent)] text-white transition hover:brightness-105 disabled:opacity-50"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--editor-line)_62%,white)] text-[var(--editor-ink)] transition hover:bg-[color-mix(in_srgb,var(--editor-line)_80%,white)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </div>
-        </div>
-
-        <div className="mt-2 text-[11px] text-[var(--editor-muted)]">
-          AI 默认优先局部编辑，也可以自动给全文规划并插入多张配图。
         </div>
       </div>
     </div>

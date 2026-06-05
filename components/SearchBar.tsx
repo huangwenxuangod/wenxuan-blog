@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
+import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
+import { cx } from '@/components/ui/primitives'
 
 interface SearchResult {
   slug: string
@@ -26,15 +27,14 @@ export function SearchBar() {
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50)
-      document.body.style.overflow = 'hidden'
+      // Focus input after dialog opens and animation starts
+      const timer = setTimeout(() => inputRef.current?.focus(), 80)
+      return () => clearTimeout(timer)
     } else {
       setQuery('')
       setResults([])
       setSelectedIndex(0)
-      document.body.style.overflow = ''
     }
-    return () => { document.body.style.overflow = '' }
   }, [isOpen])
 
   useEffect(() => {
@@ -43,13 +43,10 @@ export function SearchBar() {
         e.preventDefault()
         setIsOpen(true)
       }
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false)
-      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen])
+  }, [])
 
   useEffect(() => {
     const trimmed = query.trim()
@@ -70,7 +67,7 @@ export function SearchBar() {
       } finally {
         setLoading(false)
       }
-    }, 300)
+    }, 250)
 
     return () => clearTimeout(timer)
   }, [query])
@@ -89,10 +86,10 @@ export function SearchBar() {
   const handleKeyNav = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setSelectedIndex(i => Math.min(i + 1, results.length - 1))
+      setSelectedIndex((i) => Math.min(i + 1, results.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setSelectedIndex(i => Math.max(i - 1, 0))
+      setSelectedIndex((i) => Math.max(i - 1, 0))
     }
   }
 
@@ -110,127 +107,129 @@ export function SearchBar() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="p-2 text-[var(--editor-muted)] hover:text-[var(--editor-ink)] transition-colors"
+        className="p-2 text-[var(--editor-muted)] hover:text-[var(--editor-ink)] transition-colors cursor-pointer"
         title="搜索 (⌘K)"
         aria-label="搜索"
       >
         <Search className="w-[18px] h-[18px]" />
       </button>
 
-      {isOpen && createPortal(
-        <div
-          className="fixed inset-0 z-[100]"
-          onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false) }}
-        >
-          {/* 遮罩 */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setIsOpen(false)} />
+      <Dialog open={isOpen} onClose={() => setIsOpen(false)} className="relative z-50">
+        {/* Backdrop overlay */}
+        <DialogBackdrop className="fixed inset-0 bg-black/45 backdrop-blur-[2px] transition duration-200 data-[closed]:opacity-0" />
 
-          {/* 搜索面板 */}
-          <div className="relative mx-auto mt-[12vh] sm:mt-[18vh] w-[92vw] max-w-[560px]">
-            <div className="bg-white rounded-2xl shadow-[0_25px_60px_-12px_rgba(0,0,0,0.25)] border border-black/[0.06] overflow-hidden">
-
-              {/* 输入区 */}
-              <form onSubmit={handleSubmit} onKeyDown={handleKeyNav}>
-                <div className="flex items-center gap-3 px-5 py-4">
-                  <Search className="w-5 h-5 text-[var(--editor-accent)] flex-shrink-0" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="搜索文章..."
-                    className="flex-1 text-base bg-transparent outline-none placeholder:text-[var(--stone-gray)]/60 text-[var(--editor-ink)]"
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  {loading ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin text-[var(--editor-accent)] flex-shrink-0">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
-                  ) : (
-                    <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] text-[var(--stone-gray)] bg-[var(--editor-soft)] border border-[var(--editor-line)] rounded font-mono">
-                      ESC
-                    </kbd>
-                  )}
-                </div>
-              </form>
-
-              {/* 分割线 */}
-              {(results.length > 0 || (query.trim() && !loading)) && (
-                <div className="border-t border-[var(--editor-line)]" />
+        {/* Modal container */}
+        <div className="fixed inset-0 flex items-start justify-center p-4 pt-[12vh] sm:pt-[18vh] overflow-y-auto">
+          <DialogPanel className="ui-modal-panel w-full max-w-[560px] rounded-2xl overflow-hidden transition duration-200 data-[closed]:scale-95 data-[closed]:opacity-0 flex flex-col">
+            
+            {/* Search Input Area */}
+            <form onSubmit={handleSubmit} onKeyDown={handleKeyNav} className="flex items-center gap-3.5 px-5 py-4">
+              <Search className="w-5 h-5 text-[var(--editor-accent)] shrink-0" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="搜索文章..."
+                className="flex-1 text-[15px] bg-transparent outline-none placeholder:text-[var(--stone-gray)]/50 text-[var(--editor-ink)] py-0.5"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {loading ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin text-[var(--editor-accent)] shrink-0">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              ) : (
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] text-[var(--stone-gray)] bg-[var(--editor-soft)] border border-[var(--editor-line)] rounded font-mono">
+                  ESC
+                </kbd>
               )}
+            </form>
 
-              {/* 搜索结果 */}
-              {results.length > 0 && (
-                <div className="max-h-[50vh] overflow-y-auto py-2">
-                  {results.map((result, index) => (
+            {/* Divider line */}
+            {(results.length > 0 || (query.trim() && !loading)) && (
+              <div className="border-t border-[var(--editor-line)]" />
+            )}
+
+            {/* Search Results */}
+            {results.length > 0 && (
+              <div className="max-h-[45vh] overflow-y-auto py-2">
+                {results.map((result, index) => {
+                  const isSelected = index === selectedIndex
+                  return (
                     <Link
                       key={result.slug}
                       href={`/${result.slug}`}
                       onClick={() => setIsOpen(false)}
-                      className={`block mx-2 px-3 py-2.5 rounded-lg transition-colors ${
-                        index === selectedIndex
-                          ? 'bg-[var(--editor-accent)]/[0.06]'
-                          : 'hover:bg-[var(--editor-panel)]'
-                      }`}
+                      className={cx(
+                        'block mx-2.5 px-3.5 py-3 rounded-xl transition-all duration-150',
+                        isSelected
+                          ? 'bg-[color-mix(in_srgb,var(--editor-accent)_6%,transparent)]'
+                          : 'hover:bg-[var(--editor-soft)]/40'
+                      )}
                       onMouseEnter={() => setSelectedIndex(index)}
                     >
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className="text-sm font-medium text-[var(--editor-ink)] flex-1 line-clamp-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className={cx(
+                          'text-[14px] font-medium flex-1 line-clamp-1 transition-colors duration-150',
+                          isSelected ? 'text-[var(--editor-accent)]' : 'text-[var(--editor-ink)]'
+                        )}>
                           {result.title}
+                          {result.password && <span className="ml-1.5 text-xs text-[var(--stone-gray)] opacity-80">🔒</span>}
                         </h3>
-                        <span className="text-[11px] text-[var(--stone-gray)] tabular-nums flex-shrink-0">
+                        <span className="text-[11px] text-[var(--stone-gray)] tabular-nums shrink-0">
                           {formatDate(result.published_at)}
                         </span>
                       </div>
+                      
                       {result.description && (
-                        <p className="text-xs text-[var(--editor-muted)] line-clamp-1 leading-relaxed">
+                        <p className="text-[12px] text-[var(--editor-muted)] line-clamp-1 leading-relaxed">
                           {result.description}
                         </p>
                       )}
+                      
                       {result.category && (
-                        <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] bg-[var(--editor-accent)]/8 text-[var(--editor-accent)]">
+                        <span className="inline-block mt-1.5 px-2 py-0.5 rounded-md text-[10px] bg-[color-mix(in_srgb,var(--editor-accent)_8%,transparent)] text-[var(--editor-accent)] font-medium">
                           {result.category}
                         </span>
                       )}
                     </Link>
-                  ))}
-                </div>
-              )}
+                  )
+                })}
+              </div>
+            )}
 
-              {/* 无结果 */}
-              {query.trim() && results.length === 0 && !loading && (
-                <div className="px-5 py-10 text-center">
-                  <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-[var(--editor-soft)] flex items-center justify-center">
-                    <Search className="w-5 h-5 text-[var(--stone-gray)]" />
-                  </div>
-                  <p className="text-sm text-[var(--editor-muted)]">没有找到相关文章</p>
-                  <p className="text-xs text-[var(--stone-gray)] mt-1">试试其他关键词</p>
+            {/* Empty State (No Results) */}
+            {query.trim() && results.length === 0 && !loading && (
+              <div className="px-5 py-12 text-center">
+                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--editor-soft)]/50 flex items-center justify-center">
+                  <Search className="w-5 h-5 text-[var(--editor-muted)]" />
                 </div>
-              )}
+                <p className="text-[14px] font-medium text-[var(--editor-ink)]">没有找到相关文章</p>
+                <p className="text-[12px] text-[var(--stone-gray)] mt-1">试试其他关键词</p>
+              </div>
+            )}
 
-              {/* 底部快捷键提示 */}
-              {results.length > 0 && (
-                <div className="flex items-center gap-4 px-5 py-2.5 border-t border-[var(--editor-line)] bg-[var(--editor-panel)]/50">
-                  <div className="flex items-center gap-1.5 text-[11px] text-[var(--stone-gray)]">
-                    <kbd className="px-1 py-0.5 bg-white border border-[var(--editor-line)] rounded text-[10px] font-mono">↑↓</kbd>
-                    <span>选择</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-[var(--stone-gray)]">
-                    <kbd className="px-1 py-0.5 bg-white border border-[var(--editor-line)] rounded text-[10px] font-mono">↵</kbd>
-                    <span>打开</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-[var(--stone-gray)]">
-                    <kbd className="px-1 py-0.5 bg-white border border-[var(--editor-line)] rounded text-[10px] font-mono">esc</kbd>
-                    <span>关闭</span>
-                  </div>
+            {/* Footer keyboard shortcuts */}
+            {results.length > 0 && (
+              <div className="flex items-center gap-4 px-5 py-3 border-t border-[var(--editor-line)] bg-[var(--editor-soft)]/10">
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--stone-gray)]">
+                  <kbd className="px-1.5 py-0.5 bg-[var(--editor-panel)] border border-[var(--editor-line)] rounded text-[10px] font-mono shadow-sm">↑↓</kbd>
+                  <span>选择</span>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--stone-gray)]">
+                  <kbd className="px-1.5 py-0.5 bg-[var(--editor-panel)] border border-[var(--editor-line)] rounded text-[10px] font-mono shadow-sm">↵</kbd>
+                  <span>打开</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--stone-gray)]">
+                  <kbd className="px-1.5 py-0.5 bg-[var(--editor-panel)] border border-[var(--editor-line)] rounded text-[10px] font-mono shadow-sm">esc</kbd>
+                  <span>关闭</span>
+                </div>
+              </div>
+            )}
+          </DialogPanel>
+        </div>
+      </Dialog>
     </>
   )
 }

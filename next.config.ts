@@ -7,6 +7,8 @@ if (process.env.ENABLE_OPENNEXT_DEV === "1") {
 }
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['127.0.0.1'],
+
   // 图片优化（Cloudflare 有自己的优化）
   images: {
     unoptimized: true,

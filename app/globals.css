@@ -17,6 +17,13 @@
   --editor-code-border: #e8e6dc;
   --editor-quote-bg: #faf9f5;
   --editor-selection: #cfe6ff;
+  --editor-toc-hover-bg: color-mix(in srgb, var(--editor-soft) 52%, transparent);
+  --editor-toc-active-bg: color-mix(in srgb, var(--editor-selection) 88%, transparent);
+  --editor-toc-active-ink: color-mix(in srgb, var(--editor-link) 78%, var(--editor-ink));
+  --editor-toc-caret: color-mix(in srgb, var(--editor-muted) 82%, transparent);
+  --editor-toc-bullet: color-mix(in srgb, var(--editor-muted) 34%, transparent);
+  --editor-toc-level-3: color-mix(in srgb, var(--editor-ink) 88%, transparent);
+  --editor-toc-level-4: color-mix(in srgb, var(--editor-muted) 96%, transparent);
   --stone-gray: #87867f;
   --border-warm: #e8e6dc;
   --coral: #d97757;
@@ -52,6 +59,13 @@
     --editor-code-border: #2a3243;
     --editor-quote-bg: #151a23;
     --editor-selection: rgba(166, 190, 255, 0.35);
+    --editor-toc-hover-bg: color-mix(in srgb, var(--editor-soft) 56%, transparent);
+    --editor-toc-active-bg: color-mix(in srgb, var(--editor-selection) 78%, transparent);
+    --editor-toc-active-ink: color-mix(in srgb, var(--editor-link) 72%, var(--editor-ink));
+    --editor-toc-caret: color-mix(in srgb, var(--editor-muted) 86%, transparent);
+    --editor-toc-bullet: color-mix(in srgb, var(--editor-muted) 42%, transparent);
+    --editor-toc-level-3: color-mix(in srgb, var(--editor-ink) 88%, transparent);
+    --editor-toc-level-4: color-mix(in srgb, var(--editor-muted) 98%, transparent);
     --stone-gray: #8f9ab0;
     --border-warm: #2a3243;
     --coral: #e08a67;
@@ -100,28 +114,28 @@ body {
 }
 
 .editor-surface {
-  min-height: calc(100vh - 13rem);
+  min-height: calc(100vh - 12rem);
 }
 
 .novel-prose {
-  min-height: calc(100vh - 13rem);
-  padding: 2.75rem 1.5rem 3rem;
+  min-height: calc(100vh - 12rem);
+  padding: 3.4rem 1.25rem 4.5rem;
   color: var(--editor-ink);
-  font-size: 1.06rem;
-  line-height: 1.9;
+  font-size: 1.04rem;
+  line-height: 2;
   outline: none;
   caret-color: var(--editor-accent);
 }
 
 @media (min-width: 640px) {
   .novel-prose {
-    padding-inline: 2.5rem;
+    padding-inline: 2.9rem;
   }
 }
 
 .editor-main-prose {
-  min-height: calc(100vh - 16rem);
-  padding: 0 0 3rem;
+  min-height: calc(100vh - 15rem);
+  padding: 0 0 4rem;
 }
 
 .inline-main-prose {
@@ -147,6 +161,232 @@ body {
   background: transparent;
 }
 
+.editor-ghost-input,
+.editor-ghost-textarea {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--editor-line) 88%, transparent);
+  background: transparent;
+  color: var(--editor-ink);
+  outline: none;
+  box-shadow: none;
+  border-radius: 0;
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+}
+
+.editor-ghost-input {
+  min-height: 2.25rem;
+  padding: 0.35rem 0 0.45rem;
+}
+
+.editor-ghost-textarea {
+  resize: none;
+  padding: 0.35rem 0 0.55rem;
+}
+
+.editor-ghost-input::placeholder,
+.editor-ghost-textarea::placeholder {
+  color: color-mix(in srgb, var(--editor-muted) 82%, transparent);
+}
+
+.editor-ghost-input:hover,
+.editor-ghost-textarea:hover {
+  border-bottom-color: color-mix(in srgb, var(--editor-muted) 24%, var(--editor-line));
+}
+
+.editor-ghost-input:focus,
+.editor-ghost-input:focus-visible,
+.editor-ghost-textarea:focus,
+.editor-ghost-textarea:focus-visible {
+  border-bottom-color: color-mix(in srgb, var(--editor-accent) 52%, var(--editor-line));
+  outline: none;
+  box-shadow: none;
+}
+
+.editor-quiet-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--editor-muted);
+  transition: color 160ms ease, opacity 160ms ease;
+}
+
+.editor-quiet-icon-button:hover {
+  color: var(--editor-ink);
+}
+
+.editor-toc-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  border-radius: 0.5rem;
+  padding: 1px 0.25rem;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.editor-toc-row:hover {
+  background: var(--editor-toc-hover-bg);
+}
+
+.editor-toc-row[data-active="true"] {
+  background: var(--editor-toc-active-bg);
+}
+
+.editor-toc-toggle {
+  color: var(--editor-toc-caret);
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.editor-toc-toggle:hover {
+  color: var(--editor-ink);
+}
+
+.editor-toc-leaf {
+  background: var(--editor-toc-bullet);
+  transition: background-color 160ms ease;
+}
+
+.editor-toc-row[data-active="true"] .editor-toc-leaf {
+  background: var(--editor-toc-active-ink);
+}
+
+.editor-toc-text {
+  color: var(--editor-ink);
+  transition: color 160ms ease;
+}
+
+.editor-toc-row:hover .editor-toc-text {
+  color: var(--editor-ink);
+}
+
+.editor-toc-row[data-active="true"] .editor-toc-text {
+  color: var(--editor-toc-active-ink);
+}
+
+.editor-toc-text[data-level="3"] {
+  color: var(--editor-toc-level-3);
+}
+
+.editor-toc-text[data-level="4"] {
+  color: var(--editor-toc-level-4);
+}
+
+.editor-quiet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--editor-muted);
+  padding: 0;
+  transition: color 160ms ease, opacity 160ms ease;
+}
+
+.editor-quiet-chip:hover {
+  color: var(--editor-ink);
+}
+
+.editor-quiet-chip[data-active="true"] {
+  color: var(--editor-ink);
+}
+
+.editor-quiet-chip[data-active="true"] .editor-quiet-chip-label {
+  border-bottom-color: color-mix(in srgb, var(--editor-accent) 46%, transparent);
+}
+
+.editor-quiet-chip-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.6rem;
+  border-bottom: 1px solid transparent;
+  transition: border-color 160ms ease;
+}
+
+.editor-rail-divider {
+  border-top: 1px solid color-mix(in srgb, var(--editor-line) 90%, transparent);
+}
+
+.editor-popover-panel {
+  border: 1px solid color-mix(in srgb, var(--editor-line) 88%, transparent);
+  background: color-mix(in srgb, var(--background) 96%, transparent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+
+.editor-popover-item {
+  display: flex;
+  width: 100%;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  color: var(--editor-ink);
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.editor-popover-item:hover,
+.editor-popover-item[data-focus] {
+  background: color-mix(in srgb, var(--editor-line) 36%, transparent);
+}
+
+.ui-control {
+  min-height: 2.25rem;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--editor-line) 88%, transparent);
+  background: color-mix(in srgb, var(--background) 100%, transparent);
+  color: var(--editor-ink);
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.ui-control:hover {
+  border-color: color-mix(in srgb, var(--editor-muted) 24%, var(--editor-line));
+}
+
+.ui-control:focus,
+.ui-control:focus-visible {
+  border-color: color-mix(in srgb, var(--editor-accent) 52%, var(--editor-line));
+  outline: none;
+  box-shadow: none;
+}
+
+.ui-control-disabled {
+  background: var(--editor-soft);
+  color: var(--stone-gray);
+  cursor: not-allowed;
+}
+
+.ui-popover {
+  border: 1px solid color-mix(in srgb, var(--editor-line) 88%, transparent);
+  background: color-mix(in srgb, var(--editor-panel) 96%, transparent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+
+.ui-modal-panel {
+  border: 1px solid color-mix(in srgb, var(--editor-line) 88%, transparent);
+  background: var(--editor-panel);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16);
+}
+
+.ui-tab-trigger {
+  position: relative;
+  display: inline-flex;
+  min-height: 2.5rem;
+  cursor: pointer;
+  align-items: center;
+  color: var(--editor-muted);
+  transition: color 160ms ease;
+}
+
+.ui-tab-trigger:hover {
+  color: var(--editor-ink);
+}
+
+.ui-tab-trigger[data-selected="true"] {
+  color: var(--editor-accent);
+}
+
 :is(.novel-prose, .rich-content) {
   color: var(--article-body);
 }
@@ -161,7 +401,10 @@ body {
 
 :is(.novel-prose, .rich-content) h1,
 :is(.novel-prose, .rich-content) h2,
-:is(.novel-prose, .rich-content) h3 {
+:is(.novel-prose, .rich-content) h3,
+:is(.novel-prose, .rich-content) h4,
+:is(.novel-prose, .rich-content) h5,
+:is(.novel-prose, .rich-content) h6 {
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.25;
@@ -178,6 +421,21 @@ body {
 
 :is(.novel-prose, .rich-content) h3 {
   font-size: clamp(1.2rem, 2vw, 1.45rem);
+}
+
+:is(.novel-prose, .rich-content) h4 {
+  font-size: clamp(1.08rem, 1.45vw, 1.22rem);
+}
+
+:is(.novel-prose, .rich-content) h5 {
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+
+:is(.novel-prose, .rich-content) h6 {
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--article-heading) 82%, var(--editor-muted));
 }
 
 :is(.novel-prose, .rich-content) p,
@@ -695,6 +953,13 @@ body {
   --editor-code-border: #d8d2c8;
   --editor-quote-bg: #f0ece6;
   --editor-selection: rgba(196, 74, 42, 0.12);
+  --editor-toc-hover-bg: color-mix(in srgb, var(--editor-soft) 56%, transparent);
+  --editor-toc-active-bg: color-mix(in srgb, var(--editor-selection) 92%, transparent);
+  --editor-toc-active-ink: color-mix(in srgb, var(--editor-link) 82%, var(--editor-ink));
+  --editor-toc-caret: color-mix(in srgb, var(--editor-muted) 84%, transparent);
+  --editor-toc-bullet: color-mix(in srgb, var(--editor-muted) 36%, transparent);
+  --editor-toc-level-3: color-mix(in srgb, var(--editor-ink) 88%, transparent);
+  --editor-toc-level-4: color-mix(in srgb, var(--editor-muted) 96%, transparent);
   --stone-gray: #9a8f88;
   --border-warm: #d8d2c8;
   --logo-font: "Noto Serif SC", Georgia, serif;
@@ -721,6 +986,13 @@ body {
   --editor-link: #4ade80;
   --editor-code-bg: #12141f;
   --editor-code-border: #2a2f48;
+  --editor-toc-hover-bg: color-mix(in srgb, var(--editor-soft) 62%, transparent);
+  --editor-toc-active-bg: color-mix(in srgb, var(--editor-selection) 72%, transparent);
+  --editor-toc-active-ink: color-mix(in srgb, var(--editor-link) 78%, var(--editor-ink));
+  --editor-toc-caret: color-mix(in srgb, var(--editor-muted) 88%, transparent);
+  --editor-toc-bullet: color-mix(in srgb, var(--editor-muted) 42%, transparent);
+  --editor-toc-level-3: color-mix(in srgb, var(--editor-ink) 88%, transparent);
+  --editor-toc-level-4: color-mix(in srgb, var(--editor-muted) 98%, transparent);
   --editor-quote-bg: #1f2240;
   --editor-selection: rgba(74, 222, 128, 0.2);
   --stone-gray: #5a6480;
