@@ -1,8 +1,136 @@
+import { loadSettings } from '../utils/settings';
+import {
+  createOperationId,
+  reportDiagnosticError,
+  writeLog,
+  type DiagnosticError,
+} from '../utils/logger';
+
 interface ProgressMessage {
   action: 'progress';
   step: 'extracting' | 'uploading' | 'creating';
   current?: number;
   total?: number;
+}
+
+interface ExtractResult {
+  success: boolean;
+  title?: string;
+  markdown?: string;
+  images?: string[];
+  url?: string;
+  error?: string;
+}
+
+interface ApiFailureDetails {
+  message: string;
+  details?: string;
+  hint?: string;
+  requestId?: string;
+}
+
+function isInjectablePage(url?: string): boolean {
+  return Boolean(url && /^(https?|file):/i.test(url));
+}
+
+function sendExtractMessage(tabId: number): Promise<ExtractResult> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, { action: 'extract' }, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve(response as ExtractResult);
+    });
+  });
+}
+
+async function extractPage(
+  tab: chrome.tabs.Tab,
+  operationId: string,
+): Promise<ExtractResult | DiagnosticError> {
+  if (!tab.id || !isInjectablePage(tab.url)) {
+    return reportDiagnosticError({
+      code: 'UNSUPPORTED_PAGE',
+      phase: 'extracting',
+      message: '当前页面不允许扩展读取内容',
+      operationId,
+      details: tab.url || 'unknown',
+      hint: '请在普通 http/https 网页中使用；Chrome 设置页、扩展页和应用商店页面无法剪藏。',
+    });
+  }
+
+  try {
+    return await sendExtractMessage(tab.id);
+  } catch (firstError) {
+    await writeLog('warn', 'CONTENT_SCRIPT_MISSING', {
+      operationId,
+      context: { tabId: tab.id, url: tab.url },
+      error: firstError,
+    });
+
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content-scripts/content.js'],
+      });
+      await writeLog('info', 'CONTENT_SCRIPT_INJECTED', {
+        operationId,
+        context: { tabId: tab.id, url: tab.url },
+      });
+      return await sendExtractMessage(tab.id);
+    } catch (retryError) {
+      return reportDiagnosticError({
+        code: 'CONTENT_SCRIPT_UNAVAILABLE',
+        phase: 'extracting',
+        message: '无法连接网页内容提取脚本',
+        operationId,
+        details: retryError instanceof Error ? retryError.message : String(retryError),
+        hint: tab.url?.startsWith('file:')
+          ? '请在扩展管理页启用“允许访问文件网址”，然后重试。'
+          : '请刷新当前网页后重试；如果仍失败，请复制诊断日志。',
+        context: { tabId: tab.id, url: tab.url },
+        error: retryError,
+      });
+    }
+  }
+}
+
+async function readApiFailure(response: Response): Promise<ApiFailureDetails> {
+  const requestId = response.headers.get('x-request-id') || undefined;
+  const headerHint = response.headers.get('x-error-hint') || undefined;
+  const text = await response.text();
+  try {
+    const data = JSON.parse(text) as {
+      error?: string | {
+        message?: string;
+        details?: string;
+        hint?: string;
+        requestId?: string;
+      };
+    };
+    if (data.error && typeof data.error === 'object') {
+      return {
+        message: data.error.message || `HTTP ${response.status}`,
+        details: data.error.details,
+        hint: data.error.hint,
+        requestId: data.error.requestId || requestId,
+      };
+    }
+    return {
+      message: typeof data.error === 'string' ? data.error : `HTTP ${response.status}`,
+      details: text.slice(0, 500),
+      hint: headerHint,
+      requestId,
+    };
+  } catch {
+    return {
+      message: `HTTP ${response.status} ${response.statusText}`,
+      details: text.slice(0, 500),
+      hint: headerHint,
+      requestId,
+    };
+  }
 }
 
 function sendProgress(step: ProgressMessage['step'], current = 0, total = 0) {
@@ -11,24 +139,23 @@ function sendProgress(step: ProgressMessage['step'], current = 0, total = 0) {
   });
 }
 
-async function getSettings(): Promise<{ apiUrl: string; apiToken: string }> {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(['apiUrl', 'apiToken'], (data) => {
-      resolve({
-        apiUrl: (data.apiUrl || '').trim().replace(/\/+$/, ''),
-        apiToken: (data.apiToken || '').trim(),
-      });
-    });
-  });
-}
-
-async function downloadImage(url: string): Promise<Blob | null> {
+async function downloadImage(url: string, operationId: string): Promise<Blob | null> {
   try {
     const resp = await fetch(url, { redirect: 'follow' });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      await writeLog('warn', 'IMAGE_DOWNLOAD_HTTP_ERROR', {
+        operationId,
+        context: { url, status: resp.status },
+      });
+      return null;
+    }
     return await resp.blob();
   } catch (err) {
-    console.warn('Failed to download image:', url, err);
+    await writeLog('warn', 'IMAGE_DOWNLOAD_FAILED', {
+      operationId,
+      context: { url },
+      error: err,
+    });
     return null;
   }
 }
@@ -135,48 +262,79 @@ async function runConcurrentTasks<T, R>(
 }
 
 async function clipPage(options: { title?: string; category?: string; status?: string }) {
+  const operationId = createOperationId();
   const { title: customTitle, category, status } = options;
+  await writeLog('info', 'CLIP_STARTED', {
+    operationId,
+    context: { category, status },
+  });
 
-  const { apiUrl, apiToken } = await getSettings();
+  const settings = await loadSettings();
+  const apiUrl = settings.apiUrl.trim().replace(/\/+$/, '');
+  const apiToken = settings.apiToken.trim();
   if (!apiUrl || !apiToken) {
-    return { success: false, error: '请先在设置中配置 API URL 和 Token' };
+    const diagnostic = await reportDiagnosticError({
+      code: 'SETTINGS_MISSING',
+      phase: 'settings',
+      message: '请先在设置中配置 API URL 和 Token',
+      operationId,
+    });
+    return { success: false, error: diagnostic.message, diagnostic };
   }
 
   // 1. Find active tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) {
-    return { success: false, error: '没有找到活动标签页' };
+    const diagnostic = await reportDiagnosticError({
+      code: 'ACTIVE_TAB_MISSING',
+      phase: 'extracting',
+      message: '没有找到活动标签页',
+      operationId,
+    });
+    return { success: false, error: diagnostic.message, diagnostic };
   }
 
   sendProgress('extracting');
 
   // 2. Request content script to extract content
-  let extractResult: any;
-  try {
-    extractResult = await new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(tab.id!, { action: 'extract' }, (response) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          resolve(response);
-        }
-      });
-    });
-  } catch (err: any) {
-    return { success: false, error: `内容提取失败: ${err.message}. 请刷新页面重试。` };
+  const extractResult = await extractPage(tab, operationId);
+  if ('errorId' in extractResult) {
+    return {
+      success: false,
+      error: extractResult.message,
+      diagnostic: extractResult,
+    };
   }
 
   if (!extractResult || !extractResult.success) {
-    return { success: false, error: extractResult?.error || '无法提取页面内容' };
+    const diagnostic = await reportDiagnosticError({
+      code: 'CONTENT_EXTRACTION_FAILED',
+      phase: 'extracting',
+      message: extractResult?.error || '无法提取页面内容',
+      operationId,
+      context: { url: tab.url },
+    });
+    return { success: false, error: diagnostic.message, diagnostic };
   }
 
   const { title: extractedTitle, markdown: rawMarkdown, images: rawImages, url: pageUrl } = extractResult;
   const finalTitle = customTitle || extractedTitle;
-  let markdown = rawMarkdown;
+  let markdown = rawMarkdown || '';
+  const pageImages = rawImages || [];
+  const sourceUrl = pageUrl || tab.url || '';
+  await writeLog('info', 'CONTENT_EXTRACTED', {
+    operationId,
+    context: {
+      url: sourceUrl,
+      titleLength: finalTitle?.length || 0,
+      markdownLength: markdown.length,
+      imageCount: pageImages.length,
+    },
+  });
 
   // 3. Process images: filter, deduplicate and resolve relative URLs
-  const resolvedImages = (rawImages as string[])
-    .map((img) => ({ original: img, resolved: resolveUrl(img, pageUrl) }))
+  const resolvedImages = pageImages
+    .map((img) => ({ original: img, resolved: resolveUrl(img, sourceUrl) }))
     .filter((img): img is { original: string; resolved: string } => !!img.resolved);
 
   // Deduplicate based on resolved URL
@@ -199,7 +357,7 @@ async function clipPage(options: { title?: string; category?: string; status?: s
     // Concurrency pool size: 3
     await runConcurrentTasks(uniqueImages, 3, async (img) => {
       try {
-        const blob = await downloadImage(img.resolved);
+        const blob = await downloadImage(img.resolved, operationId);
         if (!blob || blob.size === 0) return;
 
         const filename = filenameFromUrl(img.resolved);
@@ -213,7 +371,11 @@ async function clipPage(options: { title?: string; category?: string; status?: s
         uploadedCount++;
         sendProgress('uploading', uploadedCount, uniqueImages.length);
       } catch (err) {
-        console.warn('Failed to process image:', img.resolved, err);
+        await writeLog('warn', 'IMAGE_PROCESSING_FAILED', {
+          operationId,
+          context: { url: img.resolved },
+          error: err,
+        });
       }
     });
 
@@ -245,23 +407,60 @@ async function clipPage(options: { title?: string; category?: string; status?: s
     });
 
     if (!resp.ok) {
-      const text = await resp.text();
-      return { success: false, error: `创建文章失败: ${resp.status} ${text.slice(0, 200)}` };
+      const apiFailure = await readApiFailure(resp);
+      const diagnostic = await reportDiagnosticError({
+        code: 'POST_CREATE_HTTP_ERROR',
+        phase: 'creating',
+        message: `创建文章失败: ${apiFailure.message}`,
+        operationId,
+        details: apiFailure.details,
+        hint: apiFailure.hint,
+        requestId: apiFailure.requestId,
+        context: { status: resp.status, apiUrl },
+      });
+      return { success: false, error: diagnostic.message, diagnostic };
     }
 
     const json = await resp.json();
     if (!json.success) {
-      return { success: false, error: '创建文章失败: API 返回 success=false' };
+      const diagnostic = await reportDiagnosticError({
+        code: 'POST_CREATE_INVALID_RESPONSE',
+        phase: 'creating',
+        message: '创建文章失败: API 返回 success=false',
+        operationId,
+        context: { apiUrl },
+      });
+      return { success: false, error: diagnostic.message, diagnostic };
     }
 
+    await writeLog('info', 'CLIP_SUCCEEDED', {
+      operationId,
+      context: {
+        slug: json.slug,
+        status: status || 'draft',
+        imageCount: uploadedCount,
+      },
+    });
     return {
       success: true,
       slug: json.slug,
       title: finalTitle,
       imageCount: uploadedCount,
+      status: status || 'draft',
+      operationId,
     };
-  } catch (err: any) {
-    return { success: false, error: `创建文章失败: ${err.message}` };
+  } catch (err) {
+    const diagnostic = await reportDiagnosticError({
+      code: 'POST_CREATE_NETWORK_ERROR',
+      phase: 'creating',
+      message: '创建文章请求失败',
+      operationId,
+      details: err instanceof Error ? err.message : String(err),
+      hint: '请检查博客地址、网络连接和 Cloudflare 服务状态。',
+      context: { apiUrl },
+      error: err,
+    });
+    return { success: false, error: diagnostic.message, diagnostic };
   }
 }
 
@@ -274,8 +473,15 @@ export default defineBackground(() => {
         status: message.status,
       })
         .then(sendResponse)
-        .catch((err) => {
-          sendResponse({ success: false, error: err.message });
+        .catch(async (err) => {
+          const diagnostic = await reportDiagnosticError({
+            code: 'CLIP_UNHANDLED_ERROR',
+            phase: 'unknown',
+            message: '剪藏过程中发生未处理错误',
+            details: err instanceof Error ? err.message : String(err),
+            error: err,
+          });
+          sendResponse({ success: false, error: diagnostic.message, diagnostic });
         });
       return true; // Keep channel open for async response
     }

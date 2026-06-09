@@ -60,6 +60,7 @@ declare interface CloudflareEnv {
   KV?: KVNamespace
   CACHE?: KVNamespace
   IMAGES?: R2Bucket
+  SKILLS?: R2Bucket
   BACKGROUND_QUEUE?: QueueBinding
   WORKERS_AI?: WorkersAIBinding
   VECTOR_INDEX?: VectorizeIndex

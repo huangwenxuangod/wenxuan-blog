@@ -11,6 +11,7 @@ export async function runWorkersEditorProvider(
     userMessage: input.userMessage,
     history: input.history,
     context: input.context,
+    activeSkill: input.activeSkill,
     env: {
       WORKERS_AI: config.binding,
       WORKERS_AI_MODEL: config.model,

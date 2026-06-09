@@ -214,6 +214,25 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token);
 
+-- Agent Skills 标准技能包。文件保存在 R2，D1 只保存可发现元数据。
+CREATE TABLE IF NOT EXISTS skills (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  version TEXT NOT NULL DEFAULT '1.0.0',
+  source TEXT NOT NULL DEFAULT 'upload',
+  archive_key TEXT NOT NULL,
+  skill_md_key TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  instructions_text TEXT NOT NULL,
+  file_manifest_json TEXT NOT NULL DEFAULT '[]',
+  is_enabled INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_skills_enabled ON skills(is_enabled, name);
+
 -- 插入默认分类
 INSERT OR IGNORE INTO categories (name, slug) VALUES
   ('AI工具', 'ai-tools'),

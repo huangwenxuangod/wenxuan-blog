@@ -35,6 +35,10 @@ database_id = "9539a520-c907-426a-92d5-ab70f737b82b"
 binding = "IMAGES"
 bucket_name = "wenxuan-blog-opensource"
 
+[[r2_buckets]]
+binding = "SKILLS"
+bucket_name = "wenxuan-blog-opensource-skills"
+
 # Optional Queue binding for background jobs. Uncomment after creating the queue.
 # [[queues.producers]]
 # binding = "BACKGROUND_QUEUE"

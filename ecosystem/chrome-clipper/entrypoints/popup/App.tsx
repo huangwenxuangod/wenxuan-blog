@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Settings, ArrowLeft, Check, AlertTriangle, Sparkles, Loader2, ExternalLink } from 'lucide-react';
+import { Settings, ArrowLeft, Check, AlertTriangle, Sparkles, Loader2, ExternalLink, Copy, Trash2 } from 'lucide-react';
+import { loadSettings, saveSettings } from '../../utils/settings';
+import { clearDiagnosticLogs, getDiagnosticLogs, writeLog, type DiagnosticError } from '../../utils/logger';
 
 type ViewState = 'clip' | 'settings' | 'progress' | 'success' | 'error';
 type ProgressStep = 'extracting' | 'uploading' | 'creating';
@@ -27,8 +29,14 @@ function App() {
   const [progressTotal, setProgressTotal] = useState(0);
 
   // Success / Error
-  const [successData, setSuccessData] = useState<{ slug: string; title: string; imageCount: number } | null>(null);
+  const [successData, setSuccessData] = useState<{
+    slug: string;
+    title: string;
+    imageCount: number;
+    status: 'draft' | 'published';
+  } | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [diagnosticError, setDiagnosticError] = useState<DiagnosticError | null>(null);
 
   const [toast, setToast] = useState('');
 
@@ -40,19 +48,18 @@ function App() {
 
   // 1. Load settings on mount
   useEffect(() => {
-    chrome.storage.sync.get(['apiUrl', 'apiToken'], (data) => {
-      const url = data.apiUrl || '';
-      const token = data.apiToken || '';
+    void loadSettings().then(({ apiUrl: url, apiToken: token }) => {
       setApiUrl(url);
       setApiToken(token);
 
       if (!url || !token) {
         setView('settings');
-      } else {
-        setView('clip');
-        fetchCategories(url, token);
-        fetchActiveTabTitle();
+        return;
       }
+
+      setView('clip');
+      fetchCategories(url, token);
+      fetchActiveTabTitle();
     });
   }, []);
 
@@ -77,14 +84,14 @@ function App() {
         setTitle(tab.title);
       }
     } catch (err) {
-      console.error('Failed to get active tab title:', err);
+      void writeLog('warn', 'ACTIVE_TAB_TITLE_FAILED', { error: err });
     }
   };
 
   // Fetch categories from blog API
   const fetchCategories = async (url: string, token: string) => {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
     try {
-      const cleanUrl = url.trim().replace(/\/+$/, '');
       const resp = await fetch(`${cleanUrl}/api/admin/categories`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -94,12 +101,15 @@ function App() {
         setCategories(json.categories);
       }
     } catch (err) {
-      console.error('Failed to fetch categories:', err);
+      void writeLog('warn', 'CATEGORY_FETCH_FAILED', {
+        context: { url: cleanUrl },
+        error: err,
+      });
     }
   };
 
   // Save settings
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     const cleanUrl = apiUrl.trim().replace(/\/+$/, '');
     const cleanToken = apiToken.trim();
 
@@ -112,7 +122,8 @@ function App() {
       return;
     }
 
-    chrome.storage.sync.set({ apiUrl: cleanUrl, apiToken: cleanToken }, () => {
+    try {
+      await saveSettings({ apiUrl: cleanUrl, apiToken: cleanToken });
       showToast('设置已保存');
       setApiUrl(cleanUrl);
       setApiToken(cleanToken);
@@ -120,7 +131,9 @@ function App() {
       setTimeout(() => {
         setView('clip');
       }, 500);
-    });
+    } catch {
+      showToast('设置保存失败');
+    }
   };
 
   // Trigger Clip Action
@@ -140,6 +153,7 @@ function App() {
     setProgressStep('extracting');
     setProgressCurrent(0);
     setProgressTotal(0);
+    setDiagnosticError(null);
 
     try {
       const response: any = await chrome.runtime.sendMessage({
@@ -154,20 +168,56 @@ function App() {
           slug: response.slug,
           title: response.title,
           imageCount: response.imageCount,
+          status: response.status === 'published' ? 'published' : 'draft',
         });
         setView('success');
       } else {
         setErrorMessage(response?.error || '剪藏失败');
+        setDiagnosticError(response?.diagnostic || null);
         setView('error');
       }
     } catch (err: any) {
       setErrorMessage(err.message || '发生未知错误');
+      const diagnostic: DiagnosticError = {
+        code: 'POPUP_MESSAGE_FAILED',
+        phase: 'dispatching',
+        message: err.message || '发生未知错误',
+        errorId: await writeLog('error', 'POPUP_MESSAGE_FAILED', { error: err }),
+        hint: '请重新加载扩展并刷新当前网页。',
+      };
+      setDiagnosticError(diagnostic);
       setView('error');
     }
   };
 
+  const copyDiagnosticLogs = async () => {
+    const logs = await getDiagnosticLogs();
+    await navigator.clipboard.writeText(logs);
+    showToast('诊断日志已复制');
+  };
+
+  const clearLogs = async () => {
+    await clearDiagnosticLogs();
+    showToast('诊断日志已清空');
+  };
+
+  const copyCurrentError = async () => {
+    await navigator.clipboard.writeText(JSON.stringify({
+      message: errorMessage,
+      diagnostic: diagnosticError,
+    }, null, 2));
+    showToast('错误详情已复制');
+  };
+
+  const editorUrl = successData
+    ? `${apiUrl}/editor?edit=${encodeURIComponent(successData.slug)}`
+    : apiUrl;
+  const secondaryUrl = successData?.status === 'published'
+    ? `${apiUrl}/${encodeURIComponent(successData.slug)}`
+    : `${apiUrl}/admin/posts`;
+
   return (
-    <div className="relative flex flex-col h-[400px] w-[360px] bg-[#fcfbf7] select-none text-[#1a1a1a]">
+    <div className="relative flex flex-col h-[320px] w-[360px] bg-[#fcfbf7] select-none text-[#1a1a1a]">
       {/* Toast Notification */}
       {toast && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 bg-[#1a1a1a] text-[#fcfbf7] px-3 py-1.5 rounded-md text-xs shadow-md transition-all duration-300">
@@ -176,7 +226,7 @@ function App() {
       )}
 
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[#e5e5df] bg-[#f7f6f0]">
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-[#e5e5df] bg-[#f7f6f0]">
         <div className="flex items-center gap-2">
           {view === 'settings' && apiUrl && apiToken && (
             <button
@@ -189,7 +239,7 @@ function App() {
           )}
           <span className="font-semibold text-sm tracking-wide flex items-center gap-1.5">
             <Sparkles size={14} className="text-[#8c8273]" />
-            Qiaomu Blog Clipper
+            Wenxuan Blog Clipper
           </span>
         </div>
 
@@ -205,7 +255,7 @@ function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-4 flex flex-col">
+      <main className="flex-1 overflow-y-auto p-3.5 flex flex-col">
         {/* VIEW: CLIP */}
         {view === 'clip' && (
           <div className="flex flex-col gap-4 flex-1 justify-between">
@@ -311,6 +361,22 @@ function App() {
             >
               保存设置
             </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={copyDiagnosticLogs}
+                className="py-1.5 border border-[#e5e5df] text-[#555555] hover:text-[#1a1a1a] hover:bg-[#f1f0ea] rounded text-[11px] flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <Copy size={11} />
+                复制诊断日志
+              </button>
+              <button
+                onClick={clearLogs}
+                className="py-1.5 border border-[#e5e5df] text-[#555555] hover:text-[#c62828] hover:bg-[#f1f0ea] rounded text-[11px] flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <Trash2 size={11} />
+                清空日志
+              </button>
+            </div>
           </div>
         )}
 
@@ -350,7 +416,7 @@ function App() {
 
             <div className="grid grid-cols-2 gap-3 w-full mt-2">
               <a
-                href={`${apiUrl}/editor?edit=${successData.slug}`}
+                href={editorUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="py-2 border border-[#1a1a1a] text-[#1a1a1a] hover:bg-[#f1f0ea] rounded text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
@@ -359,13 +425,13 @@ function App() {
                 去后台编辑
               </a>
               <a
-                href={`${apiUrl}/${successData.slug}`}
+                href={secondaryUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="py-2 bg-[#1a1a1a] text-[#fcfbf7] hover:bg-[#333333] rounded text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
                 <ExternalLink size={12} />
-                查看文章
+                {successData.status === 'published' ? '查看文章' : '文章管理'}
               </a>
             </div>
 
@@ -380,23 +446,40 @@ function App() {
 
         {/* VIEW: ERROR */}
         {view === 'error' && (
-          <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center">
-            <div className="p-3 bg-[#ffebee] text-[#c62828] rounded-full">
-              <AlertTriangle size={28} />
+          <div className="flex flex-col items-center justify-center flex-1 gap-2.5 text-center">
+            <div className="p-2 bg-[#ffebee] text-[#c62828] rounded-full">
+              <AlertTriangle size={22} />
             </div>
             <div className="flex flex-col gap-1 px-2">
               <p className="text-sm font-semibold text-[#c62828]">剪藏失败</p>
-              <p className="text-xs text-[#555555] max-h-[80px] overflow-y-auto max-w-[280px] leading-relaxed">
+              <p className="text-xs text-[#555555] max-h-[48px] overflow-y-auto max-w-[310px] leading-relaxed">
                 {errorMessage}
               </p>
+              {diagnosticError && (
+                <div className="text-[10px] leading-4 text-[#777]">
+                  <div>{diagnosticError.phase} · {diagnosticError.code}</div>
+                  <div>ID: {diagnosticError.errorId.slice(0, 20)}</div>
+                  {diagnosticError.requestId && <div>Request: {diagnosticError.requestId}</div>}
+                  {diagnosticError.hint && <div>{diagnosticError.hint}</div>}
+                </div>
+              )}
             </div>
 
-            <button
-              onClick={() => setView('clip')}
-              className="w-full py-2 bg-[#1a1a1a] text-[#fcfbf7] hover:bg-[#333333] rounded text-xs font-semibold tracking-wide transition-colors cursor-pointer mt-2"
-            >
-              重新尝试
-            </button>
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <button
+                onClick={copyCurrentError}
+                className="py-2 border border-[#1a1a1a] text-[#1a1a1a] hover:bg-[#f1f0ea] rounded text-xs font-medium flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <Copy size={12} />
+                复制错误
+              </button>
+              <button
+                onClick={() => setView('clip')}
+                className="py-2 bg-[#1a1a1a] text-[#fcfbf7] hover:bg-[#333333] rounded text-xs font-semibold tracking-wide transition-colors cursor-pointer"
+              >
+                重新尝试
+              </button>
+            </div>
           </div>
         )}
       </main>

@@ -45,7 +45,8 @@ next-env.d.ts
 .gstack/
 .wrangler/
 .wrangler/
-skills/
+/skills/
+/.agents/skills/
 wrangler.local.toml
 worker-configuration.d.ts
 .bundle-analysis/

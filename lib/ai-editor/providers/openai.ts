@@ -11,9 +11,13 @@ import type {
   EditorAiRuntimePreparedInput,
 } from '@/lib/ai-editor/runtime-types'
 import type { ResolvedConfig } from '@/lib/ai'
+import { appendSkillInstructions } from '@/lib/skills/prompt'
 
 function buildPrompt(input: EditorAiRuntimePreparedInput): EditorAiModelPrompt {
-  const systemPrompt = describeAiEditorTools(input.context.outline)
+  const systemPrompt = appendSkillInstructions(
+    describeAiEditorTools(input.context.outline),
+    input.activeSkill,
+  )
   const focusedBlocks = [
     ...input.context.focusedContext.previousBlocks,
     ...(input.context.focusedContext.activeBlock ? [input.context.focusedContext.activeBlock] : []),

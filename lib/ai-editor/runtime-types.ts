@@ -1,5 +1,6 @@
 import type { AIEnv } from '@/lib/ai'
 import type { AiEditorContext, AiEditorMemoryItem, AiEditorMemoryWrite, AiEditorThreadMessage } from '@/lib/ai-editor/types'
+import type { ActiveSkillInstructions } from '@/lib/skills/prompt'
 
 export type EditorAiTaskType =
   | 'chat'
@@ -46,6 +47,7 @@ export interface EditorAiRuntimeInput {
   selectionText?: string | null
   history: AiEditorThreadMessage[]
   memoryItems: AiEditorMemoryItem[]
+  activeSkill?: ActiveSkillInstructions | null
   env?: AIEnv
   db?: D1Database
 }

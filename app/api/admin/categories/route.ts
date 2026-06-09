@@ -7,6 +7,12 @@ import {
   parseJsonBody,
 } from '@/lib/server/route-helpers'
 import type { NextRequest } from 'next/server'
+import {
+  createRequestId,
+  logServerEvent,
+  serverErrorResponse,
+  withRequestId,
+} from '@/lib/server/observability'
 
 interface CreateCategoryBody {
   name?: string
@@ -24,13 +30,15 @@ interface DeleteCategoryBody {
 }
 
 export async function GET(req: NextRequest) {
+  const requestId = createRequestId(req)
+  const routeName = '/api/admin/categories'
   try {
     const route = await getRouteEnvWithDb('DB not available')
-    if (!route.ok) return route.response
+    if (!route.ok) return withRequestId(route.response, requestId)
 
     // 分类列表允许 Bearer Token 访问（Obsidian/Chrome 插件需要）
     const authError = await ensureAuthenticatedRequest(req, route.db)
-    if (authError) return authError
+    if (authError) return withRequestId(authError, requestId)
 
     const categories = await getCategories(route.db)
     const hasUncategorized = categories.some((category) => category.name === '未分类' || category.slug === 'uncategorized')
@@ -40,13 +48,28 @@ export async function GET(req: NextRequest) {
     }
 
     const nextCategories = await getCategories(route.db)
-    return jsonOk({ categories: nextCategories.filter((category) => category.name !== '未分类') })
+    const visibleCategories = nextCategories.filter((category) => category.name !== '未分类')
+    logServerEvent('info', 'CATEGORY_LIST_SUCCEEDED', {
+      requestId,
+      route: routeName,
+      method: 'GET',
+      context: { count: visibleCategories.length },
+    })
+    return withRequestId(jsonOk({ categories: visibleCategories }), requestId)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (message.includes('no such table: categories')) {
-      return jsonOk({ categories: [] })
+      return withRequestId(jsonOk({ categories: [] }), requestId)
     }
-    return jsonError(String(err), 500)
+    return serverErrorResponse({
+      requestId,
+      route: routeName,
+      method: 'GET',
+      code: 'CATEGORY_LIST_FAILED',
+      message: '分类读取失败',
+      details: message,
+      error: err,
+    })
   }
 }
 

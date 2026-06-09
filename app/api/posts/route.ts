@@ -5,21 +5,35 @@ import { buildAutoDescription, normalizePostSlug } from '@/lib/post-utils'
 import {
   ensureAuthenticatedRequest,
   getRouteContextWithDb,
-  jsonError,
   jsonOk,
   parseJsonBody,
 } from '@/lib/server/route-helpers'
 import type { NextRequest } from 'next/server'
+import {
+  createRequestId,
+  logServerEvent,
+  serverErrorResponse,
+  withRequestId,
+} from '@/lib/server/observability'
 
 export async function POST(req: NextRequest) {
+  const requestId = createRequestId(req)
+  const routeName = '/api/posts'
   try {
     const route = await getRouteContextWithDb('数据库未配置')
-    if (!route.ok) return route.response
+    if (!route.ok) return withRequestId(route.response, requestId)
     const { env, db, ctx } = route
 
     // 2. 统一认证：Cookie OR Bearer Token
     const authError = await ensureAuthenticatedRequest(req, db)
-    if (authError) return authError
+    if (authError) {
+      logServerEvent('warn', 'POST_CREATE_UNAUTHORIZED', {
+        requestId,
+        route: routeName,
+        method: 'POST',
+      })
+      return withRequestId(authError, requestId)
+    }
 
     const payload = await parseJsonBody<Record<string, unknown>>(req)
     const title = typeof payload.title === 'string' ? payload.title.trim() : ''
@@ -45,8 +59,27 @@ export async function POST(req: NextRequest) {
       : null
 
     if (!title || !content) {
-      return jsonError('标题和内容不能为空', 400)
+      return serverErrorResponse({
+        requestId,
+        route: routeName,
+        method: 'POST',
+        code: 'POST_VALIDATION_FAILED',
+        message: '标题和内容不能为空',
+        status: 400,
+      })
     }
+
+    logServerEvent('info', 'POST_CREATE_STARTED', {
+      requestId,
+      route: routeName,
+      method: 'POST',
+      context: {
+        titleLength: title.length,
+        contentLength: content.length,
+        category: payloadCategory || 'AI',
+        status,
+      },
+    })
 
     // 2. 生成 slug（日期 + 随机）
     const date = new Date().toISOString().split('T')[0]
@@ -107,7 +140,13 @@ export async function POST(req: NextRequest) {
       },
     )
 
-    return jsonOk({
+    logServerEvent('info', 'POST_CREATE_SUCCEEDED', {
+      requestId,
+      route: routeName,
+      method: 'POST',
+      context: { postId, slug, status },
+    })
+    return withRequestId(jsonOk({
       success: true,
       slug,
       id: postId,
@@ -115,25 +154,43 @@ export async function POST(req: NextRequest) {
       tags,
       description,
       cover_image: coverImage,
-    })
+    }), requestId)
   } catch (error) {
     if (error instanceof Error && /UNIQUE constraint failed: posts\.slug/i.test(error.message)) {
-      return jsonError('slug 已存在，请换一个', 409)
+      return serverErrorResponse({
+        requestId,
+        route: routeName,
+        method: 'POST',
+        code: 'POST_SLUG_CONFLICT',
+        message: 'slug 已存在，请换一个',
+        status: 409,
+        error,
+      })
     }
-    console.error('Save error:', error)
-    return jsonError('保存失败: ' + (error as Error).message, 500)
+    return serverErrorResponse({
+      requestId,
+      route: routeName,
+      method: 'POST',
+      code: 'POST_CREATE_FAILED',
+      message: '文章保存失败',
+      hint: '请使用 requestId 在 Cloudflare Worker 日志中搜索具体错误。',
+      details: error instanceof Error ? error.message : String(error),
+      error,
+    })
   }
 }
 
 // PATCH: 自动保存（只更新变化的字段）
 export async function PATCH(req: NextRequest) {
+  const requestId = createRequestId(req)
+  const routeName = '/api/posts'
   try {
     const route = await getRouteContextWithDb('数据库未配置')
-    if (!route.ok) return route.response
+    if (!route.ok) return withRequestId(route.response, requestId)
     const { env, db } = route
 
     const authError = await ensureAuthenticatedRequest(req, db)
-    if (authError) return authError
+    if (authError) return withRequestId(authError, requestId)
 
     const payload = await parseJsonBody<Record<string, unknown>>(req)
     const currentSlug = typeof payload.current_slug === 'string'
@@ -144,7 +201,14 @@ export async function PATCH(req: NextRequest) {
       : ''
 
     if (!currentSlug) {
-      return jsonError('slug 不能为空', 400)
+      return serverErrorResponse({
+        requestId,
+        route: routeName,
+        method: 'PATCH',
+        code: 'POST_SLUG_REQUIRED',
+        message: 'slug 不能为空',
+        status: 400,
+      })
     }
 
     // 构建更新对象（只包含提供的字段）
@@ -166,7 +230,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (Object.keys(updates).length === 0) {
-      return jsonOk({ success: true, slug: currentSlug })
+      return withRequestId(jsonOk({ success: true, slug: currentSlug }), requestId)
     }
 
     await updatePostBySlug(db, currentSlug, updates)
@@ -174,12 +238,27 @@ export async function PATCH(req: NextRequest) {
     // 清除缓存
     await invalidatePublicContentCache(env)
 
-    return jsonOk({ success: true, slug: nextSlug || currentSlug })
+    return withRequestId(jsonOk({ success: true, slug: nextSlug || currentSlug }), requestId)
   } catch (error) {
     if (error instanceof Error && /UNIQUE constraint failed: posts\.slug/i.test(error.message)) {
-      return jsonError('slug 已存在，请换一个', 409)
+      return serverErrorResponse({
+        requestId,
+        route: routeName,
+        method: 'PATCH',
+        code: 'POST_SLUG_CONFLICT',
+        message: 'slug 已存在，请换一个',
+        status: 409,
+        error,
+      })
     }
-    console.error('Auto-save error:', error)
-    return jsonError('自动保存失败: ' + (error as Error).message, 500)
+    return serverErrorResponse({
+      requestId,
+      route: routeName,
+      method: 'PATCH',
+      code: 'POST_UPDATE_FAILED',
+      message: '自动保存失败',
+      details: error instanceof Error ? error.message : String(error),
+      error,
+    })
   }
 }

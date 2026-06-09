@@ -18,6 +18,7 @@ import {
   withRouteErrorHandling,
 } from '@/lib/server/route-helpers'
 import type { NextRequest } from 'next/server'
+import { getEnabledSkillInstructions } from '@/lib/skills/repository'
 
 type ImageBucket = {
   put: (
@@ -42,6 +43,7 @@ interface ChatRequestBody {
   documentJson?: unknown
   activeBlockIndex?: number
   selectionText?: string
+  skillId?: number | null
 }
 
 function safeParseMemoryPayload(payloadJson: string | null): Record<string, unknown> | null {
@@ -78,6 +80,17 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
   }
 
   const articleKey = normalizeArticleKey(body.articleKey, body.postSlug)
+  let activeSkill = null
+  if (Number.isInteger(body.skillId) && Number(body.skillId) > 0) {
+    const storedSkill = await getEnabledSkillInstructions(db, Number(body.skillId))
+    if (storedSkill) {
+      activeSkill = {
+        name: storedSkill.name,
+        description: storedSkill.description,
+        instructions: storedSkill.instructions,
+      }
+    }
+  }
   const thread = await getOrCreateAiArticleThread(db, {
     articleKey: body.articleKey,
     postSlug: body.postSlug,
@@ -131,6 +144,7 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
       createdAt: item.created_at,
       updatedAt: item.updated_at,
     })),
+    activeSkill,
     env: getAiRuntimeEnv(env),
     db,
   })

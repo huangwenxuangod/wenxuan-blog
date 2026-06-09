@@ -141,6 +141,7 @@ Simply click the `Deploy to Cloudflare` button above.
 This template is fully optimized for the Cloudflare Deploy Button:
 - Cloudflare reads the Worker configuration in the repository.
 - Automatically provisions and binds `D1` and `R2` resources.
+- If you enable the admin `Skills` feature, also provision a separate private R2 bucket for the `SKILLS` binding instead of reusing the public `IMAGES` bucket.
 - Runs the custom deploy script to initialize the database schema and default configurations.
 
 We recommend preparing these environment variables during deployment:

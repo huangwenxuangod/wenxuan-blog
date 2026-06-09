@@ -14,11 +14,19 @@ import { renderMarkdownToHtml } from '@/lib/editor-markdown'
 import { useToast } from '@/components/Toast'
 import { UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { SelectDropdown } from '@/components/SelectDropdown'
 
 type ChatMessage = {
   id: string
   role: 'user' | 'assistant'
   content: string
+}
+
+type SkillOption = {
+  id: number
+  name: string
+  description: string
+  version: string
 }
 
 interface AIPanelProps {
@@ -66,6 +74,8 @@ export function AIPanel({
   const [hydrated, setHydrated] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [toolStatus, setToolStatus] = useState<string | null>(null)
+  const [skills, setSkills] = useState<SkillOption[]>([])
+  const [selectedSkillId, setSelectedSkillId] = useState('')
   const listRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -120,6 +130,22 @@ export function AIPanel({
   useEffect(() => {
     void loadHistory()
   }, [loadHistory])
+
+  useEffect(() => {
+    let cancelled = false
+    void fetch('/api/editor/skills', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) return { skills: [] }
+        return response.json() as Promise<{ skills?: SkillOption[] }>
+      })
+      .then((data) => {
+        if (!cancelled) setSkills(data.skills || [])
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const node = listRef.current
@@ -177,6 +203,7 @@ export function AIPanel({
           documentJson,
           activeBlockIndex,
           selectionText,
+          skillId: selectedSkillId ? Number(selectedSkillId) : null,
         }),
       })
 
@@ -319,7 +346,7 @@ export function AIPanel({
       setToolStatus(null)
       setLoading(false)
     }
-  }, [articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, postSlug, title, toast])
+  }, [articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, postSlug, selectedSkillId, title, toast])
 
   if (!hydrated) {
     return (
@@ -370,6 +397,26 @@ export function AIPanel({
             <div className="pb-2 text-xs text-[color-mix(in_srgb,var(--ui-muted)_88%,transparent)]">
               {toolStatus}
             </div>
+          ) : null}
+
+          {skills.length > 0 ? (
+            <SelectDropdown
+              options={[
+                { value: '', label: '不使用 Skill' },
+                ...skills.map((skill) => ({
+                  value: String(skill.id),
+                  label: skill.name,
+                  title: skill.description,
+                  searchText: `${skill.description} ${skill.version}`,
+                })),
+              ]}
+              value={selectedSkillId}
+              onChange={setSelectedSkillId}
+              menuPlacement="top"
+              searchable={skills.length > 6}
+              placeholder="选择 Skill"
+              className="mb-2"
+            />
           ) : null}
 
           <UiTextarea

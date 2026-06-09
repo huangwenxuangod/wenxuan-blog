@@ -40,6 +40,9 @@ npm run cf:init -- --site-url=https://your-domain.com --with-kv
 
 这一步会生成本地的 `wrangler.local.toml`，并自动写入真实 D1 / R2 / KV 绑定。
 
+如果你启用了后台 `Skills` 能力，还需要额外准备一个私有 R2 bucket 作为 `SKILLS` binding，
+用于保存 Skill ZIP、`SKILL.md` 和 references 资源。不要复用公开图片用的 `IMAGES` bucket。
+
 ### 4. 设置 secrets
 
 ```bash
@@ -85,7 +88,7 @@ npm run deploy
 
 先执行：
 
-```bash
+  ```bash
 npm run cf:init -- --site-url=https://your-domain.com
 ```
 

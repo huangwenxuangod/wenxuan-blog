@@ -45,6 +45,10 @@ const BackupManager = dynamic(
   () => import('./BackupManager').then((m) => m.BackupManager),
   { ssr: false }
 )
+const SkillsManager = dynamic(
+  () => import('./SkillsManager').then((m) => m.SkillsManager),
+  { ssr: false }
+)
 
 interface Category {
   name: string
@@ -226,6 +230,11 @@ export function SettingsManager({
       id: 'ai-actions',
       label: 'AI 操作',
       content: <AiActionsManager />,
+    },
+    {
+      id: 'skills',
+      label: 'Skills',
+      content: <SkillsManager />,
     },
     {
       id: 'ai-image-provider',

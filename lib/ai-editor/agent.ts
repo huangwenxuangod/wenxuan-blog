@@ -3,6 +3,7 @@ import { resolveConfig, type AIEnv } from '@/lib/ai'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 import { describeAiEditorTools, type AiEditorToolCall } from './agent-tools'
 import type { buildAiEditorContext } from './context'
+import { appendSkillInstructions, type ActiveSkillInstructions } from '@/lib/skills/prompt'
 
 interface AgentHistoryMessage {
   role: 'user' | 'assistant'
@@ -13,6 +14,7 @@ interface RunAiEditorAgentInput {
   userMessage: string
   history: AgentHistoryMessage[]
   context: ReturnType<typeof buildAiEditorContext>
+  activeSkill?: ActiveSkillInstructions | null
   env?: AIEnv
   db?: D1Database
 }
@@ -46,7 +48,10 @@ export async function runAiEditorAgent(input: RunAiEditorAgentInput): Promise<Ag
     throw new Error(config.reason)
   }
 
-  const systemPrompt = describeAiEditorTools(input.context.outline)
+  const systemPrompt = appendSkillInstructions(
+    describeAiEditorTools(input.context.outline),
+    input.activeSkill,
+  )
   const focusedBlocks = [
     ...input.context.focusedContext.previousBlocks,
     ...(input.context.focusedContext.activeBlock ? [input.context.focusedContext.activeBlock] : []),

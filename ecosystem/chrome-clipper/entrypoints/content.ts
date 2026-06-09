@@ -18,6 +18,8 @@ export default defineContentScript({
             return;
           }
 
+          const articleContent = article.content ?? '';
+
           // Initialize Turndown
           const turndownService = new TurndownService({
             headingStyle: 'atx',
@@ -25,11 +27,11 @@ export default defineContentScript({
           });
 
           // Convert HTML to Markdown
-          const markdown = turndownService.turndown(article.content);
+          const markdown = turndownService.turndown(articleContent);
 
           // Extract all image URLs from the parsed HTML content
           const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = article.content;
+          tempDiv.innerHTML = articleContent;
           const imgElements = tempDiv.querySelectorAll('img');
           
           const imageUrls = Array.from(imgElements)
