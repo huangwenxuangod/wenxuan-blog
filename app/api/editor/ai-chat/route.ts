@@ -44,6 +44,8 @@ interface ChatRequestBody {
   activeBlockIndex?: number
   selectionText?: string
   skillId?: number | null
+  textProfileId?: number | null
+  imageProfileId?: number | null
 }
 
 function safeParseMemoryPayload(payloadJson: string | null): Record<string, unknown> | null {
@@ -145,6 +147,8 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
       updatedAt: item.updated_at,
     })),
     activeSkill,
+    textProfileId: Number.isInteger(body.textProfileId) ? Number(body.textProfileId) : null,
+    imageProfileId: Number.isInteger(body.imageProfileId) ? Number(body.imageProfileId) : null,
     env: getAiRuntimeEnv(env),
     db,
   })
@@ -167,6 +171,7 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
     return finalizeEditorAiCompletion({
       articleKey,
       articleTitle: body.title,
+      imageProfileId: Number.isInteger(body.imageProfileId) ? Number(body.imageProfileId) : null,
       db,
       env: env as Record<string, string | undefined>,
       images,

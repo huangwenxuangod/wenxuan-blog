@@ -5,7 +5,13 @@ import { runWorkersEditorProvider } from '@/lib/ai-editor/providers/workers'
 import { runOpenAiEditorProvider } from '@/lib/ai-editor/providers/openai'
 
 export async function runEditorAiProvider(input: EditorAiRuntimePreparedInput): Promise<EditorAiProviderStreamResult> {
-  const config = await resolveConfig(input.env, input.db)
+  const config = await resolveConfig(
+    input.env,
+    input.db,
+    Number.isFinite(input.textProfileId) && Number(input.textProfileId) > 0
+      ? Number(input.textProfileId)
+      : undefined,
+  )
 
   if (config.strategy === 'disabled') {
     throw new Error(config.reason)

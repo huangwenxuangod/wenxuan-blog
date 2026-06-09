@@ -9,6 +9,10 @@ import {
   resolveConfig,
   type AIEnv,
 } from '@/lib/ai-runtime'
+import {
+  buildPostProcessResponseSchema,
+  buildWorkersAiJsonSchemaResponseFormat,
+} from '@/lib/workers-ai-json'
 
 export interface AIProcessResult {
   category: string
@@ -60,7 +64,7 @@ function extractWorkersAiText(result: unknown): string {
 async function runWorkersAiText(
   config: Extract<Awaited<ReturnType<typeof resolveConfig>>, { strategy: 'workers-ai' }>,
   messages: Array<{ role: 'system' | 'user'; content: string }>,
-  response_format?: { type: 'json_object' },
+  response_format?: ReturnType<typeof buildWorkersAiJsonSchemaResponseFormat>,
 ): Promise<string> {
   const result = await config.binding.run(config.model, {
     messages,
@@ -124,7 +128,7 @@ export async function processPost(
             maxTokens: Math.min(resolved.maxTokens, 2000),
           },
           messages,
-          { type: 'json_object' },
+          buildWorkersAiJsonSchemaResponseFormat(buildPostProcessResponseSchema()),
         )
       } else {
         const client = getClientFromConfig(resolved)

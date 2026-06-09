@@ -13,13 +13,22 @@ interface TabItem {
 interface TabsProps {
   tabs: TabItem[]
   defaultTab?: string
+  selectedTab?: string
+  onTabChange?: (tabId: string) => void
 }
 
-export function Tabs({ tabs, defaultTab }: TabsProps) {
+export function Tabs({ tabs, defaultTab, selectedTab, onTabChange }: TabsProps) {
   const defaultIndex = Math.max(0, tabs.findIndex((tab) => tab.id === defaultTab))
+  const selectedIndex = selectedTab
+    ? Math.max(0, tabs.findIndex((tab) => tab.id === selectedTab))
+    : undefined
 
   return (
-    <TabGroup defaultIndex={defaultIndex}>
+    <TabGroup
+      defaultIndex={defaultIndex}
+      selectedIndex={selectedIndex}
+      onChange={(index) => onTabChange?.(tabs[index]?.id || tabs[0]?.id || '')}
+    >
       <div className="border-b border-[var(--editor-line)] pb-1">
         <TabList className="flex flex-wrap gap-x-5 gap-y-2">
           {tabs.map((tab) => (

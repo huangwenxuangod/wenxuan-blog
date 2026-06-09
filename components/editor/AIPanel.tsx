@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, Plus, Send } from 'lucide-react'
+import { Bot, Image as ImageIcon, Loader2, Send } from 'lucide-react'
 import type { EditorInstance, JSONContent } from 'novel'
 import type { LegacyEditorAiTool } from '@/lib/ai-editor/action-schema'
 import {
@@ -29,6 +29,13 @@ type SkillOption = {
   version: string
 }
 
+type ProviderOption = {
+  id: number
+  name: string
+  model: string
+  is_default: number
+}
+
 interface AIPanelProps {
   articleKey: string
   postSlug: string | null
@@ -36,8 +43,10 @@ interface AIPanelProps {
   editor: EditorInstance | null
   documentJson: JSONContent | null
   documentText: string
+  profilesRefreshKey?: number
   onTitleApply?: (nextTitle: string) => void
   onCoverImageApply?: (imageUrl: string) => void
+  onOpenSettingsTab?: (tabId: 'ai-provider' | 'ai-image-provider') => void
 }
 
 type ChatEvent =
@@ -57,6 +66,11 @@ function shouldApplyImmediately(action: EditorAiAction) {
   return action.type !== 'generate_image'
 }
 
+const TEXT_PROFILE_STORAGE_KEY = 'qmblog:editor-ai-text-profile-id'
+const IMAGE_PROFILE_STORAGE_KEY = 'qmblog:editor-ai-image-profile-id'
+const CUSTOM_TEXT_PROFILE_VALUE = '__custom_text_profile__'
+const CUSTOM_IMAGE_PROFILE_VALUE = '__custom_image_profile__'
+
 export function AIPanel({
   articleKey,
   postSlug,
@@ -64,8 +78,10 @@ export function AIPanel({
   editor,
   documentJson,
   documentText,
+  profilesRefreshKey = 0,
   onTitleApply,
   onCoverImageApply,
+  onOpenSettingsTab,
 }: AIPanelProps) {
   const toast = useToast()
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -76,6 +92,10 @@ export function AIPanel({
   const [toolStatus, setToolStatus] = useState<string | null>(null)
   const [skills, setSkills] = useState<SkillOption[]>([])
   const [selectedSkillId, setSelectedSkillId] = useState('')
+  const [textProfiles, setTextProfiles] = useState<ProviderOption[]>([])
+  const [imageProfiles, setImageProfiles] = useState<ProviderOption[]>([])
+  const [selectedTextProfileId, setSelectedTextProfileId] = useState('')
+  const [selectedImageProfileId, setSelectedImageProfileId] = useState('')
   const listRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -133,19 +153,85 @@ export function AIPanel({
 
   useEffect(() => {
     let cancelled = false
-    void fetch('/api/editor/skills', { credentials: 'include' })
-      .then(async (response) => {
-        if (!response.ok) return { skills: [] }
-        return response.json() as Promise<{ skills?: SkillOption[] }>
-      })
-      .then((data) => {
-        if (!cancelled) setSkills(data.skills || [])
+    void Promise.all([
+      fetch('/api/editor/skills', { credentials: 'include' })
+        .then(async (response) => {
+          if (!response.ok) return { skills: [] }
+          return response.json() as Promise<{ skills?: SkillOption[] }>
+        }),
+      fetch('/api/admin/ai-provider', { credentials: 'include' })
+        .then(async (response) => {
+          if (!response.ok) return { profiles: [], default_profile_id: null }
+          return response.json() as Promise<{ profiles?: ProviderOption[]; default_profile_id?: number | null }>
+        }),
+      fetch('/api/admin/ai-image-provider', { credentials: 'include' })
+        .then(async (response) => {
+          if (!response.ok) return { profiles: [], default_profile_id: null }
+          return response.json() as Promise<{ profiles?: ProviderOption[]; default_profile_id?: number | null }>
+        }),
+    ])
+      .then(([skillsData, textProfilesData, imageProfilesData]) => {
+        if (cancelled) return
+
+        const nextTextProfiles = textProfilesData.profiles || []
+        const nextImageProfiles = imageProfilesData.profiles || []
+
+        setSkills(skillsData.skills || [])
+        setTextProfiles(nextTextProfiles)
+        setImageProfiles(nextImageProfiles)
+
+        const storedTextProfileId = typeof window !== 'undefined'
+          ? window.localStorage.getItem(TEXT_PROFILE_STORAGE_KEY) || ''
+          : ''
+        const storedImageProfileId = typeof window !== 'undefined'
+          ? window.localStorage.getItem(IMAGE_PROFILE_STORAGE_KEY) || ''
+          : ''
+
+        const fallbackTextProfileId = textProfilesData.default_profile_id
+          ? String(textProfilesData.default_profile_id)
+          : nextTextProfiles.find((profile) => profile.is_default === 1)?.id
+            ? String(nextTextProfiles.find((profile) => profile.is_default === 1)?.id)
+            : ''
+        const fallbackImageProfileId = imageProfilesData.default_profile_id
+          ? String(imageProfilesData.default_profile_id)
+          : nextImageProfiles.find((profile) => profile.is_default === 1)?.id
+            ? String(nextImageProfiles.find((profile) => profile.is_default === 1)?.id)
+            : ''
+
+        setSelectedTextProfileId(
+          nextTextProfiles.some((profile) => String(profile.id) === storedTextProfileId)
+            ? storedTextProfileId
+            : fallbackTextProfileId,
+        )
+        setSelectedImageProfileId(
+          nextImageProfiles.some((profile) => String(profile.id) === storedImageProfileId)
+            ? storedImageProfileId
+            : fallbackImageProfileId,
+        )
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [profilesRefreshKey])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (selectedTextProfileId) {
+      window.localStorage.setItem(TEXT_PROFILE_STORAGE_KEY, selectedTextProfileId)
+    } else {
+      window.localStorage.removeItem(TEXT_PROFILE_STORAGE_KEY)
+    }
+  }, [selectedTextProfileId])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (selectedImageProfileId) {
+      window.localStorage.setItem(IMAGE_PROFILE_STORAGE_KEY, selectedImageProfileId)
+    } else {
+      window.localStorage.removeItem(IMAGE_PROFILE_STORAGE_KEY)
+    }
+  }, [selectedImageProfileId])
 
   useEffect(() => {
     const node = listRef.current
@@ -156,6 +242,22 @@ export function AIPanel({
   useEffect(() => {
     resizeComposer()
   }, [input, resizeComposer])
+
+  const handleTextProfileChange = useCallback((value: string) => {
+    if (value === CUSTOM_TEXT_PROFILE_VALUE) {
+      onOpenSettingsTab?.('ai-provider')
+      return
+    }
+    setSelectedTextProfileId(value)
+  }, [onOpenSettingsTab])
+
+  const handleImageProfileChange = useCallback((value: string) => {
+    if (value === CUSTOM_IMAGE_PROFILE_VALUE) {
+      onOpenSettingsTab?.('ai-image-provider')
+      return
+    }
+    setSelectedImageProfileId(value)
+  }, [onOpenSettingsTab])
 
   const sendMessage = useCallback(async (rawInput?: string) => {
     const nextInput = (rawInput ?? input).trim()
@@ -204,6 +306,8 @@ export function AIPanel({
           activeBlockIndex,
           selectionText,
           skillId: selectedSkillId ? Number(selectedSkillId) : null,
+          textProfileId: selectedTextProfileId ? Number(selectedTextProfileId) : null,
+          imageProfileId: selectedImageProfileId ? Number(selectedImageProfileId) : null,
         }),
       })
 
@@ -346,7 +450,7 @@ export function AIPanel({
       setToolStatus(null)
       setLoading(false)
     }
-  }, [articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, postSlug, selectedSkillId, title, toast])
+  }, [articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, postSlug, selectedImageProfileId, selectedSkillId, selectedTextProfileId, title, toast])
 
   if (!hydrated) {
     return (
@@ -436,16 +540,52 @@ export function AIPanel({
           />
 
           <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <Tooltip content="更多操作">
-                <UiIconButton
-                  tone="soft"
-                  className="h-9 w-9 rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))]"
-                  aria-label="更多操作"
-                >
-                  <Plus className="h-4.5 w-4.5" />
-                </UiIconButton>
-              </Tooltip>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
+                  <Bot className="h-4.5 w-4.5" />
+                </span>
+                <SelectDropdown
+                  options={[
+                    ...textProfiles.map((profile) => ({
+                      value: String(profile.id),
+                      label: profile.name,
+                      title: profile.model,
+                      searchText: `${profile.model} ${profile.name}`,
+                    })),
+                    { value: CUSTOM_TEXT_PROFILE_VALUE, label: '添加自定义模型', title: '前往设置配置文本模型' },
+                  ]}
+                  value={selectedTextProfileId}
+                  onChange={handleTextProfileChange}
+                  menuPlacement="top"
+                  searchable={textProfiles.length > 6}
+                  placeholder="文本模型"
+                  className="w-[10.75rem]"
+                />
+              </div>
+
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
+                  <ImageIcon className="h-4.5 w-4.5" />
+                </span>
+                <SelectDropdown
+                  options={[
+                    ...imageProfiles.map((profile) => ({
+                      value: String(profile.id),
+                      label: profile.name,
+                      title: profile.model,
+                      searchText: `${profile.model} ${profile.name}`,
+                    })),
+                    { value: CUSTOM_IMAGE_PROFILE_VALUE, label: '添加自定义模型', title: '前往设置配置图片模型' },
+                  ]}
+                  value={selectedImageProfileId}
+                  onChange={handleImageProfileChange}
+                  menuPlacement="top"
+                  searchable={imageProfiles.length > 6}
+                  placeholder="图像模型"
+                  className="w-[10.75rem]"
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-2.5">

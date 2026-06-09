@@ -25,6 +25,7 @@ export type EditorAiAction =
       alt?: string
       aspectRatio?: string
       resolution?: string
+      imageProfileId?: number | null
     }
 
 export type EditorAiRuntimeEvent =
@@ -48,6 +49,8 @@ export interface EditorAiRuntimeInput {
   history: AiEditorThreadMessage[]
   memoryItems: AiEditorMemoryItem[]
   activeSkill?: ActiveSkillInstructions | null
+  textProfileId?: number | null
+  imageProfileId?: number | null
   env?: AIEnv
   db?: D1Database
 }

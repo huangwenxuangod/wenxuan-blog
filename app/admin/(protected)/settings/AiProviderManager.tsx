@@ -1,18 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useToast } from '@/components/Toast'
 import { Modal } from '@/components/Modal'
 import { AI_PROVIDER_PRESETS } from '@/lib/ai-provider-presets'
 import { clampMaxTokens, clampTemperature, normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 import {
-  createModelOptions,
   ProviderBasicFields,
   ProviderDialog,
   ProviderListTable,
   type BaseProviderFormState,
   type BaseProviderProfile,
-  type ModelsResponse,
 } from '@/app/admin/(protected)/settings/provider-manager-shared'
 
 const CUSTOM_PROVIDER_ID = 'custom'
@@ -75,18 +73,10 @@ export function AiProviderManager() {
   const [editing, setEditing] = useState<ProviderFormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [loadingModels, setLoadingModels] = useState(false)
 
-  const [models, setModels] = useState<Array<{ id: string; name: string }>>([])
-  const [modelsSource, setModelsSource] = useState<'provider' | 'preset' | null>(null)
-  const [modelsWarning, setModelsWarning] = useState('')
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<ProviderProfile | null>(null)
-
-  const modelOptions = useMemo(() => {
-    return createModelOptions(models, editing?.model || '')
-  }, [editing?.model, models])
 
   const loadProfiles = async () => {
     try {
@@ -109,71 +99,12 @@ export function AiProviderManager() {
 
   const openCreate = () => {
     setEditing(createEmptyForm())
-    setModels([])
-    setModelsSource(null)
-    setModelsWarning('')
     setTestResult(null)
   }
 
   const openEdit = (profile: ProviderProfile) => {
     setEditing(mapProfileToForm(profile))
-    setModels([])
-    setModelsSource(null)
-    setModelsWarning('')
     setTestResult(null)
-  }
-
-  const handleFetchModels = async () => {
-    if (!editing) return
-    if (!editing.base_url.trim()) {
-      toast.error('请先填写 Base URL')
-      return
-    }
-
-    setLoadingModels(true)
-    setModelsWarning('')
-
-    try {
-      const params = new URLSearchParams({
-        provider: editing.provider,
-        base_url: normalizeBaseUrl(editing.base_url),
-      })
-      if (editing.id) params.set('profile_id', String(editing.id))
-      if (editing.api_key.trim()) params.set('api_key', editing.api_key.trim())
-
-      const res = await fetch(`/api/admin/ai-provider/models?${params.toString()}`)
-      const data = (await res.json()) as ModelsResponse
-      if (!res.ok) {
-        throw new Error(data.error || '获取模型列表失败')
-      }
-
-      const nextModels = data.models || []
-      setModels(nextModels)
-      setModelsSource(data.source || null)
-      setModelsWarning(data.warning || '')
-      if (nextModels.length > 0) {
-        if (!editing.model.trim()) {
-          setEditing(prev => prev ? { ...prev, model: nextModels[0].id } : prev)
-        }
-        if (data.source === 'preset') {
-          toast.warning(data.warning || `接口不可用，已回退 ${nextModels.length} 个预设模型`)
-        } else if (data.warning) {
-          toast.warning(data.warning)
-        } else {
-          toast.success(`已加载 ${nextModels.length} 个模型`)
-        }
-      } else {
-        toast.error('未获取到模型列表')
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '获取模型列表失败'
-      toast.error(message)
-      setModels([])
-      setModelsSource(null)
-      setModelsWarning('')
-    } finally {
-      setLoadingModels(false)
-    }
   }
 
   const handleTest = async () => {
@@ -350,15 +281,13 @@ export function AiProviderManager() {
         >
           <ProviderBasicFields
             editing={editing}
-            modelOptions={modelOptions}
-            loadingModels={loadingModels}
-            models={models}
-            modelsSource={modelsSource}
-            modelsWarning={modelsWarning}
+            modelOptions={[]}
+            models={[]}
+            modelsSource={null}
+            modelsWarning=""
             onChange={updateEditing}
-            onFetchModels={handleFetchModels}
             presets={AI_PROVIDER_PRESETS}
-            onClearModels={() => setModels([])}
+            onClearModels={() => {}}
           />
 
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -246,13 +246,10 @@ export function ProviderTemplateModal({
 interface ProviderBasicFieldsProps<T extends BaseProviderFormState> {
   editing: T
   modelOptions: Array<{ value: string; label: string }>
-  loadingModels: boolean
   models: Array<{ id: string; name: string }>
   modelsSource: 'provider' | 'preset' | null
   modelsWarning: string
   onChange: (patch: Partial<T>) => void
-  onFetchModels: () => void
-  fetchModelsLabel?: string
   presets?: Array<{
     id: string
     name: string
@@ -267,13 +264,10 @@ interface ProviderBasicFieldsProps<T extends BaseProviderFormState> {
 export function ProviderBasicFields<T extends BaseProviderFormState>({
   editing,
   modelOptions,
-  loadingModels,
   models,
   modelsSource,
   modelsWarning,
   onChange,
-  onFetchModels,
-  fetchModelsLabel = '拉取模型列表',
   presets,
   onClearModels,
 }: ProviderBasicFieldsProps<T>) {
@@ -375,17 +369,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
       </div>
 
       <div className="sm:col-span-2">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <label className="block text-sm font-medium text-[var(--editor-ink)]">模型</label>
-          <button
-            type="button"
-            onClick={onFetchModels}
-            disabled={loadingModels}
-            className="rounded-md border border-[var(--editor-line)] px-2.5 py-1 text-xs text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] disabled:opacity-50"
-          >
-            {loadingModels ? '拉取中…' : fetchModelsLabel}
-          </button>
-        </div>
+        <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">模型</label>
         <input
           type="text"
           value={editing.model}
@@ -393,16 +377,13 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
           className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
         />
         {models.length > 0 ? (
-          <div className="mt-2 space-y-2">
+          <div className="mt-2">
             <Dropdown
               options={modelOptions}
               value={editing.model}
               onChange={(value) => onChange({ model: value } as Partial<T>)}
-              placeholder={`搜索并选择已加载的 ${models.length} 个模型`}
+              placeholder={`选择已加载的 ${models.length} 个模型`}
             />
-            <div className="text-xs text-[var(--editor-muted)]">
-              已加载 {models.length} 个模型。可在下拉里搜索，也可以直接在上方手动输入模型 ID。
-            </div>
           </div>
         ) : null}
         {modelsSource || modelsWarning ? (

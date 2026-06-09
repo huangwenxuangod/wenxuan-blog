@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useToast } from '@/components/Toast'
 import { Modal } from '@/components/Modal'
 import {
@@ -8,13 +8,11 @@ import {
 } from '@/lib/ai-image/provider-presets'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 import {
-  createModelOptions,
   ProviderBasicFields,
   ProviderDialog,
   ProviderListTable,
   type BaseProviderFormState,
   type BaseProviderProfile,
-  type ModelsResponse,
 } from '@/app/admin/(protected)/settings/provider-manager-shared'
 
 const CUSTOM_PROVIDER_ID = 'custom'
@@ -65,16 +63,7 @@ export function AiImageProviderManager() {
 
   const [editing, setEditing] = useState<ProviderFormState | null>(null)
   const [saving, setSaving] = useState(false)
-  const [loadingModels, setLoadingModels] = useState(false)
-
-  const [models, setModels] = useState<Array<{ id: string; name: string }>>([])
-  const [modelsSource, setModelsSource] = useState<'provider' | 'preset' | null>(null)
-  const [modelsWarning, setModelsWarning] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<ProviderProfile | null>(null)
-
-  const modelOptions = useMemo(() => {
-    return createModelOptions(models, editing?.model || '')
-  }, [editing?.model, models])
 
   const loadProfiles = async () => {
     try {
@@ -97,70 +86,10 @@ export function AiImageProviderManager() {
 
   const openCreate = () => {
     setEditing(createEmptyForm())
-    setModels([])
-    setModelsSource(null)
-    setModelsWarning('')
   }
 
   const openEdit = (profile: ProviderProfile) => {
     setEditing(mapProfileToForm(profile))
-    setModels([])
-    setModelsSource(null)
-    setModelsWarning('')
-  }
-
-  const handleFetchModels = async () => {
-    if (!editing) return
-    if (!editing.base_url.trim()) {
-      toast.error('请先填写 Base URL')
-      return
-    }
-
-    setLoadingModels(true)
-    setModelsWarning('')
-
-    try {
-      const params = new URLSearchParams({
-        provider: editing.provider,
-        base_url: normalizeBaseUrl(editing.base_url),
-      })
-      if (editing.id) params.set('profile_id', String(editing.id))
-      if (editing.api_key.trim()) params.set('api_key', editing.api_key.trim())
-
-      const res = await fetch(`/api/admin/ai-image-provider/models?${params.toString()}`)
-      const data = (await res.json()) as ModelsResponse
-      if (!res.ok) {
-        throw new Error(data.error || '获取模型列表失败')
-      }
-
-      const nextModels = data.models || []
-      setModels(nextModels)
-      setModelsSource(data.source || null)
-      setModelsWarning(data.warning || '')
-
-      if (nextModels.length > 0) {
-        if (!editing.model.trim()) {
-          setEditing((current) => current ? { ...current, model: nextModels[0].id } : current)
-        }
-        if (data.source === 'preset') {
-          toast.warning(data.warning || `接口不可用，已回退 ${nextModels.length} 个预设模型`)
-        } else if (data.warning) {
-          toast.warning(data.warning)
-        } else {
-          toast.success(`已加载 ${nextModels.length} 个模型`)
-        }
-      } else {
-        toast.warning('未获取到模型列表')
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '获取模型列表失败'
-      toast.error(message)
-      setModels([])
-      setModelsSource(null)
-      setModelsWarning('')
-    } finally {
-      setLoadingModels(false)
-    }
   }
 
   const handleSave = async () => {
@@ -294,16 +223,13 @@ export function AiImageProviderManager() {
         >
           <ProviderBasicFields
             editing={editing}
-            modelOptions={modelOptions}
-            loadingModels={loadingModels}
-            models={models}
-            modelsSource={modelsSource}
-            modelsWarning={modelsWarning}
+            modelOptions={[]}
+            models={[]}
+            modelsSource={null}
+            modelsWarning=""
             onChange={updateEditing}
-            onFetchModels={handleFetchModels}
-            fetchModelsLabel="获取模型"
             presets={AI_IMAGE_PROVIDER_PRESETS}
-            onClearModels={() => setModels([])}
+            onClearModels={() => {}}
           />
 
           <div className="mt-3">

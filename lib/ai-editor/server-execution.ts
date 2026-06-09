@@ -37,6 +37,7 @@ export interface FinalizedEditorAiResponse {
 interface FinalizeEditorAiCompletionOptions {
   articleKey: string
   articleTitle?: string
+  imageProfileId?: number | null
   db: D1Database
   env: Record<string, string | undefined>
   images?: ImageBucket
@@ -49,6 +50,7 @@ interface FinalizeEditorAiCompletionOptions {
     contextText?: string
     aspectRatio?: string
     resolution?: string
+    profileId?: number | null
     db: D1Database
     env: Record<string, string | undefined>
     images: ImageBucket
@@ -61,6 +63,7 @@ interface FinalizeEditorAiCompletionOptions {
 export async function finalizeEditorAiCompletion({
   articleKey,
   articleTitle,
+  imageProfileId,
   db,
   env,
   images,
@@ -89,6 +92,7 @@ export async function finalizeEditorAiCompletion({
         contextText: completed.message,
         aspectRatio: completed.action.aspectRatio || (completed.action.usage === 'cover' ? '5:2' : undefined),
         resolution: completed.action.resolution,
+        profileId: imageProfileId ?? completed.action.imageProfileId ?? null,
         db,
         env,
         images,

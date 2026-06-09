@@ -64,6 +64,9 @@ interface Props {
   initialDefaultTheme: string
   initialRuntimeCapabilities: RuntimeCapabilities
   initialHomeShortcutEnabled?: string
+  initialTab?: string
+  selectedTab?: string
+  onTabChange?: (tabId: string) => void
 }
 
 export function SettingsManager({
@@ -74,6 +77,9 @@ export function SettingsManager({
   initialDefaultTheme,
   initialRuntimeCapabilities,
   initialHomeShortcutEnabled = 'true',
+  initialTab = 'nav',
+  selectedTab,
+  onTabChange,
 }: Props) {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
@@ -263,5 +269,12 @@ export function SettingsManager({
     },
   ]
 
-  return <Tabs tabs={tabs} defaultTab="nav" />
+  return (
+    <Tabs
+      tabs={tabs}
+      defaultTab={initialTab}
+      selectedTab={selectedTab}
+      onTabChange={onTabChange}
+    />
+  )
 }

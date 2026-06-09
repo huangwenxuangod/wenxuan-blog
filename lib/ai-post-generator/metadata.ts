@@ -38,6 +38,10 @@ import type {
   GeneratePostMetadataInput,
 } from '@/lib/ai-post-generator/types'
 import { resolveWorkersAiProfile } from '@/lib/ai-post-generator/workers-profile'
+import {
+  buildPostMetadataResponseSchema,
+  buildWorkersAiJsonSchemaResponseFormat,
+} from '@/lib/workers-ai-json'
 
 type TextRuntime =
   | {
@@ -83,7 +87,9 @@ async function runTextGenerator(
       messages,
       max_tokens: config.maxTokens,
       temperature: config.temperature,
-      response_format: { type: 'json_object' },
+      response_format: buildWorkersAiJsonSchemaResponseFormat(
+        buildPostMetadataResponseSchema(target),
+      ),
       ...requestOptions,
     })
     const primary = getWorkersAiAssistantPayload(result)

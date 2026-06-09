@@ -50,3 +50,4 @@ next-env.d.ts
 wrangler.local.toml
 worker-configuration.d.ts
 .bundle-analysis/
+/data/state_store.db

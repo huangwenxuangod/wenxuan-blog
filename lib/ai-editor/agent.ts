@@ -4,6 +4,10 @@ import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 import { describeAiEditorTools, type AiEditorToolCall } from './agent-tools'
 import type { buildAiEditorContext } from './context'
 import { appendSkillInstructions, type ActiveSkillInstructions } from '@/lib/skills/prompt'
+import {
+  buildEditorAgentResponseSchema,
+  buildWorkersAiJsonSchemaResponseFormat,
+} from '@/lib/workers-ai-json'
 
 interface AgentHistoryMessage {
   role: 'user' | 'assistant'
@@ -98,9 +102,7 @@ export async function runAiEditorAgent(input: RunAiEditorAgentInput): Promise<Ag
       messages,
       max_tokens: Math.min(config.maxTokens, 2400),
       temperature: 0.4,
-      response_format: {
-        type: 'json_object',
-      },
+      response_format: buildWorkersAiJsonSchemaResponseFormat(buildEditorAgentResponseSchema()),
     })
 
     const raw = typeof result === 'string'

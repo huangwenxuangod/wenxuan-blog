@@ -208,6 +208,22 @@ type SettingsCategory = {
   post_count: number
 }
 
+type SettingsTabId =
+  | 'nav'
+  | 'categories'
+  | 'code'
+  | 'theme'
+  | 'preferences'
+  | 'tokens'
+  | 'ai-provider'
+  | 'ai-actions'
+  | 'skills'
+  | 'ai-image-provider'
+  | 'ai-image-actions'
+  | 'ai-post-generators'
+  | 'runtime'
+  | 'backup'
+
 function WechatPreviewRail({
   title,
   html,
@@ -303,7 +319,9 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [wechatPublishOpen, setWechatPublishOpen] = useState(false)
   const [shareLongImageOpen, setShareLongImageOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
+  const [settingsActiveTab, setSettingsActiveTab] = useState<SettingsTabId>('nav')
   const [categoryRefreshKey, setCategoryRefreshKey] = useState(0)
+  const [providerRefreshKey, setProviderRefreshKey] = useState(0)
   const [homeShortcutEnabled, setHomeShortcutEnabled] = useState(true)
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [settingsData, setSettingsData] = useState<{
@@ -319,7 +337,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   useEffect(() => {
     fetch('/api/admin/settings?key=home_shortcut_enabled')
       .then((res) => res.json())
-      .then((data: any) => {
+      .then((data: { value?: string }) => {
         if (data && data.value !== undefined) {
           setHomeShortcutEnabled(data.value === 'true')
         }
@@ -327,7 +345,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       .catch(() => {})
   }, [categoryRefreshKey])
 
-  const handleOpenSettings = async () => {
+  const handleOpenSettings = async (tabId: SettingsTabId = 'nav') => {
+    setSettingsActiveTab(tabId)
     setSettingsModalOpen(true)
     if (settingsData) return
 
@@ -1905,6 +1924,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                     editor={editorRef.current}
                     documentJson={currentDocumentJson}
                     documentText={currentDocumentText}
+                    onOpenSettingsTab={(tabId) => void handleOpenSettings(tabId)}
+                    profilesRefreshKey={providerRefreshKey}
                     onTitleApply={(nextTitle) => {
                       latestTitleRef.current = nextTitle
                       setTitle(nextTitle)
@@ -2051,6 +2072,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           onClose={() => {
             setSettingsModalOpen(false)
             setCategoryRefreshKey((prev) => prev + 1)
+            setProviderRefreshKey((prev) => prev + 1)
           }}
           className="relative z-50"
         >
@@ -2067,6 +2089,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                   onClick={() => {
                     setSettingsModalOpen(false)
                     setCategoryRefreshKey((prev) => prev + 1)
+                    setProviderRefreshKey((prev) => prev + 1)
                   }}
                   className="editor-quiet-icon-button h-8 w-8 shrink-0 outline-none focus:outline-none"
                   aria-label="关闭"
@@ -2092,6 +2115,9 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                       initialDefaultTheme={settingsData.defaultTheme}
                       initialRuntimeCapabilities={settingsData.runtimeCapabilities}
                       initialHomeShortcutEnabled={settingsData.homeShortcutEnabled}
+                      initialTab={settingsActiveTab}
+                      selectedTab={settingsActiveTab}
+                      onTabChange={(tabId) => setSettingsActiveTab(tabId as SettingsTabId)}
                     />
                   </div>
                 ) : (
