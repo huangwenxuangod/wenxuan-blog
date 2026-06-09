@@ -345,7 +345,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       .catch(() => {})
   }, [categoryRefreshKey])
 
-  const handleOpenSettings = async (tabId: SettingsTabId = 'nav') => {
+  const openSettingsModal = async (tabId: SettingsTabId = 'nav') => {
     setSettingsActiveTab(tabId)
     setSettingsModalOpen(true)
     if (settingsData) return
@@ -406,6 +406,10 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     } finally {
       setSettingsLoading(false)
     }
+  }
+
+  const handleOpenSettings = () => {
+    void openSettingsModal()
   }
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -1924,7 +1928,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                     editor={editorRef.current}
                     documentJson={currentDocumentJson}
                     documentText={currentDocumentText}
-                    onOpenSettingsTab={(tabId) => void handleOpenSettings(tabId)}
+                    onOpenSettingsTab={(tabId) => void openSettingsModal(tabId)}
                     profilesRefreshKey={providerRefreshKey}
                     onTitleApply={(nextTitle) => {
                       latestTitleRef.current = nextTitle
