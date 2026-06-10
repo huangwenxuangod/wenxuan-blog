@@ -18,18 +18,33 @@ import {
   type SkillCommandEntry,
 } from '@/lib/ai-editor/skill-command'
 import type { EditorAiAction } from '@/lib/ai-editor/runtime-types'
+import {
+  ImageGenerationCard,
+  type ImageGenerationCardItem,
+} from '@/components/editor/ImageGenerationCard'
 import { insertGeneratedImageAtPosition } from '@/lib/editor-file-upload'
 import { renderMarkdownToHtml } from '@/lib/editor-markdown'
 import { useToast } from '@/components/Toast'
 import { cx, UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
 import { Tooltip } from '@/components/ui/Tooltip'
 
-type ChatMessage = {
+type TextChatMessage = {
   id: string
   role: 'user' | 'assistant'
+  kind: 'text'
   content: string
   pending?: boolean
 }
+
+type ImageChatMessage = {
+  id: string
+  role: 'assistant'
+  kind: 'image_generation'
+  count: number
+  items: ImageGenerationCardItem[]
+}
+
+type ChatMessage = TextChatMessage | ImageChatMessage
 
 type SkillOption = {
   id: number
@@ -112,6 +127,26 @@ function createMessageId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+function createTextMessage(role: 'user' | 'assistant', content: string, pending = false): TextChatMessage {
+  return {
+    id: createMessageId(role),
+    role,
+    kind: 'text',
+    content,
+    pending,
+  }
+}
+
+function createImageGenerationMessage(count: number): ImageChatMessage {
+  return {
+    id: createMessageId('image-generation'),
+    role: 'assistant',
+    kind: 'image_generation',
+    count,
+    items: Array.from({ length: count }, () => ({ status: 'pending' as const })),
+  }
+}
+
 function shouldApplyImmediately(action: EditorAiAction) {
   return action.type !== 'generate_images'
 }
@@ -157,7 +192,6 @@ export function AIPanel({
   const [loading, setLoading] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
-  const [toolStatus, setToolStatus] = useState<string | null>(null)
   const [skills, setSkills] = useState<SkillOption[]>([])
   const [selectedSkillId, setSelectedSkillId] = useState('')
   const [selectedSkillSource, setSelectedSkillSource] = useState<'manual' | 'auto' | null>(null)
@@ -206,6 +240,7 @@ export function AIPanel({
         .map((item) => ({
           id: `db-${item.id}`,
           role: item.role,
+          kind: 'text' as const,
           content: item.content,
           pending: item.role === 'assistant' && !item.content.trim(),
         }))
@@ -310,7 +345,7 @@ export function AIPanel({
     const node = listRef.current
     if (!node) return
     node.scrollTop = node.scrollHeight
-  }, [messages, loading, toolStatus])
+  }, [messages, loading])
 
   useEffect(() => {
     resizeComposer()
@@ -372,76 +407,90 @@ export function AIPanel({
     const images = action.images.slice(0, 5)
     if (images.length === 0) return
 
-    let completedCount = 0
+    const imageMessage = createImageGenerationMessage(images.length)
+    setMessages((current) => [...current, imageMessage])
 
-    setToolStatus(`AI 正在并发生成 ${images.length} 张图片…`)
+    const updateImageItem = (
+      index: number,
+      patch: Partial<ImageGenerationCardItem>,
+    ) => {
+      setMessages((current) => current.map((message) => {
+        if (message.id !== imageMessage.id || message.kind !== 'image_generation') {
+          return message
+        }
+
+        return {
+          ...message,
+          items: message.items.map((item, itemIndex) => (
+            itemIndex === index ? { ...item, ...patch } : item
+          )),
+        }
+      }))
+    }
 
     const results = await Promise.allSettled(images.map(async (item, index) => {
-      setToolStatus(`AI 正在生成第 ${index + 1}/${images.length} 张图片…`)
+      try {
+        const response = await fetch('/api/editor/ai-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sceneKey: item.usage === 'cover' ? 'article_cover' : 'editor_inline',
+            prompt: item.prompt,
+            articleTitle: title,
+            contextText: documentText.slice(0, 4000),
+            aspectRatio: item.aspectRatio || (item.usage === 'cover' ? '5:2' : undefined),
+            resolution: item.resolution,
+            profileId: item.imageProfileId ?? (selectedImageProfileId ? Number(selectedImageProfileId) : null),
+          }),
+        })
 
-      const response = await fetch('/api/editor/ai-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sceneKey: item.usage === 'cover' ? 'article_cover' : 'editor_inline',
-          prompt: item.prompt,
-          articleTitle: title,
-          contextText: documentText.slice(0, 4000),
-          aspectRatio: item.aspectRatio || (item.usage === 'cover' ? '5:2' : undefined),
-          resolution: item.resolution,
-          profileId: item.imageProfileId ?? (selectedImageProfileId ? Number(selectedImageProfileId) : null),
-        }),
-      })
+        const payload = await response.json().catch(() => ({})) as {
+          error?: string
+          image?: GeneratedImageResult
+        }
 
-      const payload = await response.json().catch(() => ({})) as {
-        error?: string
-        image?: GeneratedImageResult
+        if (!response.ok || !payload.image) {
+          throw new Error(payload.error || `第 ${index + 1} 张图片生成失败`)
+        }
+
+        updateImageItem(index, {
+          status: 'completed',
+          imageUrl: payload.image.url,
+          alt: item.alt || payload.image.alt,
+        })
+
+        if (item.usage === 'cover') {
+          onCoverImageApply?.(payload.image.url)
+          return
+        }
+
+        if (!editor) {
+          return
+        }
+
+        const insertPos = Number.isFinite(item.anchorBlockIndex)
+          ? getInsertPositionForBlock(editor, Number(item.anchorBlockIndex), 'after')
+          : editor.state.selection.to
+
+        insertGeneratedImageAtPosition(
+          editor,
+          payload.image.url,
+          item.alt || payload.image.alt,
+          insertPos,
+        )
+      } catch (error) {
+        updateImageItem(index, {
+          status: 'failed',
+          alt: item.alt || `Generated image ${index + 1}`,
+        })
+        throw error
       }
-
-      if (!response.ok || !payload.image) {
-        throw new Error(payload.error || `第 ${index + 1} 张图片生成失败`)
-      }
-
-      completedCount += 1
-      setToolStatus(`已生成 ${completedCount}/${images.length} 张图片…`)
-
-      if (item.usage === 'cover') {
-        onCoverImageApply?.(payload.image.url)
-        return
-      }
-
-      if (!editor) {
-        return
-      }
-
-      const insertPos = Number.isFinite(item.anchorBlockIndex)
-        ? getInsertPositionForBlock(editor, Number(item.anchorBlockIndex), 'after')
-        : editor.state.selection.to
-
-      insertGeneratedImageAtPosition(
-        editor,
-        payload.image.url,
-        item.alt || payload.image.alt,
-        insertPos,
-      )
     }))
 
     const failedCount = results.filter((result) => result.status === 'rejected').length
     if (failedCount > 0) {
       toast.error(`${failedCount} 张图片生成失败，其余已继续完成`)
     }
-
-    setToolStatus(
-      failedCount > 0
-        ? `图片生成完成，成功 ${images.length - failedCount} 张，失败 ${failedCount} 张`
-        : `图片生成完成，共 ${images.length} 张`,
-    )
-
-    window.setTimeout(() => {
-      setToolStatus((current) => (
-        current?.includes('图片生成完成') ? null : current
-      ))
-    }, 2200)
   }, [documentText, editor, onCoverImageApply, selectedImageProfileId, title, toast])
 
   const sendMessage = useCallback(async (rawInput?: string) => {
@@ -481,12 +530,9 @@ export function AIPanel({
       }
     }
 
-    const userMessage: ChatMessage = {
-      id: createMessageId('user'),
-      role: 'user',
-      content: nextInput,
-    }
-    const assistantId = createMessageId('assistant')
+    const userMessage = createTextMessage('user', nextInput)
+    const assistantMessage = createTextMessage('assistant', '', true)
+    const assistantId = assistantMessage.id
     const activeBlockIndex = editor ? getActiveBlockIndex(editor) : null
     const selectionText = editor
       ? editor.state.doc.textBetween(
@@ -499,15 +545,9 @@ export function AIPanel({
     setMessages((current) => [
       ...current,
       userMessage,
-      {
-        id: assistantId,
-        role: 'assistant',
-        content: '',
-        pending: true,
-      },
+      assistantMessage,
     ])
     setStreamingId(assistantId)
-    setToolStatus(null)
     setInput('')
     setLoading(true)
 
@@ -557,7 +597,7 @@ export function AIPanel({
 
           if (event.type === 'assistant_delta') {
             setMessages((current) => current.map((item) => (
-              item.id === assistantId
+              item.id === assistantId && item.kind === 'text'
                 ? { ...item, content: item.content + event.delta, pending: false }
                 : item
             )))
@@ -580,15 +620,6 @@ export function AIPanel({
           }
 
           if (event.type === 'tool_pending') {
-            if (event.tool === 'generate_images') {
-              const count = (
-                event.payload
-                && typeof event.payload === 'object'
-                && 'count' in event.payload
-                && typeof event.payload.count === 'number'
-              ) ? event.payload.count : 0
-              setToolStatus(count > 0 ? `AI 已规划 ${count} 张图片，准备开始生成…` : 'AI 正在规划图片…')
-            }
             continue
           }
 
@@ -597,35 +628,35 @@ export function AIPanel({
           }
 
           if (event.type === 'assistant_done') {
-              if (event.message) {
-                setMessages((current) => current.map((item) => (
-                  item.id === assistantId
-                    ? { ...item, content: event.message, pending: false }
-                    : item
-                )))
-              } else {
-                setMessages((current) => current.map((item) => (
-                  item.id === assistantId
-                    ? { ...item, pending: true }
-                    : item
-                )))
-              }
-              finalTool = event.tool || { name: 'reply_only', payload: null }
-              if (!actionApplied && finalTool.name !== 'generate_images') {
-                if (finalTool.name === 'edit_title' && onTitleApply) {
-                  onTitleApply(finalTool.payload.title)
-                } else if (editor) {
-                  applyLegacyToolResult(editor, finalTool)
-                }
-                actionApplied = true
-              }
-              if (event.error) {
-                toast.error(event.error)
-              }
-              setStreamingId(null)
-              setLoading(false)
-              continue
+            if (event.message) {
+              setMessages((current) => current.map((item) => (
+                item.id === assistantId && item.kind === 'text'
+                  ? { ...item, content: event.message, pending: false }
+                  : item
+              )))
+            } else {
+              setMessages((current) => current.map((item) => (
+                item.id === assistantId && item.kind === 'text'
+                  ? { ...item, pending: false }
+                  : item
+              )))
             }
+            finalTool = event.tool || { name: 'reply_only', payload: null }
+            if (!actionApplied && finalTool.name !== 'generate_images') {
+              if (finalTool.name === 'edit_title' && onTitleApply) {
+                onTitleApply(finalTool.payload.title)
+              } else if (editor) {
+                applyLegacyToolResult(editor, finalTool)
+              }
+              actionApplied = true
+            }
+            if (event.error) {
+              toast.error(event.error)
+            }
+            setStreamingId(null)
+            setLoading(false)
+            continue
+          }
 
           if (event.type === 'assistant_error') {
             toast.error(event.error)
@@ -633,7 +664,7 @@ export function AIPanel({
         }
       }
 
-      if (!actionApplied) {
+      if (!actionApplied && finalTool.name !== 'generate_images') {
         if (finalTool.name === 'edit_title' && onTitleApply) {
           onTitleApply(finalTool.payload.title)
         } else if (editor) {
@@ -644,13 +675,16 @@ export function AIPanel({
       const imageAction = deferredImageAction || legacyGenerateImagesToolToAction(finalTool)
 
       if (imageAction) {
+        setMessages((current) => current.filter((item) => (
+          item.id !== assistantId
+          || item.kind !== 'text'
+          || item.content.trim().length > 0
+        )))
         await runGenerateImagesAction(imageAction)
-      } else {
-        setToolStatus(null)
       }
     } catch (error) {
       setMessages((current) => current.map((item) => (
-        item.id === assistantId
+        item.id === assistantId && item.kind === 'text'
           ? { ...item, content: '抱歉，这次执行失败了，请重试。', pending: false }
           : item
       )))
@@ -694,26 +728,30 @@ export function AIPanel({
               key={message.id}
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-[90%] text-sm leading-7 ${
-                  message.role === 'user'
-                    ? 'rounded-[1.15rem] bg-[color-mix(in_srgb,var(--editor-line)_62%,transparent)] px-4 py-3 text-[var(--editor-ink)]'
-                    : 'px-0 py-0 text-[var(--editor-ink)]'
-                }`}
-              >
-                {message.role === 'assistant' && !message.content && message.id === streamingId ? (
-                  <span className="text-[var(--editor-muted)]">AI 正在思考…</span>
-                ) : message.role === 'assistant' && !message.content && message.pending ? (
-                  <span className="text-[var(--editor-muted)]">上次 AI 回复未完成，你可以继续追问。</span>
-                ) : message.role === 'assistant' ? (
-                  <div
-                    className="prose prose-sm max-w-none prose-headings:mb-3 prose-headings:mt-5 prose-p:my-3 prose-li:my-1 prose-ul:my-3 prose-ol:my-3 prose-strong:text-[var(--editor-ink)] prose-p:text-[var(--editor-ink)] prose-li:text-[var(--editor-ink)]"
-                    dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(message.content) }}
-                  />
-                ) : (
-                  message.content
-                )}
-              </div>
+              {message.kind === 'image_generation' ? (
+                <ImageGenerationCard count={message.count} items={message.items} />
+              ) : (
+                <div
+                  className={`max-w-[90%] text-sm leading-7 ${
+                    message.role === 'user'
+                      ? 'rounded-[1.15rem] bg-[color-mix(in_srgb,var(--editor-line)_62%,transparent)] px-4 py-3 text-[var(--editor-ink)]'
+                      : 'px-0 py-0 text-[var(--editor-ink)]'
+                  }`}
+                >
+                  {message.role === 'assistant' && !message.content && message.id === streamingId ? (
+                    <span className="text-[var(--editor-muted)]">AI 正在思考…</span>
+                  ) : message.role === 'assistant' && !message.content && message.pending ? (
+                    <span className="text-[var(--editor-muted)]">上次 AI 回复未完成，你可以继续追问。</span>
+                  ) : message.role === 'assistant' ? (
+                    <div
+                      className="prose prose-sm max-w-none prose-headings:mb-3 prose-headings:mt-5 prose-p:my-3 prose-li:my-1 prose-ul:my-3 prose-ol:my-3 prose-strong:text-[var(--editor-ink)] prose-p:text-[var(--editor-ink)] prose-li:text-[var(--editor-ink)]"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(message.content) }}
+                    />
+                  ) : (
+                    message.content
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
@@ -721,12 +759,6 @@ export function AIPanel({
 
       <div className="px-1 pb-1 pt-3">
         <UiPanel inset="soft" className="rounded-[1.55rem] border-[color-mix(in_srgb,var(--ui-line)_88%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_98%,var(--ui-soft))] px-4 py-2.5 shadow-[0_10px_28px_rgb(var(--ui-shadow-rgb)/0.08)]">
-          {toolStatus ? (
-            <div className="pb-2 text-xs text-[color-mix(in_srgb,var(--ui-muted)_88%,transparent)]">
-              {toolStatus}
-            </div>
-          ) : null}
-
           {selectedSkill ? (
             <div className="mb-2 flex flex-wrap gap-2">
               <button
@@ -790,29 +822,25 @@ export function AIPanel({
               leaveTo="translate-y-1 opacity-0"
             >
               <div className="ui-popover absolute bottom-[calc(100%+10px)] left-0 z-40 w-full overflow-hidden rounded-[1rem] p-1">
+                <div className="max-h-56 overflow-y-auto">
                 {slashMenuOptions.map((entry, index) => (
                   <button
                     key={`${entry.id}-${entry.trigger}`}
                     type="button"
                     onClick={() => handleSelectSkillCommand(entry)}
+                    title={entry.description}
                     className={cx(
-                      'flex w-full cursor-pointer items-start gap-3 rounded-[0.85rem] px-3 py-2.5 text-left transition',
+                      'flex h-11 w-full cursor-pointer items-center gap-2 rounded-[0.85rem] px-3 text-left transition',
                       index === slashMenuIndex
                         ? 'bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]'
                         : 'hover:bg-[color-mix(in_srgb,var(--editor-line)_20%,transparent)]',
                     )}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-[var(--ui-ink)]">/{entry.trigger}</span>
-                        <span className="truncate text-xs text-[var(--ui-muted)]">{entry.name}</span>
-                      </div>
-                      <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--ui-muted)]">
-                        {entry.description}
-                      </div>
-                    </div>
+                    <span className="truncate text-sm font-medium text-[var(--ui-ink)]">/{entry.trigger}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-[var(--ui-muted)]">{entry.name}</span>
                   </button>
                 ))}
+                </div>
               </div>
             </Transition>
           </div>

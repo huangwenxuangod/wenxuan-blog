@@ -21,6 +21,8 @@ import {
   PanelRightClose,
   PanelLeftOpen,
   PanelLeftClose,
+  ListTree,
+  ScrollText,
   Share2,
   Image as ImageIcon,
   Settings,
@@ -95,6 +97,7 @@ type PublishStatus = 'public' | 'draft' | 'encrypted' | 'unlisted'
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error'
 
 const TOC_KEY = 'qmblog:toc-open'
+const LEFT_RAIL_MODE_KEY = 'qmblog:left-rail-mode'
 const AI_RAIL_KEY = 'qmblog:ai-rail-open'
 const AI_RAIL_WIDTH_KEY = 'qmblog:ai-rail-width'
 const AUTOSAVE_DEBOUNCE_MS = 1500
@@ -201,6 +204,7 @@ type DraftMetaState = {
 }
 
 type RightRailMode = 'chat' | 'wechat-preview'
+type LeftRailMode = 'toc' | 'articles'
 
 type SettingsCategory = {
   name: string
@@ -310,6 +314,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
   // ── UI state ──
   const [tocOpen, setTocOpen] = useState(true)
+  const [leftRailMode, setLeftRailMode] = useState<LeftRailMode>('toc')
   const [aiRailOpen, setAiRailOpen] = useState(true)
   const [aiRailWidth, setAiRailWidth] = useState(DEFAULT_AI_RAIL_WIDTH)
   const [viewportWidth, setViewportWidth] = useState(0)
@@ -433,6 +438,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const autosaveAbortRef = useRef<AbortController | null>(null)
   const autosaveSeqRef = useRef(0)
   const lastAutosaveSnapshotRef = useRef<string | null>(null)
+  const activeDocumentSlugRef = useRef<string | null>(initialData?.slug ?? null)
   const skipNextEditorUpdateRef = useRef(Boolean(initialData?.html))
   const slugInputFocusedRef = useRef(false)
   const latestMetaRef = useRef<DraftMetaState>({
@@ -461,6 +467,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       setViewportWidth(window.innerWidth)
       const storedToc = window.localStorage.getItem(TOC_KEY)
       setTocOpen(storedToc === null ? true : storedToc === 'true')
+      const storedLeftRailMode = window.localStorage.getItem(LEFT_RAIL_MODE_KEY)
+      setLeftRailMode(storedLeftRailMode === 'articles' ? 'articles' : 'toc')
       const storedAiRail = window.localStorage.getItem(AI_RAIL_KEY)
       setAiRailOpen(storedAiRail === null ? true : storedAiRail === 'true')
       setWechatStylePreset(normalizeWechatStylePreset(window.localStorage.getItem(WECHAT_STYLE_STORAGE_KEY)))
@@ -487,11 +495,12 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(TOC_KEY, String(tocOpen))
+      window.localStorage.setItem(LEFT_RAIL_MODE_KEY, leftRailMode)
       window.localStorage.setItem(AI_RAIL_KEY, String(aiRailOpen))
       window.localStorage.setItem(AI_RAIL_WIDTH_KEY, String(aiRailWidth))
       window.localStorage.setItem(WECHAT_STYLE_STORAGE_KEY, wechatStylePreset)
     }
-  }, [aiRailOpen, aiRailWidth, tocOpen, wechatStylePreset])
+  }, [aiRailOpen, aiRailWidth, leftRailMode, tocOpen, wechatStylePreset])
 
   useEffect(() => {
     latestMetaRef.current = {
@@ -503,6 +512,85 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       coverImage,
     }
   }, [editSlug, slug, category, tags, description, coverImage])
+
+  const buildAutosaveSnapshot = useCallback((payload: {
+    currentSlug: string | null
+    nextSlug: string
+    title: string
+    html: string
+    description: string
+    category: string
+    tags: string[]
+    coverImage: string
+  }) => {
+    return JSON.stringify({
+      currentSlug: payload.currentSlug,
+      nextSlug: payload.nextSlug,
+      title: payload.title,
+      html: payload.html,
+      description: payload.description,
+      category: payload.category,
+      tags: payload.tags,
+      coverImage: payload.coverImage,
+    })
+  }, [])
+
+  const clearAutosaveTimers = useCallback(() => {
+    if (draftSaveTimerRef.current !== null) {
+      window.clearTimeout(draftSaveTimerRef.current)
+      draftSaveTimerRef.current = null
+    }
+    if (retrySaveTimerRef.current !== null) {
+      window.clearTimeout(retrySaveTimerRef.current)
+      retrySaveTimerRef.current = null
+    }
+  }, [])
+
+  const abortAutosaveRequest = useCallback(() => {
+    autosaveAbortRef.current?.abort()
+    autosaveAbortRef.current = null
+  }, [])
+
+  useEffect(() => {
+    activeDocumentSlugRef.current = initialData?.slug ?? null
+    clearAutosaveTimers()
+    abortAutosaveRequest()
+    autosaveSeqRef.current += 1
+    lastAutosaveSnapshotRef.current = initialData?.slug
+      ? buildAutosaveSnapshot({
+          currentSlug: initialData.slug,
+          nextSlug: initialData.slug,
+          title: initialData.title || '无标题',
+          html: initialData.html || '',
+          description: (initialData.description || '').trim(),
+          category: initialData.category || 'AI',
+          tags: initialData.tags || [],
+          coverImage: initialData.cover_image || '',
+        })
+      : null
+    setSaveState('saved')
+    setLastSavedAt(Date.now())
+  }, [abortAutosaveRequest, buildAutosaveSnapshot, clearAutosaveTimers, initialData])
+
+  useEffect(() => {
+    clearAutosaveTimers()
+    abortAutosaveRequest()
+    autosaveSeqRef.current += 1
+    lastAutosaveSnapshotRef.current = initialData?.slug
+      ? buildAutosaveSnapshot({
+          currentSlug: initialData.slug,
+          nextSlug: initialData.slug,
+          title: initialData.title || '无标题',
+          html: initialData.html || '',
+          description: (initialData.description || '').trim(),
+          category: initialData.category || 'AI',
+          tags: initialData.tags || [],
+          coverImage: initialData.cover_image || '',
+        })
+      : null
+    setSaveState('saved')
+    setLastSavedAt(Date.now())
+  }, [abortAutosaveRequest, buildAutosaveSnapshot, clearAutosaveTimers, initialData])
 
   // Relative time ticker
   useEffect(() => {
@@ -652,44 +740,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     }
   }, [])
 
-  const buildAutosaveSnapshot = useCallback((payload: {
-    currentSlug: string | null
-    nextSlug: string
-    title: string
-    html: string
-    description: string
-    category: string
-    tags: string[]
-    coverImage: string
-  }) => {
-    return JSON.stringify({
-      currentSlug: payload.currentSlug,
-      nextSlug: payload.nextSlug,
-      title: payload.title,
-      html: payload.html,
-      description: payload.description,
-      category: payload.category,
-      tags: payload.tags,
-      coverImage: payload.coverImage,
-    })
-  }, [])
-
-  const clearAutosaveTimers = useCallback(() => {
-    if (draftSaveTimerRef.current !== null) {
-      window.clearTimeout(draftSaveTimerRef.current)
-      draftSaveTimerRef.current = null
-    }
-    if (retrySaveTimerRef.current !== null) {
-      window.clearTimeout(retrySaveTimerRef.current)
-      retrySaveTimerRef.current = null
-    }
-  }, [])
-
-  const abortAutosaveRequest = useCallback(() => {
-    autosaveAbortRef.current?.abort()
-    autosaveAbortRef.current = null
-  }, [])
-
   const syncPersistedSlug = useCallback((
     persistedSlug: string,
     previousSlug: string | null,
@@ -704,6 +754,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
       editSlug: persistedSlug,
       slug: shouldSyncVisibleSlug ? persistedSlug : latestMetaRef.current.slug,
     }
+    activeDocumentSlugRef.current = persistedSlug
 
     setEditSlug(persistedSlug)
     if (shouldSyncVisibleSlug) {
@@ -723,6 +774,8 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
     if (typeof window === 'undefined' || !draftReady || !editor) return
 
     const { editSlug: currentSlug, slug: nextSlugRaw, category, tags, description, coverImage } = latestMetaRef.current
+    if (activeDocumentSlugRef.current !== currentSlug) return
+
     const nextSlug = normalizePostSlug(nextSlugRaw)
     const normalizedTitle = nextTitle.trim() || '无标题'
     const contentJson = editor.getJSON()
@@ -1372,6 +1425,20 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
             </UiIconButton>
           </Tooltip>
 
+          <Tooltip content={leftRailMode === 'toc' ? '切换到文章' : '切换到目录'}>
+            <UiIconButton
+              onClick={() => setLeftRailMode((prev) => (prev === 'toc' ? 'articles' : 'toc'))}
+              aria-label={leftRailMode === 'toc' ? '切换到文章' : '切换到目录'}
+              className="h-10 w-10"
+            >
+              {leftRailMode === 'toc' ? (
+                <ScrollText className="h-[1.15rem] w-[1.15rem]" />
+              ) : (
+                <ListTree className="h-[1.15rem] w-[1.15rem]" />
+              )}
+            </UiIconButton>
+          </Tooltip>
+
           {/* Left: Back */}
           <Link
             href="/admin/posts"
@@ -1641,6 +1708,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           documentJson={currentDocumentJson}
           scrollContainer={mainScrollRef.current}
           activeSlug={editSlug || slug || null}
+          mode={leftRailMode}
         />
 
         {/* Main editor area */}

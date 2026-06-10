@@ -6,7 +6,7 @@ const THEMES: { id: Theme; label: string; short: string }[] = [
   { id: 'default', label: '默认', short: '0' },
   { id: 'refined', label: '精致极简', short: 'A' },
   { id: 'editorial', label: '杂志编辑', short: 'B' },
-  { id: 'terminal', label: 'AI 终端', short: 'C' },
+  { id: 'terminal', label: '后台亮色', short: 'C' },
 ]
 
 interface ThemeSwitcherProps {

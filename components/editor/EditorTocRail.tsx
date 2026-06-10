@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import type { EditorInstance, JSONContent } from 'novel'
-import { ChevronDown, ListTree, ScrollText } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { buildEditorToc, flattenEditorToc, type EditorTocItem } from '@/lib/editor-toc'
 import { cx } from '@/components/ui/primitives'
 
@@ -13,10 +13,10 @@ interface EditorTocRailProps {
   documentJson: JSONContent | null
   scrollContainer: HTMLElement | null
   activeSlug?: string | null
+  mode: LeftRailMode
 }
 
 const TOC_EXPANDED_KEY = 'qmblog:toc-expanded'
-const LEFT_RAIL_MODE_KEY = 'qmblog:left-rail-mode'
 
 type LeftRailMode = 'toc' | 'articles'
 
@@ -162,15 +162,11 @@ export function EditorTocRail({
   documentJson,
   scrollContainer,
   activeSlug = null,
+  mode,
 }: EditorTocRailProps) {
   const tocTree = useMemo(() => buildEditorToc(documentJson), [documentJson])
   const tocItems = useMemo(() => flattenEditorToc(tocTree), [tocTree])
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
-  const [mode, setMode] = useState<LeftRailMode>(() => {
-    if (typeof window === 'undefined') return 'toc'
-    const stored = window.localStorage.getItem(LEFT_RAIL_MODE_KEY)
-    return stored === 'articles' ? 'articles' : 'toc'
-  })
   const [articles, setArticles] = useState<ArticleListItem[]>([])
   const [manualExpandedIds, setManualExpandedIds] = useState<string[] | null>(() => {
     if (typeof window === 'undefined') return null
@@ -202,11 +198,6 @@ export function EditorTocRail({
     activeAncestorIds.forEach((id) => base.add(id))
     return base
   }, [activeAncestorIds, defaultExpandedIds, manualExpandedIds])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(LEFT_RAIL_MODE_KEY, mode)
-  }, [mode])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -326,36 +317,6 @@ export function EditorTocRail({
     >
       {open ? (
         <div className="flex h-full min-h-0 flex-col bg-transparent px-4 py-4">
-          <div className="mb-3 flex items-center gap-1 px-1">
-            <button
-              type="button"
-              onClick={() => setMode('toc')}
-              className={cx(
-                'inline-flex h-8 w-8 items-center justify-center rounded-full transition',
-                mode === 'toc'
-                  ? 'bg-[color-mix(in_srgb,var(--ui-line)_38%,transparent)] text-[var(--ui-ink)]'
-                  : 'text-[var(--ui-muted)] hover:bg-[color-mix(in_srgb,var(--ui-line)_22%,transparent)] hover:text-[var(--ui-ink)]',
-              )}
-              aria-label="查看目录"
-              title="查看目录"
-            >
-              <ListTree className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('articles')}
-              className={cx(
-                'inline-flex h-8 w-8 items-center justify-center rounded-full transition',
-                mode === 'articles'
-                  ? 'bg-[color-mix(in_srgb,var(--ui-line)_38%,transparent)] text-[var(--ui-ink)]'
-                  : 'text-[var(--ui-muted)] hover:bg-[color-mix(in_srgb,var(--ui-line)_22%,transparent)] hover:text-[var(--ui-ink)]',
-              )}
-              aria-label="查看文章"
-              title="查看文章"
-            >
-              <ScrollText className="h-4 w-4" />
-            </button>
-          </div>
           <div className="editor-scroll-shell min-h-0 flex-1 overflow-y-auto pr-2">
             {mode === 'toc' ? (
               tocTree.length === 0 ? null : (

@@ -143,20 +143,23 @@ export function SiteHeader({
     return element
   }
 
-  // 终端主题：logo 区域显示终端提示符
   const renderLogo = () => {
     if (theme === 'terminal') {
       return (
-        <Link
-          href="/"
-          className="flex items-center gap-2 flex-shrink-0 text-[var(--editor-muted)] hover:text-[var(--editor-ink)] transition-colors duration-200"
-          style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 13 }}
-          suppressHydrationWarning
-        >
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 8px #4ade80', flexShrink: 0 }} />
-          <span style={{ color: 'var(--editor-muted)' }}>wenxuan@blog:~$</span>
-          <span style={{ color: 'var(--editor-ink)' }}>./home</span>
-        </Link>
+        <div className="flex items-baseline gap-4 flex-shrink-0" suppressHydrationWarning>
+          <Link
+            href="/"
+            className="text-lg tracking-tight text-[var(--editor-ink)] hover:text-[var(--editor-accent)] transition-colors duration-200 font-bold"
+            style={{ fontFamily: 'var(--logo-font, "Noto Serif SC", Georgia, serif)' }}
+          >
+            文轩
+          </Link>
+          <span
+            className="inline-flex items-center rounded-full border border-[var(--editor-line)] bg-[var(--editor-panel)] px-3 py-1 text-[11px] tracking-[0.14em] text-[var(--editor-muted)]"
+          >
+            BACKOFFICE LIGHT
+          </span>
+        </div>
       )
     }
 

@@ -19,8 +19,8 @@ export const THEME_OPTIONS = [
   },
   {
     id: 'terminal',
-    label: 'AI 终端',
-    description: '偏技术感的深色终端界面',
+    label: '简洁明亮',
+    description: '复用后台亮色语言的安静首页',
   },
 ] as const
 

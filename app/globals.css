@@ -1228,21 +1228,22 @@ select:focus-visible {
   --article-quote-nested-bg: rgba(196, 74, 42, 0.06);
 }
 
-/* ── 主题：AI终端 (terminal) ── */
+/* ── 主题：后台亮色 (terminal compat id) ── */
 [data-theme="terminal"] {
-  --background: #1a1c2e;
-  --foreground: #c8d3e8;
-  --editor-app-bg: #1a1c2e;
-  --editor-panel: #1f2240;
-  --editor-soft: #252844;
-  --editor-line: #2a2f48;
-  --editor-ink: #c8d3e8;
-  --editor-muted: #8a96b4;
-  --editor-accent: #4ade80;
-  --editor-accent-ink: #0f1117;
-  --editor-link: #4ade80;
-  --editor-code-bg: #12141f;
-  --editor-code-border: #2a2f48;
+  --background: #ffffff;
+  --foreground: #000000;
+  --editor-app-bg: #ffffff;
+  --editor-panel: #ffffff;
+  --editor-soft: #f5f5f2;
+  --editor-line: #e9e9e4;
+  --editor-line-strong: #d8d8d2;
+  --editor-ink: #000000;
+  --editor-muted: #5f5f5b;
+  --editor-accent: #c96442;
+  --editor-accent-ink: #ffffff;
+  --editor-link: #8b5e3c;
+  --editor-code-bg: #f5f5f2;
+  --editor-code-border: #e9e9e4;
   --editor-toc-hover-bg: color-mix(in srgb, var(--editor-soft) 62%, transparent);
   --editor-toc-active-bg: color-mix(in srgb, var(--editor-selection) 72%, transparent);
   --editor-toc-active-ink: color-mix(in srgb, var(--editor-link) 78%, var(--editor-ink));
@@ -1250,24 +1251,25 @@ select:focus-visible {
   --editor-toc-bullet: color-mix(in srgb, var(--editor-muted) 42%, transparent);
   --editor-toc-level-3: color-mix(in srgb, var(--editor-ink) 88%, transparent);
   --editor-toc-level-4: color-mix(in srgb, var(--editor-muted) 98%, transparent);
-  --editor-quote-bg: #1f2240;
-  --editor-selection: rgba(74, 222, 128, 0.2);
-  --stone-gray: #5a6480;
-  --border-warm: #2a2f48;
-  --logo-font: "JetBrains Mono", ui-monospace, monospace;
-  --article-heading: #d4e0f5;
-  --article-body: #b9c8e3;
-  --article-quote: #9eabc9;
-  --article-quote-border: #4ade80;
-  --article-quote-nested-border: #39c86a;
-  --article-quote-nested-bg: rgba(74, 222, 128, 0.08);
+  --editor-quote-bg: rgba(92, 77, 61, 0.045);
+  --editor-selection: rgba(201, 100, 66, 0.14);
+  --stone-gray: #6e6e69;
+  --border-warm: #e9e9e4;
+  --logo-font: "Noto Serif SC", Georgia, serif;
+  --article-heading: #171614;
+  --article-body: #2f2b26;
+  --article-quote: #5d554c;
+  --article-quote-border: #d8c7b5;
+  --article-quote-nested-border: #e6dbcf;
+  --article-quote-nested-bg: rgba(92, 77, 61, 0.045);
 }
 
-/* ── 终端主题：文章内容深色适配 ── */
+/* ── 后台亮色主题：文章内容适配 ── */
 [data-theme="terminal"] :is(.novel-prose, .rich-content) h1,
 [data-theme="terminal"] :is(.novel-prose, .rich-content) h2,
 [data-theme="terminal"] :is(.novel-prose, .rich-content) h3 {
   color: var(--article-heading);
+  font-family: "Noto Serif SC", Georgia, serif;
 }
 
 [data-theme="terminal"] :is(.novel-prose, .rich-content) p,
@@ -1277,27 +1279,27 @@ select:focus-visible {
 
 [data-theme="terminal"] :is(.novel-prose, .rich-content) blockquote {
   border-left-color: var(--article-quote-border);
-  background: #1f2240;
+  background: var(--editor-quote-bg);
   color: var(--article-quote);
 }
 
 [data-theme="terminal"] :is(.novel-prose, .rich-content) pre {
-  background: #12141f;
-  border: 1px solid #2a2f48;
+  background: var(--editor-code-bg);
+  border: 1px solid var(--editor-code-border);
 }
 
 [data-theme="terminal"] :is(.novel-prose, .rich-content) code {
-  background: #12141f;
-  border-color: #2a2f48;
-  color: #4ade80;
+  background: var(--editor-code-bg);
+  border-color: var(--editor-code-border);
+  color: var(--editor-link);
 }
 
 [data-theme="terminal"] :is(.novel-prose, .rich-content) a {
-  color: #4ade80;
+  color: var(--editor-link);
 }
 
 [data-theme="terminal"] :is(.novel-prose, .rich-content) hr {
-  border-top-color: #2a2f48;
+  border-top-color: var(--editor-line);
 }
 
 /* ── 杂志编辑主题：文章内容适配 ── */
@@ -1317,10 +1319,10 @@ select:focus-visible {
   color: #c44a2a;
 }
 
-/* ── 终端主题：搜索面板深色 ── */
+/* ── 后台亮色主题：搜索面板适配 ── */
 [data-theme="terminal"] .search-panel {
-  background: #1f2240 !important;
-  border-color: #2a2f48 !important;
+  background: #ffffff !important;
+  border-color: var(--editor-line) !important;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1348,24 +1350,25 @@ select:focus-visible {
   backdrop-filter: none;
 }
 
-/* AI终端：860px 宽度 */
+/* 后台亮色：更宽的首页骨架 */
 [data-theme="terminal"] .site-header-inner {
-  max-width: 860px;
-  padding-left: 40px;
-  padding-right: 40px;
+  max-width: 1160px;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
-/* AI终端：header 虚线边 */
+/* 后台亮色：header 恢复细实线 */
 [data-theme="terminal"] .site-header {
-  border-bottom-style: dashed !important;
+  border-bottom-style: solid !important;
+  background: rgba(255, 255, 255, 0.92);
 }
 
-/* 杂志编辑 & AI终端：header 导航等宽字体 */
+/* 杂志编辑 & 后台亮色：header 导航更克制 */
 [data-theme="editorial"] .site-header nav,
 [data-theme="terminal"] .site-header nav {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.01em;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1382,11 +1385,11 @@ select:focus-visible {
   max-width: 860px;
 }
 
-/* AI终端：860px */
+/* 后台亮色：正文宽度放宽 */
 [data-theme="terminal"] .page-main {
-  max-width: 860px;
-  padding-left: 40px;
-  padding-right: 40px;
+  max-width: 1160px;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 @media (max-width: 640px) {
@@ -1516,52 +1519,10 @@ select:focus-visible {
     gap: 24px !important;
   }
 
-  .theme-home-terminal .terminal-home-shell {
+  .theme-home-terminal main {
     padding-left: 16px !important;
     padding-right: 16px !important;
     padding-top: 24px !important;
-  }
-
-  .theme-home-terminal .terminal-home-header {
-    flex-direction: column;
-    align-items: flex-start !important;
-    gap: 12px;
-  }
-
-  .theme-home-terminal .terminal-home-prompt,
-  .theme-home-terminal .terminal-home-nav,
-  .theme-home-terminal .terminal-banner-meta,
-  .theme-home-terminal .terminal-grep-bar {
-    flex-wrap: wrap;
-  }
-
-  .theme-home-terminal .terminal-home-nav {
-    gap: 10px 14px !important;
-    width: 100%;
-  }
-
-  .theme-home-terminal .terminal-stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  .theme-home-terminal .terminal-grep-input {
-    width: 100%;
-    min-width: 0;
-    flex-basis: 100%;
-  }
-
-  .theme-home-terminal .terminal-list-header {
-    display: none !important;
-  }
-
-  .theme-home-terminal .terminal-post-row {
-    grid-template-columns: 1fr !important;
-    gap: 6px !important;
-    padding: 14px 0 !important;
-  }
-
-  .theme-home-terminal .terminal-post-body {
-    min-width: 0;
   }
 }
 
