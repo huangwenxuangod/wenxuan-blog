@@ -42,6 +42,17 @@ const XIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 )
 
+const XiaohongshuIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M6.26 4.86c1.24-.26 2.83-.42 4.76-.47 1.93-.05 3.55.01 4.85.19 1.3.18 2.28.55 2.94 1.11.66.56 1 1.4 1 2.52 0 .95-.19 1.73-.57 2.34-.38.61-.94 1.1-1.69 1.45-.74.35-1.67.6-2.77.74-1.1.14-2.38.21-3.83.21-.27 0-.53 0-.79-.01-.25 0-.51-.01-.77-.02l-.15-2.13c.82.03 1.54.05 2.17.05 1.23 0 2.22-.03 2.97-.1.75-.07 1.33-.18 1.73-.35.4-.17.67-.39.82-.67.15-.28.22-.64.22-1.09 0-.48-.14-.84-.43-1.09-.29-.25-.77-.43-1.45-.53-.68-.1-1.61-.14-2.79-.11-1.18.03-2.67.15-4.46.37l-.76-2.21Zm-.08 6.41h2.57l-1.5 7.61H4.68l1.5-7.61Zm5.1 0h2.53l1.54 7.61H12.8l-1.52-7.61Zm4.99-.03h2.72l1.53 7.64h-2.68l-1.57-7.64Z" />
+  </svg>
+)
+
 const getSocialIcon = (label: string, url: string, className = "w-4 h-4") => {
   const labelLower = label.toLowerCase()
   const urlLower = url.toLowerCase()
@@ -54,10 +65,21 @@ const getSocialIcon = (label: string, url: string, className = "w-4 h-4") => {
     labelLower === 'x' ||
     labelLower.includes('x.com') ||
     labelLower.includes('~/twitter') ||
-    urlLower.includes('twitter.com') ||
-    urlLower.includes('x.com')
+      urlLower.includes('twitter.com') ||
+      urlLower.includes('x.com')
   ) {
     return <XIcon className={className} />
+  }
+  if (
+    labelLower.includes('xiaohongshu') ||
+    labelLower.includes('rednote') ||
+    labelLower.includes('xhs') ||
+    labelLower.includes('小红书') ||
+    urlLower.includes('xiaohongshu.com') ||
+    urlLower.includes('xhslink.com') ||
+    urlLower.includes('rednote.com')
+  ) {
+    return <XiaohongshuIcon className={className} />
   }
   return null
 }
@@ -65,6 +87,7 @@ const getSocialIcon = (label: string, url: string, className = "w-4 h-4") => {
 const defaultNavLinks: NavLink[] = [
   { label: 'GitHub', url: 'https://github.com/huangwenxuangod', openInNewTab: true },
   { label: 'Twitter', url: 'https://x.com/hungxun254458', openInNewTab: true },
+  { label: '小红书', url: 'https://xhslink.com/m/6WFOT2O0BJ0', openInNewTab: true },
   { label: 'RSS', url: '/feed.xml', openInNewTab: false },
 ]
 

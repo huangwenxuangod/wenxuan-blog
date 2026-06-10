@@ -71,9 +71,15 @@ export function AihotDailyPageClient() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-[var(--editor-muted)]">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        正在载入 AI 日报
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="flex items-center gap-2 text-[var(--editor-muted)]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <div className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:0ms]" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:180ms]" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:360ms]" />
+          </div>
+        </div>
       </div>
     )
   }
@@ -88,12 +94,7 @@ export function AihotDailyPageClient() {
   }
 
   if (!daily) {
-    return (
-      <div className="rounded-[1.5rem] border border-[var(--editor-line)] bg-[var(--editor-panel)] px-5 py-10 text-center">
-        <p className="text-base font-medium text-[var(--editor-ink)]">AI 日报暂未同步</p>
-        <p className="mt-2 text-sm text-[var(--editor-muted)]">等待北京时间 08:00 定时拉取，或先手动同步一次。</p>
-      </div>
-    )
+    return null
   }
 
   return (

@@ -1,6 +1,5 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { useEffect, useSyncExternalStore } from 'react'
 import { getClientThemePreference, subscribeToThemeChange, type Theme } from '@/lib/appearance'
 import type { PostWithTags } from '@/lib/db'
@@ -18,18 +17,6 @@ export interface HomeProps {
   totalPages: number
   categorySlugMap: Record<string, string>
 }
-
-const HomeVariantA = dynamic<HomeProps>(() =>
-  import('@/components/themes/HomeVariantA').then((module) => module.HomeVariantA)
-)
-
-const HomeVariantB = dynamic<HomeProps>(() =>
-  import('@/components/themes/HomeVariantB').then((module) => module.HomeVariantB)
-)
-
-const HomeVariantC = dynamic<HomeProps>(() =>
-  import('@/components/themes/HomeVariantC').then((module) => module.HomeVariantC)
-)
 
 function injectFont(id: string, href: string) {
   if (typeof document === 'undefined') return
@@ -65,14 +52,5 @@ export function HomeClient(props: HomeProps) {
     }
   }, [theme])
 
-  const ThemeComponent =
-    theme === 'refined'
-      ? HomeVariantA
-      : theme === 'editorial'
-        ? HomeVariantB
-        : theme === 'terminal'
-          ? HomeVariantC
-          : HomeDefault
-
-  return <ThemeComponent {...props} />
+  return <HomeDefault {...props} />
 }
