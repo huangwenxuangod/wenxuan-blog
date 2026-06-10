@@ -74,6 +74,22 @@ function resolveActiveProfile(profiles: ProviderOption[], selectedId: string) {
   return profiles.find((profile) => String(profile.id) === selectedId) || null
 }
 
+function resolveFallbackProfileId(
+  profiles: ProviderOption[],
+  selectedId: string,
+) {
+  if (profiles.some((profile) => String(profile.id) === selectedId)) {
+    return selectedId
+  }
+
+  const defaultProfile = profiles.find((profile) => profile.is_default === 1)
+  if (defaultProfile) {
+    return String(defaultProfile.id)
+  }
+
+  return profiles[0] ? String(profiles[0].id) : ''
+}
+
 export function AIPanel({
   articleKey,
   postSlug,
@@ -202,14 +218,16 @@ export function AIPanel({
             : ''
 
         setSelectedTextProfileId(
-          nextTextProfiles.some((profile) => String(profile.id) === storedTextProfileId)
-            ? storedTextProfileId
-            : fallbackTextProfileId,
+          resolveFallbackProfileId(
+            nextTextProfiles,
+            storedTextProfileId || fallbackTextProfileId,
+          ),
         )
         setSelectedImageProfileId(
-          nextImageProfiles.some((profile) => String(profile.id) === storedImageProfileId)
-            ? storedImageProfileId
-            : fallbackImageProfileId,
+          resolveFallbackProfileId(
+            nextImageProfiles,
+            storedImageProfileId || fallbackImageProfileId,
+          ),
         )
       })
       .catch(() => {})
@@ -554,20 +572,20 @@ export function AIPanel({
                 <MenuItems
                   anchor="top start"
                   transition
-                  className="ui-popover z-50 mb-2 w-[18rem] overflow-hidden rounded-[1rem] p-1.5 outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0"
+                  className="ui-popover z-50 mb-2 w-[13rem] overflow-hidden rounded-[0.95rem] p-1 outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0"
                 >
                   <MenuItem>
                     <button
                       type="button"
                       onClick={() => onOpenSettingsTab?.('ai-provider')}
-                      className="group flex w-full cursor-pointer items-center gap-3 rounded-[0.9rem] px-3 py-2.5 text-left transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
-                      title={activeTextProfile?.model || '未配置文本模型'}
+                      className="group flex w-full cursor-pointer items-center gap-2.5 rounded-[0.8rem] px-2.5 py-2 text-left transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
+                      title={activeTextProfile?.model || '未配置'}
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
-                        <Bot className="h-4.5 w-4.5" />
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
+                        <Bot className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1 truncate text-sm text-[var(--ui-ink)]">
-                        {activeTextProfile?.model || '未配置'}
+                        {activeTextProfile?.model || '去配置'}
                       </span>
                     </button>
                   </MenuItem>
@@ -576,14 +594,14 @@ export function AIPanel({
                     <button
                       type="button"
                       onClick={() => onOpenSettingsTab?.('ai-image-provider')}
-                      className="group flex w-full cursor-pointer items-center gap-3 rounded-[0.9rem] px-3 py-2.5 text-left transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
-                      title={activeImageProfile?.model || '未配置图像模型'}
+                      className="group flex w-full cursor-pointer items-center gap-2.5 rounded-[0.8rem] px-2.5 py-2 text-left transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
+                      title={activeImageProfile?.model || '未配置'}
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
-                        <ImageIcon className="h-4.5 w-4.5" />
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
+                        <ImageIcon className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1 truncate text-sm text-[var(--ui-ink)]">
-                        {activeImageProfile?.model || '未配置'}
+                        {activeImageProfile?.model || '去配置'}
                       </span>
                     </button>
                   </MenuItem>
