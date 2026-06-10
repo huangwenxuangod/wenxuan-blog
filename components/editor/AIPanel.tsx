@@ -777,7 +777,7 @@ export function AIPanel({
                 }
               }}
               placeholder="输入你的修改意图，或输入 / 调用 skill"
-              className="min-h-[3.5rem] max-h-36 overflow-y-auto text-[15px] leading-7 placeholder:text-[color-mix(in_srgb,var(--ui-muted)_66%,transparent)]"
+              className="min-h-[3.5rem] max-h-36 overflow-y-auto text-[15px] leading-7 placeholder:text-[color-mix(in_srgb,var(--ui-muted)_66%,transparent)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             />
 
             <Transition

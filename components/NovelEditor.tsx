@@ -1640,6 +1640,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           editor={editorRef.current}
           documentJson={currentDocumentJson}
           scrollContainer={mainScrollRef.current}
+          activeSlug={editSlug || slug || null}
         />
 
         {/* Main editor area */}
