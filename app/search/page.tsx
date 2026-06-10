@@ -1,10 +1,11 @@
+import { cookies } from 'next/headers'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import Link from 'next/link'
 import { SiteHeader } from '@/components/SiteHeader'
 import { SiteFooter } from '@/components/SiteFooter'
 import type { SiteCategoryLink, SiteNavLink } from '@/lib/site'
 import { getSiteHeaderData } from '@/lib/site'
-import type { Theme } from '@/lib/appearance'
+import { resolveThemePreference, THEME_STORAGE_KEY, type Theme } from '@/lib/appearance'
 import { searchPosts } from '@/lib/repositories/search'
 
 export const metadata = {
@@ -25,6 +26,7 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string }>
 }) {
+  const cookieStore = await cookies()
   const { q } = await searchParams
   const query = q?.trim() || ''
 
@@ -49,12 +51,14 @@ export default async function SearchPage({
     console.error('Search page error:', e)
   }
 
+  const resolvedTheme = resolveThemePreference(cookieStore.get(THEME_STORAGE_KEY)?.value, defaultTheme)
+
   const categorySlugMap = new Map(categories.map((category) => [category.name, category.slug]))
 
   return (
     <div className="min-h-full flex flex-col bg-[var(--background)]">
       <SiteHeader
-        initialTheme={defaultTheme}
+        initialTheme={resolvedTheme}
         navLinks={navLinks}
         categories={categories}
       />

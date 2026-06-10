@@ -155,11 +155,6 @@ export function SiteHeader({
           >
             文轩
           </Link>
-          <span
-            className="inline-flex items-center rounded-full border border-[var(--editor-line)] bg-[var(--editor-panel)] px-3 py-1 text-[11px] tracking-[0.14em] text-[var(--editor-muted)]"
-          >
-            BACKOFFICE LIGHT
-          </span>
         </div>
       )
     }

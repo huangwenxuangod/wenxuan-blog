@@ -1,4 +1,5 @@
 export const THEME_STORAGE_KEY = 'qm_site_theme'
+export const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 export const THEME_CHANGE_EVENT = 'qm-theme-change'
 
 export const THEME_OPTIONS = [
@@ -74,6 +75,10 @@ export function isTheme(value: string | null | undefined): value is Theme {
 
 export function normalizeTheme(value: string | null | undefined, fallback: Theme = 'default'): Theme {
   return isTheme(value) ? value : fallback
+}
+
+export function resolveThemePreference(value: string | null | undefined, fallback: Theme = 'default'): Theme {
+  return normalizeTheme(value, fallback)
 }
 
 export function getClientThemePreference(fallback: Theme): Theme {

@@ -9,6 +9,7 @@ import {
   getClientThemePreference,
   subscribeToThemeChange,
   THEME_CHANGE_EVENT,
+  THEME_COOKIE_MAX_AGE,
   THEME_OPTIONS,
   THEME_STORAGE_KEY,
   type Theme,
@@ -50,6 +51,7 @@ export function ThemeDropdown({
 
   const handleChange = (nextTheme: Theme) => {
     localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+    document.cookie = `${THEME_STORAGE_KEY}=${encodeURIComponent(nextTheme)}; Max-Age=${THEME_COOKIE_MAX_AGE}; Path=/; SameSite=Lax`
     if (nextTheme === 'default') {
       document.documentElement.removeAttribute('data-theme')
     } else {

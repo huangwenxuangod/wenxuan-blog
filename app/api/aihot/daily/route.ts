@@ -10,10 +10,16 @@ export async function GET() {
   try {
     const daily = await getLatestAihotDaily(route.db)
     if (!daily) {
-      return jsonError('AI 日报暂未同步', 404)
+      return jsonOk({
+        daily: null,
+        status: 'empty',
+      })
     }
 
-    return jsonOk({ daily })
+    return jsonOk({
+      daily,
+      status: 'ready',
+    })
   } catch (error) {
     console.error('[AIHOT_DAILY_GET_FAILED]', error)
     return jsonError(error instanceof Error ? error.message : '读取 AI 日报失败', 500)

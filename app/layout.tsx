@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
 import { GlobalShortcuts } from "@/components/GlobalShortcuts";
 import { ToastProvider } from "@/components/Toast";
 import { CustomJsInjector } from "@/components/CustomJsInjector";
+import type { Theme } from "@/lib/appearance";
 import { FONT_CONFIG, THEME_OPTIONS, THEME_STORAGE_KEY, normalizeTheme } from "@/lib/appearance";
 import { BACKOFFICE_THEME_STORAGE_KEY } from "@/lib/backoffice-theme";
 import { getAppCloudflareEnv } from "@/lib/cloudflare";
@@ -92,9 +94,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies()
   let customJs = ''
   let bodyFont = ''
-  let defaultTheme = 'default'
+  let defaultTheme: Theme = 'default'
   try {
     const env = await getAppCloudflareEnv()
     if (env?.DB) {
@@ -109,6 +112,9 @@ export default async function RootLayout({
     }
   } catch {}
 
+  const cookieTheme = normalizeTheme(cookieStore.get(THEME_STORAGE_KEY)?.value, defaultTheme)
+  const resolvedTheme = cookieTheme
+
   const font = FONT_CONFIG[bodyFont]
   const validThemes = THEME_OPTIONS.map((theme) => theme.id)
 
@@ -116,7 +122,7 @@ export default async function RootLayout({
 (function(){
   var f = ${JSON.stringify(FONT_CONFIG)};
   var k = "${bodyFont || ''}";
-  var defaultTheme = "${defaultTheme}";
+  var defaultTheme = "${resolvedTheme}";
   var themeStorageKey = "${THEME_STORAGE_KEY}";
   var backofficeThemeStorageKey = "${BACKOFFICE_THEME_STORAGE_KEY}";
   var validThemes = ${JSON.stringify(validThemes)};
@@ -166,7 +172,7 @@ export default async function RootLayout({
       lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       data-font={bodyFont || 'default'}
-      data-theme={defaultTheme !== 'default' ? defaultTheme : undefined}
+      data-theme={resolvedTheme !== 'default' ? resolvedTheme : undefined}
       suppressHydrationWarning
     >
       <head>

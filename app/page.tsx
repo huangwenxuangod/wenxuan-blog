@@ -1,5 +1,6 @@
+import { cookies } from 'next/headers'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
-import { type Theme } from '@/lib/appearance'
+import { resolveThemePreference, THEME_STORAGE_KEY, type Theme } from '@/lib/appearance'
 import type { SiteCategoryLink, SiteNavLink } from '@/lib/site'
 import { getSiteHeaderData } from '@/lib/site'
 import { HomeClient } from '@/components/HomeClient'
@@ -24,6 +25,7 @@ export default async function Home({
 }: {
   searchParams: Promise<{ page?: string }>
 }) {
+  const cookieStore = await cookies()
   const { page: pageStr } = await searchParams
   const currentPage = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
 
@@ -47,6 +49,8 @@ export default async function Home({
   } catch (e) {
     console.error('Homepage: failed to fetch posts', e)
   }
+
+  const resolvedTheme = resolveThemePreference(cookieStore.get(THEME_STORAGE_KEY)?.value, defaultTheme)
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
   const categorySlugMap: Record<string, string> = Object.fromEntries(
@@ -85,7 +89,7 @@ export default async function Home({
         }}
       />
       <HomeClient
-        initialTheme={defaultTheme}
+        initialTheme={resolvedTheme}
         posts={posts}
         categories={categories}
         navLinks={navLinks}

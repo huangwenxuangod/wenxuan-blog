@@ -1,9 +1,11 @@
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import { SiteHeader } from '@/components/SiteHeader'
 import { SiteFooter } from '@/components/SiteFooter'
 import { Pagination } from '@/components/Pagination'
+import { resolveThemePreference, THEME_STORAGE_KEY } from '@/lib/appearance'
 import { getSiteHeaderData } from '@/lib/site'
 import { getSiteUrl } from '@/lib/site-config'
 import { getPublicCategories } from '@/lib/repositories/categories'
@@ -56,6 +58,7 @@ export default async function CategoryPage({
   params: Promise<{ slug: string }>
   searchParams: Promise<{ page?: string }>
 }) {
+  const cookieStore = await cookies()
   const { slug } = await params
   const { page: pageStr } = await searchParams
   const currentPage = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
@@ -72,13 +75,14 @@ export default async function CategoryPage({
     getPostsCountByCategory(env.DB, category.name),
     getSiteHeaderData(env.DB),
   ])
+  const resolvedTheme = resolveThemePreference(cookieStore.get(THEME_STORAGE_KEY)?.value, headerData.defaultTheme)
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   return (
     <div className="min-h-full flex flex-col bg-[var(--background)]">
       <SiteHeader
-        initialTheme={headerData.defaultTheme}
+        initialTheme={resolvedTheme}
         navLinks={headerData.navLinks}
         categories={headerData.categories}
         activeCategorySlug={slug}

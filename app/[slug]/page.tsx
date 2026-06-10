@@ -1,5 +1,6 @@
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import { verifyPassword } from '@/lib/password'
+import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { SiteHeader } from '@/components/SiteHeader'
@@ -8,6 +9,7 @@ import { FrontPostAdminBoundary } from '@/components/FrontPostAdminBoundary'
 import { PasswordPrompt } from '@/components/PasswordPrompt'
 import { DownloadMarkdown } from '@/components/DownloadMarkdown'
 import { TwitterEmbedsEnhancer } from '@/components/TwitterEmbedsEnhancer'
+import { resolveThemePreference, THEME_STORAGE_KEY } from '@/lib/appearance'
 import { getSiteHeaderData } from '@/lib/site'
 import { getPublicContentCacheNamespace } from '@/lib/cache'
 import { getSiteUrl } from '@/lib/site-config'
@@ -82,6 +84,7 @@ export default async function PostPage({
   params: Promise<{ slug: string }>
   searchParams: Promise<{ pwd?: string }>
 }) {
+  const cookieStore = await cookies()
   const { slug } = await params
   const { pwd } = await searchParams
 
@@ -98,6 +101,7 @@ export default async function PostPage({
   if (!post) notFound()
   if (!isPubliclyAccessiblePost(post)) notFound()
   const headerData = await getSiteHeaderData(db)
+  const resolvedTheme = resolveThemePreference(cookieStore.get(THEME_STORAGE_KEY)?.value, headerData.defaultTheme)
   const categorySlugMap = new Map(headerData.categories.map((category) => [category.name, category.slug]))
   const activeCategorySlug = headerData.categories.find((category) => category.name === post.category)?.slug ?? null
 
@@ -110,7 +114,7 @@ export default async function PostPage({
       return (
         <div className="min-h-screen bg-[var(--background)] flex flex-col">
           <SiteHeader
-            initialTheme={headerData.defaultTheme}
+            initialTheme={resolvedTheme}
             navLinks={headerData.navLinks}
             categories={headerData.categories}
             activeCategorySlug={activeCategorySlug}
@@ -142,7 +146,7 @@ export default async function PostPage({
       return (
         <div className="min-h-screen bg-[var(--background)] flex flex-col">
           <SiteHeader
-            initialTheme={headerData.defaultTheme}
+            initialTheme={resolvedTheme}
             navLinks={headerData.navLinks}
             categories={headerData.categories}
             activeCategorySlug={activeCategorySlug}
@@ -186,7 +190,7 @@ export default async function PostPage({
   return (
     <div className="min-h-screen bg-[var(--background)] flex flex-col">
       <SiteHeader
-        initialTheme={headerData.defaultTheme}
+        initialTheme={resolvedTheme}
         navLinks={headerData.navLinks}
         categories={headerData.categories}
         activeCategorySlug={activeCategorySlug}
