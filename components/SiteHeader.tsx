@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState, useRef, useEffect, useSyncExternalStore } from 'react'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import { SearchEntry } from './SearchEntry'
+import { AihotDailyTrigger } from '@/components/AihotDailyTrigger'
 import { ThemeDropdown } from '@/components/ThemeDropdown'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { getClientThemePreference, subscribeToThemeChange, type Theme } from '@/lib/appearance'
@@ -248,12 +249,14 @@ export function SiteHeader({
             )}
 
             {links.map(link => renderLink(link))}
+            <AihotDailyTrigger />
             <ThemeDropdown initialTheme={initialTheme} />
             <SearchEntry />
           </nav>
 
           {/* Mobile: search icon + hamburger */}
           <div className="sm:hidden flex items-center gap-1">
+            <AihotDailyTrigger />
             <SearchEntry />
             <button
               className="p-2 text-[var(--editor-muted)] hover:text-[var(--editor-ink)] transition-colors"

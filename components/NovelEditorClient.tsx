@@ -30,10 +30,12 @@ export function NovelEditorClient(props: {
   }
   skipDraftRestore?: boolean
 }) {
+  const editorInstanceKey = props.initialData?.slug || 'new'
+
   return (
     <>
       <BackofficeThemeScope />
-      <NovelEditor {...props} />
+      <NovelEditor key={editorInstanceKey} {...props} />
     </>
   )
 }

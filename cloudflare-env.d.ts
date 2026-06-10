@@ -48,6 +48,11 @@ declare interface WorkersAIBinding {
   run(model: string, input: unknown): Promise<unknown>
 }
 
+declare interface ScheduledController {
+  cron: string
+  scheduledTime: number
+}
+
 declare interface VectorizeIndex {
   describe(): Promise<{ config?: { dimensions?: number }; dimensions?: number }>
   query(vector: number[], options?: Record<string, unknown>): Promise<unknown>
