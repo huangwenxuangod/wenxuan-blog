@@ -24,8 +24,7 @@
 chrome://extensions
 ```
 
-找到 Wenxuan Blog Clipper，点击 Service Worker 的“检查视图”。控制台日志统一以
-`[Wenxuan Clipper]` 开头。
+找到浏览器剪藏扩展，点击 Service Worker 的“检查视图”。控制台日志统一以项目剪藏器前缀输出。
 
 常见错误：
 
@@ -46,7 +45,7 @@ API 日志输出为单行 JSON，包含：
 
 ```json
 {
-  "service": "wenxuan-blog",
+  "service": "<worker-name>",
   "event": "POST_CREATE_FAILED",
   "requestId": "...",
   "route": "/api/posts"
@@ -60,13 +59,13 @@ API 日志输出为单行 JSON，包含：
 实时查看 Worker 日志：
 
 ```bash
-npx wrangler tail wenxuan-blog --format pretty
+npx wrangler tail <worker-name> --format pretty
 ```
 
 需要机器可读日志时：
 
 ```bash
-npx wrangler tail wenxuan-blog --format json
+npx wrangler tail <worker-name> --format json
 ```
 
 复制插件错误中的 `requestId`，在输出中搜索同一个值。

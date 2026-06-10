@@ -1,10 +1,10 @@
 # Minimal Agent Skills System
 
-本项目实现一个标准、极简、按需加载的 Agent Skills 系统。
+This project includes a minimal, ZIP-based Agent Skills system for the editor AI.
 
-## Package format
+## Package Format
 
-Skill 的标准实体是目录，上传和分发格式是 ZIP：
+The canonical unit is a directory; upload and distribution use ZIP:
 
 ```text
 article-rewriter.zip
@@ -12,10 +12,10 @@ article-rewriter.zip
     ├── SKILL.md
     ├── references/  # optional
     ├── assets/      # optional
-    └── scripts/     # optional, stored but never executed
+    └── scripts/     # optional, stored but not executed
 ```
 
-`SKILL.md` 必须包含 Agent Skills frontmatter：
+`SKILL.md` must include frontmatter:
 
 ```markdown
 ---
@@ -29,48 +29,93 @@ version: 1.0.0
 Prefer the current selection and preserve factual meaning.
 ```
 
-`name` 必须使用小写字母、数字和连字符，且不超过 64 个字符。`description`
-为必填项。`version` 可省略，默认 `1.0.0`。
+Constraints:
 
-## Storage and loading
+- `name`: lowercase letters, numbers, hyphens; max `64` chars
+- `description`: required
+- `version`: optional, defaults to `1.0.0`
 
-- D1 的 `skills` 表保存发现元数据、版本、hash、R2 key、启用状态，以及安装时验证后的 `instructions_text`。
-- 私有 R2 `SKILLS` bucket 的 `skills/` 前缀保存原始 ZIP、解压文件和独立的 `SKILL.md`。
-- 编辑器只读取已启用 Skill 的名称和描述。
-- 用户明确选择 Skill 后，服务端直接读取 D1 中已经验证好的 `instructions_text`。
-- 每轮最多挂载一个 Skill，未选择时没有 Skill 文件读取。
-- 公开 `IMAGES` bucket 只服务图片，不承载任何 Skill 资产。
+## Runtime Model
 
-## Security boundary
+- `D1` stores Skill metadata: `name`, `description`, `version`, `hash`, `R2 keys`, `enabled state`, and manifest JSON.
+- Private `R2` bucket `SKILLS` stores the uploaded ZIP, extracted files, and standalone `SKILL.md`.
+- The editor lists only enabled Skill summaries.
+- When the user explicitly selects one Skill, the server reads `SKILL.md` from `R2`, parses its instructions, and appends them to the AI system prompt.
+- Each AI request can mount at most one Skill.
 
-- ZIP 最大 5MB，最多 100 个文件。
-- 解压后最大 10MB，单文件最大 2MB。
-- 拒绝路径穿越、绝对路径、加密 ZIP、多 Skill 根目录和未知压缩算法。
-- `scripts/` 仅作为标准包资源保存，当前版本不会执行。
-- Skill 只能使用平台已经暴露给编辑器 AI 的工具，不能加载 npm、JS、Python 或 Shell。
-- 平台安全规则与工具约束始终高于 Skill 指令。
+## Storage Schema
 
-## Administration
+Current table:
 
-后台设置的 `Skills` 标签支持：
-
-- 上传 ZIP 安装。
-- 同名 Skill 更新。
-- 启用和禁用。
-- 删除 D1 记录与 R2 文件。
-
-数据库迁移：
-
-```bash
-npx wrangler d1 execute DB --local --file=db/migrations/006_add_skills.sql
+```sql
+skills (
+  id,
+  name,
+  description,
+  version,
+  source,
+  archive_key,
+  skill_md_key,
+  content_hash,
+  file_manifest_json,
+  is_enabled,
+  created_at,
+  updated_at
+)
 ```
 
-生产环境由维护者在部署前执行同一文件并添加 `--remote`。
+The implementation does not currently duplicate `instructions_text` into `D1`; the validated markdown is read from `R2` on demand through `skill_md_key`.
 
-Cloudflare 还需要额外补一个私有 R2 binding：
+## Security Boundary
+
+- ZIP max size: `5MB`
+- Max extracted size: `10MB`
+- Max file count: `100`
+- Max single file size: `2MB`
+- Rejects path traversal, absolute paths, encrypted ZIPs, multiple roots, and unsupported compression methods
+- `scripts/` are preserved as assets only; they are not executed
+- Skills can only influence prompts; they cannot load external code, npm packages, shell commands, or arbitrary runtimes
+
+## Admin Flow
+
+The admin `Skills` settings tab supports:
+
+- upload ZIP
+- replace an existing Skill with the same `name`
+- enable / disable
+- delete both `D1` metadata and `R2` objects
+
+## Editor Flow
+
+The editor AI panel can:
+
+- fetch enabled Skills
+- allow manual selection of one Skill
+- pass `skillId` to `/api/editor/ai-chat`
+- append the selected Skill instructions to the system prompt for that request
+
+## Cloudflare Requirements
+
+Add a private `R2` binding:
 
 ```toml
 [[r2_buckets]]
 binding = "SKILLS"
 bucket_name = "your-project-skills"
+```
+
+Do not reuse the public `IMAGES` bucket for Skills assets.
+
+## Migration
+
+Local:
+
+```bash
+npx wrangler d1 execute DB --local --file=db/migrations/006_add_skills.sql
+```
+
+Remote:
+
+```bash
+npx wrangler d1 execute DB --remote --file=db/migrations/006_add_skills.sql
 ```
