@@ -9,6 +9,7 @@ import {
   appendAiArticleMessage,
   getOrCreateAiArticleThread,
   listAiArticleMessages,
+  updateAiArticleMessageContent,
 } from '@/lib/repositories/ai-article-threads'
 import { listAiArticleMemoryItems } from '@/lib/repositories/ai-article-memory'
 import {
@@ -105,6 +106,12 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
     content: userMessage,
   })
 
+  const pendingAssistantMessage = await appendAiArticleMessage(db, {
+    threadId: thread.id,
+    role: 'assistant',
+    content: '',
+  })
+
   const [persistedHistory, memoryRows] = await Promise.all([
     listAiArticleMessages(db, thread.id, 30),
     listAiArticleMemoryItems(db, articleKey, 40),
@@ -153,6 +160,14 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
     db,
   })
   const completion = result.completed.then(async (completed) => {
+    if (pendingAssistantMessage?.id) {
+      await updateAiArticleMessageContent(db, {
+        id: pendingAssistantMessage.id,
+        threadId: thread.id,
+        content: completed.message,
+      })
+    }
+
     const generateEditorImage = async (input: {
       action: 'custom'
       userPrompt: string
@@ -176,6 +191,7 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
       env: env as Record<string, string | undefined>,
       images,
       threadId: thread.id,
+      assistantMessageId: pendingAssistantMessage?.id ?? null,
       completed,
       generateEditorImage,
     })

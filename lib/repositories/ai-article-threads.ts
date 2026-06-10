@@ -200,6 +200,43 @@ export async function appendAiArticleMessage(
     SET updated_at = strftime('%s', 'now')
     WHERE id = ?
   `).bind(input.threadId).run()
+
+  const inserted = await db.prepare(`
+    SELECT id, thread_id, role, content, tool_name, tool_payload, created_at
+    FROM ai_article_messages
+    WHERE thread_id = ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).bind(input.threadId).first<AiArticleMessageRow>()
+
+  return inserted || null
+}
+
+export async function updateAiArticleMessageContent(
+  db: Database,
+  input: {
+    id: number
+    threadId: number
+    content: string
+  },
+) {
+  await ensureAiArticleThreadTables(db)
+
+  await db.prepare(`
+    UPDATE ai_article_messages
+    SET content = ?
+    WHERE id = ? AND thread_id = ?
+  `).bind(
+    input.content,
+    input.id,
+    input.threadId,
+  ).run()
+
+  await db.prepare(`
+    UPDATE ai_article_threads
+    SET updated_at = strftime('%s', 'now')
+    WHERE id = ?
+  `).bind(input.threadId).run()
 }
 
 export async function resetAiArticleThread(

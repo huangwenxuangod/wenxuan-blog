@@ -21,6 +21,7 @@ type ChatMessage = {
   id: string
   role: 'user' | 'assistant'
   content: string
+  pending?: boolean
 }
 
 type SkillOption = {
@@ -156,6 +157,7 @@ export function AIPanel({
           id: `db-${item.id}`,
           role: item.role,
           content: item.content,
+          pending: item.role === 'assistant' && !item.content.trim(),
         }))
 
       setMessages(nextMessages)
@@ -299,6 +301,7 @@ export function AIPanel({
         id: assistantId,
         role: 'assistant',
         content: '',
+        pending: true,
       },
     ])
     setStreamingId(assistantId)
@@ -352,7 +355,7 @@ export function AIPanel({
           if (event.type === 'assistant_delta') {
             setMessages((current) => current.map((item) => (
               item.id === assistantId
-                ? { ...item, content: item.content + event.delta }
+                ? { ...item, content: item.content + event.delta, pending: false }
                 : item
             )))
             continue
@@ -404,7 +407,13 @@ export function AIPanel({
               if (event.message) {
                 setMessages((current) => current.map((item) => (
                   item.id === assistantId
-                    ? { ...item, content: event.message }
+                    ? { ...item, content: event.message, pending: false }
+                    : item
+                )))
+              } else {
+                setMessages((current) => current.map((item) => (
+                  item.id === assistantId
+                    ? { ...item, pending: true }
                     : item
                 )))
               }
@@ -449,7 +458,7 @@ export function AIPanel({
     } catch (error) {
       setMessages((current) => current.map((item) => (
         item.id === assistantId
-          ? { ...item, content: '抱歉，这次执行失败了，请重试。' }
+          ? { ...item, content: '抱歉，这次执行失败了，请重试。', pending: false }
           : item
       )))
       
@@ -502,6 +511,8 @@ export function AIPanel({
               >
                 {message.role === 'assistant' && !message.content && message.id === streamingId ? (
                   <span className="text-[var(--editor-muted)]">AI 正在思考…</span>
+                ) : message.role === 'assistant' && !message.content && message.pending ? (
+                  <span className="text-[var(--editor-muted)]">上次 AI 回复未完成，你可以继续追问。</span>
                 ) : message.role === 'assistant' ? (
                   <div
                     className="prose prose-sm max-w-none prose-headings:mb-3 prose-headings:mt-5 prose-p:my-3 prose-li:my-1 prose-ul:my-3 prose-ol:my-3 prose-strong:text-[var(--editor-ink)] prose-p:text-[var(--editor-ink)] prose-li:text-[var(--editor-ink)]"

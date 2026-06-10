@@ -4,7 +4,7 @@ import type {
   EditorAiRuntimeCompletedResult,
   EditorAiRuntimeEvent,
 } from '@/lib/ai-editor/runtime-types'
-import { appendAiArticleMessage } from '@/lib/repositories/ai-article-threads'
+import { appendAiArticleMessage, updateAiArticleMessageContent } from '@/lib/repositories/ai-article-threads'
 import { upsertAiArticleMemoryItem } from '@/lib/repositories/ai-article-memory'
 
 type ImageBucket = {
@@ -42,6 +42,7 @@ interface FinalizeEditorAiCompletionOptions {
   env: Record<string, string | undefined>
   images?: ImageBucket
   threadId: number
+  assistantMessageId?: number | null
   completed: EditorAiRuntimeCompletedResult
   generateEditorImage: (input: {
     action: 'custom'
@@ -68,6 +69,7 @@ export async function finalizeEditorAiCompletion({
   env,
   images,
   threadId,
+  assistantMessageId,
   completed,
   generateEditorImage,
 }: FinalizeEditorAiCompletionOptions): Promise<FinalizedEditorAiResponse> {
@@ -123,11 +125,19 @@ export async function finalizeEditorAiCompletion({
     }
   }
 
-  await appendAiArticleMessage(db, {
-    threadId,
-    role: 'assistant',
-    content: String(responsePayload.message || ''),
-  })
+  if (assistantMessageId) {
+    await updateAiArticleMessageContent(db, {
+      id: assistantMessageId,
+      threadId,
+      content: String(responsePayload.message || ''),
+    })
+  } else {
+    await appendAiArticleMessage(db, {
+      threadId,
+      role: 'assistant',
+      content: String(responsePayload.message || ''),
+    })
+  }
 
   if (legacyTool.name !== 'reply_only') {
     const toolPayload = responsePayload.tool && typeof responsePayload.tool === 'object' && 'payload' in responsePayload.tool

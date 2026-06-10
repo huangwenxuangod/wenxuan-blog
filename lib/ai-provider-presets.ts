@@ -15,23 +15,6 @@ export interface AIProviderPreset {
 
 export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
   {
-    id: 'workers_ai',
-    name: 'Cloudflare Workers AI',
-    providerType: 'openai_compatible',
-    category: '海外大模型',
-    baseUrl: 'https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1',
-    defaultModel: '@cf/meta/llama-3.1-8b-instruct',
-    quickModels: [
-      '@cf/meta/llama-3.1-8b-instruct',
-      '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-      '@cf/openai/gpt-oss-120b',
-      '@cf/openai/gpt-oss-20b',
-      '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
-    ],
-    apiKeyUrl: 'https://dash.cloudflare.com/profile/api-tokens',
-    description: 'Cloudflare 官方 Workers AI。使用 API Token，Base URL 里的 <ACCOUNT_ID> 需替换为你的账号 ID。',
-  },
-  {
     id: 'openai',
     name: 'OpenAI',
     providerType: 'openai_compatible',
@@ -101,17 +84,6 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     recommended: true,
   },
   {
-    id: 'siliconflow',
-    name: '硅基流动',
-    providerType: 'openai_compatible',
-    category: '国内聚合',
-    baseUrl: 'https://api.siliconflow.cn/v1',
-    defaultModel: 'Qwen/Qwen2.5-7B-Instruct',
-    quickModels: ['Qwen/Qwen2.5-7B-Instruct', 'deepseek-ai/DeepSeek-V3'],
-    apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak',
-    description: '国产聚合平台，适合作为统一兼容入口',
-  },
-  {
     id: 'doubao',
     name: '火山方舟',
     providerType: 'openai_compatible',
@@ -123,15 +95,21 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     description: '豆包 / 火山引擎',
   },
   {
-    id: 'aihubmix',
-    name: 'AiHubMix',
+    id: 'workers_ai',
+    name: 'Cloudflare Workers AI',
     providerType: 'openai_compatible',
-    category: '国内聚合',
-    baseUrl: 'https://aihubmix.com/v1',
-    defaultModel: 'claude-sonnet-4-20250514',
-    quickModels: ['claude-sonnet-4-20250514', 'deepseek-chat', 'glm-4-plus'],
-    apiKeyUrl: 'https://aihubmix.com/token',
-    description: '国内聚合平台',
+    category: '海外大模型',
+    baseUrl: 'https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1',
+    defaultModel: '@cf/meta/llama-3.1-8b-instruct',
+    quickModels: [
+      '@cf/meta/llama-3.1-8b-instruct',
+      '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+      '@cf/openai/gpt-oss-120b',
+      '@cf/openai/gpt-oss-20b',
+      '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+    ],
+    apiKeyUrl: 'https://dash.cloudflare.com/profile/api-tokens',
+    description: 'Cloudflare 官方 Workers AI。使用 API Token，Base URL 里的 <ACCOUNT_ID> 需替换为你的账号 ID。',
   },
 ]
 

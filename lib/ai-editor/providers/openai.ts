@@ -1,8 +1,5 @@
-import OpenAI from 'openai'
-import type { ResponseStreamEvent } from 'openai/resources/responses/responses'
-import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
-import { describeAiEditorTools } from '@/lib/ai-editor/agent-tools'
 import { normalizeToolCallToAction } from '@/lib/ai-editor/action-schema'
+import { runExternalTextRequest } from '@/lib/ai-runtime/external-text'
 import type {
   EditorAiModelPrompt,
   EditorAiProviderRunResult,
@@ -12,11 +9,23 @@ import type {
 } from '@/lib/ai-editor/runtime-types'
 import type { ResolvedConfig } from '@/lib/ai'
 import { appendSkillInstructions } from '@/lib/skills/prompt'
+import { describeAiEditorTools } from '@/lib/ai-editor/agent-tools'
 import { parseStructuredEditorToolCall } from '@/lib/ai-editor/providers/structured-tool'
 
 function buildPrompt(input: EditorAiRuntimePreparedInput): EditorAiModelPrompt {
   const systemPrompt = appendSkillInstructions(
-    describeAiEditorTools(input.context.outline),
+    `${describeAiEditorTools(input.context.outline)}
+
+请始终只返回一个 JSON 对象，格式为：
+{
+  "message": "给用户看的简短回复",
+  "tool": {
+    "name": "reply_only | edit_title | edit_selection | insert_block | generate_image",
+    "payload": null 或对象
+  }
+}
+
+不要输出 Markdown 代码块，不要输出解释文字。`,
     input.activeSkill,
   )
   const focusedBlocks = [
@@ -60,57 +69,6 @@ export async function runOpenAiEditorProvider(
   config: Extract<ResolvedConfig, { strategy: 'external-provider' }>,
 ): Promise<EditorAiProviderStreamResult> {
   const { systemPrompt, userPrompt } = buildPrompt(input)
-  const client = new OpenAI({
-    apiKey: config.apiKey,
-    baseURL: normalizeBaseUrl(config.baseURL),
-  })
-
-  const stream = await client.responses.create({
-    model: config.model,
-    stream: true,
-    instructions: systemPrompt,
-    temperature: 0.4,
-    max_output_tokens: Math.min(config.maxTokens, 2400),
-    input: userPrompt,
-    tools: [
-      {
-        type: 'function',
-        name: 'editor_action',
-        strict: true,
-        description: 'Return the final editor action for this turn.',
-        parameters: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['message', 'tool'],
-          properties: {
-            message: {
-              type: 'string',
-            },
-            tool: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['name', 'payload'],
-              properties: {
-                name: {
-                  type: 'string',
-                  enum: ['reply_only', 'edit_title', 'edit_selection', 'insert_block', 'generate_image'],
-                },
-                payload: {
-                  anyOf: [
-                    { type: 'null' },
-                    {
-                      type: 'object',
-                      additionalProperties: true,
-                    },
-                  ],
-                },
-              },
-            },
-          },
-        },
-      },
-    ],
-  })
 
   let resolveCompleted!: (value: EditorAiProviderRunResult) => void
   let rejectCompleted!: (reason?: unknown) => void
@@ -121,48 +79,43 @@ export async function runOpenAiEditorProvider(
   })
 
   const providerStream = (async function* (): AsyncGenerator<EditorAiRuntimeEvent> {
-    let message = ''
-    let finalToolName = 'reply_only'
-    let finalToolPayload: unknown = null
-    let functionCallBuffer = ''
-
     try {
       yield { type: 'assistant_start' }
 
-      for await (const event of stream as AsyncIterable<ResponseStreamEvent>) {
-        if (event.type === 'response.output_text.delta') {
-          message += event.delta
-          yield {
-            type: 'assistant_delta',
-            delta: event.delta,
-          }
-        }
+      const response = await runExternalTextRequest({
+        config: {
+          apiKey: config.apiKey,
+          providerType: 'openai_compatible',
+          baseURL: config.baseURL,
+          model: config.model,
+        },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.4,
+        maxTokens: Math.min(config.maxTokens, 2400),
+        jsonMode: true,
+      })
 
-        if (event.type === 'response.function_call_arguments.delta') {
-          functionCallBuffer += event.delta
-        }
+      const parsed = parseStructuredEditorToolCall(response.content)
+      if (!parsed.parsed) {
+        throw new Error('OpenAI 兼容接口返回的结构化编辑动作无法解析，请重试。')
+      }
+      const action = normalizeToolCallToAction({
+        name: parsed.toolName as never,
+        payload: parsed.toolPayload as never,
+      })
 
-        if (event.type === 'response.function_call_arguments.done') {
-          functionCallBuffer = event.arguments || functionCallBuffer
-          const parsed = parseStructuredEditorToolCall(functionCallBuffer)
-          if (!parsed.parsed) {
-            throw new Error('AI 返回的结构化编辑动作无法解析，请重试。')
-          }
-          if (parsed.message) {
-            message = parsed.message
-          }
-          finalToolName = parsed.toolName
-          finalToolPayload = parsed.toolPayload
+      if (parsed.message) {
+        yield {
+          type: 'assistant_delta',
+          delta: parsed.message,
         }
       }
 
-      const action = normalizeToolCallToAction({
-        name: finalToolName as never,
-        payload: finalToolPayload as never,
-      })
-
       resolveCompleted({
-        message,
+        message: parsed.message,
         action,
       })
 
@@ -172,11 +125,11 @@ export async function runOpenAiEditorProvider(
       }
       yield {
         type: 'assistant_done',
-        message,
+        message: parsed.message,
         action,
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'OpenAI provider stream failed'
+      const message = error instanceof Error ? error.message : 'OpenAI compatible provider failed'
       yield {
         type: 'assistant_error',
         error: message,
