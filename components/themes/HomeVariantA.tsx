@@ -60,7 +60,20 @@ export function HomeVariantA({
         {/* Post list */}
         {posts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--stone-gray)', fontSize: 14 }}>
-            还没有文章
+            <div>还没有文章</div>
+            <div style={{ marginTop: 12 }}>
+              <Link
+                href="/editor"
+                style={{
+                  color: 'var(--editor-accent)',
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  fontWeight: 500,
+                }}
+              >
+                写文章
+              </Link>
+            </div>
           </div>
         ) : (
           <>

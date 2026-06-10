@@ -35,6 +35,12 @@ export function HomeDefault({
           <div className="text-center py-20">
             <p className="text-[var(--editor-muted)] mb-3">还没有文章</p>
             <p className="text-sm text-[var(--stone-gray)]">开始写作，记录思考</p>
+            <Link
+              href="/editor"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--editor-accent)] hover:underline underline-offset-2"
+            >
+              写文章
+            </Link>
           </div>
         ) : (
           <>

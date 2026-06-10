@@ -188,7 +188,7 @@ export function HomeVariantB({
       </div>
 
       {/* Featured article */}
-      {featured && (
+      {featured ? (
         <section className="editorial-featured" style={{ padding: '44px 48px', borderBottom: `1px solid ${BORDER}` }}>
           <Link href={`/${featured.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
             <div className="editorial-featured-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 48, alignItems: 'start' }}>
@@ -277,6 +277,32 @@ export function HomeVariantB({
               </div>
             </div>
           </Link>
+        </section>
+      ) : (
+        <section style={{ padding: '72px 48px', borderBottom: `1px solid ${BORDER}`, textAlign: 'center' }}>
+          <div style={{ fontSize: 14, letterSpacing: '0.18em', color: MUTED, fontFamily: '"JetBrains Mono", ui-monospace, monospace', textTransform: 'uppercase' }}>
+            No articles yet
+          </div>
+          <div style={{ marginTop: 14, fontSize: 26, fontWeight: 700, lineHeight: 1.3, fontFamily: '"Noto Serif SC", "Source Han Serif SC", Georgia, serif' }}>
+            开始写作，记录思考
+          </div>
+          <div style={{ marginTop: 18 }}>
+            <Link
+              href="/editor"
+              style={{
+                color: ACCENT,
+                textDecoration: 'none',
+                fontSize: 12,
+                letterSpacing: '0.12em',
+                fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                textTransform: 'uppercase',
+                borderBottom: `1px solid ${ACCENT}`,
+                paddingBottom: 2,
+              }}
+            >
+              Write Article
+            </Link>
+          </div>
         </section>
       )}
 

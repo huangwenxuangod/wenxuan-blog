@@ -301,7 +301,23 @@ export function HomeVariantC({
         <div style={{ borderTop: `1px dashed ${BORDER}`, borderBottom: `1px dashed ${BORDER}` }}>
           {filtered.length === 0 ? (
             <div style={{ padding: '32px 10px', color: MUTED, fontSize: 13 }}>
-              {'// '}no matches for &quot;{query}&quot;
+              {posts.length === 0 && !query ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>{'// '}no articles yet</div>
+                  <Link
+                    href="/editor"
+                    style={{
+                      color: ACCENT,
+                      textDecoration: 'none',
+                      width: 'fit-content',
+                    }}
+                  >
+                    {'> '}write article
+                  </Link>
+                </div>
+              ) : (
+                <div>{'// '}no matches for &quot;{query}&quot;</div>
+              )}
             </div>
           ) : (
             filtered.map((post, i) => (
