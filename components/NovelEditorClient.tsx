@@ -29,8 +29,9 @@ export function NovelEditorClient(props: {
     cover_image?: string | null
   }
   skipDraftRestore?: boolean
+  initialCategory?: string
 }) {
-  const editorInstanceKey = props.initialData?.slug || 'new'
+  const editorInstanceKey = props.initialData?.slug || `new:${props.initialCategory || 'AI'}`
 
   return (
     <>

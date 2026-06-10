@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Bot,
   ChevronUp,
+  Plus,
   Palette,
   Globe,
   Eye as EyeIcon,
@@ -46,7 +47,6 @@ import {
 } from '@/lib/editor-extensions'
 import { generatePassword } from '@/lib/password'
 import { InputModal } from '@/components/InputModal'
-import { CategorySelector } from '@/components/CategorySelector'
 import { EditorRightRail } from '@/components/editor/EditorRightRail'
 import { EditorTocRail } from '@/components/editor/EditorTocRail'
 import { useToast } from '@/components/Toast'
@@ -192,6 +192,7 @@ interface NovelEditorProps {
     description?: string | null
     cover_image?: string | null
   }
+  initialCategory?: string
 }
 
 type DraftMetaState = {
@@ -287,7 +288,7 @@ function WechatPreviewRail({
   )
 }
 
-export function NovelEditor({ initialData }: NovelEditorProps = {}) {
+export function NovelEditor({ initialData, initialCategory }: NovelEditorProps = {}) {
   // ── Core state ──
   const [draftReady, setDraftReady] = useState(false)
   const [initialContent, setInitialContent] = useState<JSONContent>(EMPTY_DOCUMENT)
@@ -301,7 +302,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [title, setTitle] = useState('')
   const latestTitleRef = useRef('')
   const [charCount, setCharCount] = useState(0)
-  const [category, setCategory] = useState(initialData?.category || 'AI')
+  const [category] = useState(initialData?.category || initialCategory || 'AI')
   const [publishStatus, setPublishStatus] = useState<PublishStatus>(
     initialData?.status === 'draft' ? 'draft' :
     initialData?.password ? 'encrypted' :
@@ -325,7 +326,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
   const [shareLongImageOpen, setShareLongImageOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [settingsActiveTab, setSettingsActiveTab] = useState<SettingsTabId>('nav')
-  const [categoryRefreshKey, setCategoryRefreshKey] = useState(0)
   const [providerRefreshKey, setProviderRefreshKey] = useState(0)
   const [homeShortcutEnabled, setHomeShortcutEnabled] = useState(true)
   const [settingsLoading, setSettingsLoading] = useState(false)
@@ -348,7 +348,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         }
       })
       .catch(() => {})
-  }, [categoryRefreshKey])
+  }, [])
 
   const openSettingsModal = async (tabId: SettingsTabId = 'nav') => {
     setSettingsActiveTab(tabId)
@@ -1616,8 +1616,41 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
 
             <div className="mx-0.5 h-5 w-px bg-[var(--editor-line)]" />
 
-            {/* Category selector */}
-            <CategorySelector key={categoryRefreshKey} value={category} onChange={(val) => { setCategory(val); markDirty({ category: val }) }} />
+            <Menu as="div" className="relative">
+              <Tooltip content="新建文章">
+                <MenuButton
+                  as={UiIconButton}
+                  aria-label="新建文章"
+                  className="h-10 w-10"
+                >
+                  <Plus className="h-[1.15rem] w-[1.15rem]" />
+                </MenuButton>
+              </Tooltip>
+              <MenuItems
+                anchor="bottom end"
+                className="z-50 mt-2 w-52 rounded-[1.2rem] border border-[color-mix(in_srgb,var(--ui-line)_84%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_96%,var(--ui-panel))] p-2 shadow-[0_20px_48px_rgb(var(--ui-shadow-rgb)/0.12)] [--anchor-gap:10px]"
+              >
+                {[
+                  { category: 'AI', label: 'AI', description: '创建 AI 分类文章' },
+                  { category: 'AI工具', label: 'AI工具', description: '创建 AI工具 分类文章' },
+                ].map((item) => (
+                  <MenuItem key={item.category}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.location.assign(`/editor?new=1&category=${encodeURIComponent(item.category)}`)
+                      }}
+                      className="group flex w-full items-start gap-3 rounded-[0.9rem] px-3 py-2.5 text-left text-[var(--ui-ink)] transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium">{item.label}</div>
+                        <div className="mt-0.5 text-xs text-[var(--ui-muted)]">{item.description}</div>
+                      </div>
+                    </button>
+                  </MenuItem>
+                ))}
+              </MenuItems>
+            </Menu>
 
             {/* Publish button + dropdown */}
             <div className="relative" ref={publishPanelRef}>
@@ -2146,7 +2179,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
           open={settingsModalOpen}
           onClose={() => {
             setSettingsModalOpen(false)
-            setCategoryRefreshKey((prev) => prev + 1)
             setProviderRefreshKey((prev) => prev + 1)
           }}
           className="relative z-50"
@@ -2163,7 +2195,6 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
                   type="button"
                   onClick={() => {
                     setSettingsModalOpen(false)
-                    setCategoryRefreshKey((prev) => prev + 1)
                     setProviderRefreshKey((prev) => prev + 1)
                   }}
                   className="editor-quiet-icon-button h-8 w-8 shrink-0 outline-none focus:outline-none"

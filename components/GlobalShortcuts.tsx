@@ -13,7 +13,7 @@ export function GlobalShortcuts() {
         e.preventDefault()
         // 检查是否已登录
         if (document.cookie.includes('qmblog_admin=')) {
-          router.push('/editor')
+          router.push('/editor?new=1&category=AI')
         } else {
           console.log('请先登录后台')
         }
@@ -24,7 +24,7 @@ export function GlobalShortcuts() {
       if (e.ctrlKey && e.metaKey && e.key.toLowerCase() === 'n') {
         e.preventDefault()
         if (document.cookie.includes('qmblog_admin=')) {
-          router.push('/editor')
+          router.push('/editor?new=1&category=AI')
         } else {
           console.log('请先登录后台')
         }
@@ -38,4 +38,3 @@ export function GlobalShortcuts() {
 
   return null
 }
-

@@ -8,7 +8,7 @@ import { getPostBySlug } from '@/lib/repositories/posts'
 export default async function EditorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ edit?: string; slug?: string; new?: string }>
+  searchParams: Promise<{ edit?: string; slug?: string; new?: string; category?: string }>
 }) {
   const params = await searchParams
   const allowLocalPreview =
@@ -25,12 +25,17 @@ export default async function EditorPage({
 
   if (!isAuthenticated) {
     const editSlug = params.edit ?? params.slug
-    const editParam = editSlug ? `?edit=${editSlug}` : params.new === '1' ? '?new=1' : ''
+    const editParam = editSlug
+      ? `?edit=${editSlug}`
+      : params.new === '1'
+        ? `?new=1${params.category ? `&category=${encodeURIComponent(params.category)}` : ''}`
+        : ''
     redirect(`/admin/login?redirect_to=${encodeURIComponent(`/editor${editParam}`)}`)
   }
 
   const edit = params.edit ?? params.slug
   const isNew = params.new === '1'
+  const nextCategory = params.category === 'AI工具' ? 'AI工具' : 'AI'
 
   let initialData: {
     slug: string
@@ -66,5 +71,5 @@ export default async function EditorPage({
     }
   }
 
-  return <NovelEditorClient initialData={initialData} skipDraftRestore={isNew} />
+  return <NovelEditorClient initialData={initialData} skipDraftRestore={isNew} initialCategory={isNew ? nextCategory : undefined} />
 }
