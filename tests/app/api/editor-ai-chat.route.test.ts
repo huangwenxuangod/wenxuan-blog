@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   appendAiArticleMessage: vi.fn(),
   listAiArticleMessages: vi.fn(),
   listAiArticleMemoryItems: vi.fn(),
+  getAiArticleSummary: vi.fn(),
   runEditorAiRuntime: vi.fn(),
   getAiRuntimeEnv: vi.fn(),
   finalizeEditorAiCompletion: vi.fn(),
@@ -37,6 +38,10 @@ vi.mock('@/lib/repositories/ai-article-threads', () => ({
 
 vi.mock('@/lib/repositories/ai-article-memory', () => ({
   listAiArticleMemoryItems: mocks.listAiArticleMemoryItems,
+}))
+
+vi.mock('@/lib/repositories/ai-article-summary', () => ({
+  getAiArticleSummary: mocks.getAiArticleSummary,
 }))
 
 vi.mock('@/lib/ai-editor/runtime', () => ({
@@ -79,31 +84,34 @@ describe('/api/editor/ai-chat route', () => {
     mocks.appendAiArticleMessage.mockResolvedValue(undefined)
     mocks.listAiArticleMessages.mockResolvedValue([])
     mocks.listAiArticleMemoryItems.mockResolvedValue([])
+    mocks.getAiArticleSummary.mockResolvedValue(null)
     mocks.getAiRuntimeEnv.mockReturnValue({ OPENAI_API_KEY: 'sk-test' })
     mocks.finalizeEditorAiCompletion.mockResolvedValue({
       message: '已经为你补上一张插图。',
       action: {
-        type: 'generate_image',
-        prompt: '图 1',
-        usage: 'inline',
-        anchorBlockIndex: 1,
-        alt: '图一',
+        type: 'generate_images',
+        images: [
+          {
+            prompt: '图 1',
+            usage: 'inline',
+            anchorBlockIndex: 1,
+            alt: '图一',
+          },
+        ],
       },
       tool: {
-        name: 'generate_image',
+        name: 'generate_images',
         payload: {
-          prompt: '图 1',
-          usage: 'inline',
-          anchorBlockIndex: 1,
-          alt: '图一',
-          generatedImage: { url: '/1.webp', alt: '图一' },
+          images: [
+            {
+              prompt: '图 1',
+              usage: 'inline',
+              anchorBlockIndex: 1,
+              alt: '图一',
+            },
+          ],
+          generatedImages: [{ url: '/1.webp', alt: '图一' }],
         },
-      },
-      generatedImage: {
-        url: '/1.webp',
-        alt: '图一',
-        usage: 'inline',
-        anchorBlockIndex: 1,
       },
     })
   })
@@ -118,33 +126,45 @@ describe('/api/editor/ai-chat route', () => {
         yield {
           type: 'action_ready' as const,
           action: {
-            type: 'generate_image' as const,
-            prompt: '图 1',
-            usage: 'inline' as const,
-            anchorBlockIndex: 1,
-            alt: '图一',
+            type: 'generate_images' as const,
+            images: [
+              {
+                prompt: '图 1',
+                usage: 'inline' as const,
+                anchorBlockIndex: 1,
+                alt: '图一',
+              },
+            ],
           },
         }
         yield {
           type: 'assistant_done' as const,
           message: '原始结束消息',
           action: {
-            type: 'generate_image' as const,
-            prompt: '图 1',
-            usage: 'inline' as const,
-            anchorBlockIndex: 1,
-            alt: '图一',
+            type: 'generate_images' as const,
+            images: [
+              {
+                prompt: '图 1',
+                usage: 'inline' as const,
+                anchorBlockIndex: 1,
+                alt: '图一',
+              },
+            ],
           },
         }
       })(),
       completed: Promise.resolve({
         message: '已经为你补上一张插图。',
         action: {
-          type: 'generate_image',
-          prompt: '图 1',
-          usage: 'inline',
-          anchorBlockIndex: 1,
-          alt: '图一',
+          type: 'generate_images',
+          images: [
+            {
+              prompt: '图 1',
+              usage: 'inline',
+              anchorBlockIndex: 1,
+              alt: '图一',
+            },
+          ],
         },
         memoryCandidates: [],
       }),
@@ -165,47 +185,41 @@ describe('/api/editor/ai-chat route', () => {
       'assistant_delta',
       'tool_pending',
       'action_ready',
-      'tool_result',
       'assistant_done',
     ])
 
     expect(events[2]).toEqual({
       type: 'tool_pending',
-      tool: 'generate_image',
-      payload: { usage: 'inline' },
+      tool: 'generate_images',
+      payload: { count: 1 },
     })
 
     expect(events[4]).toEqual({
-      type: 'tool_result',
-      tool: 'generate_image',
-      payload: {
-        generatedImage: {
-          url: '/1.webp',
-          alt: '图一',
-          usage: 'inline',
-          anchorBlockIndex: 1,
-        },
-      },
-    })
-
-    expect(events[5]).toEqual({
       type: 'assistant_done',
       message: '已经为你补上一张插图。',
       action: {
-        type: 'generate_image',
-        prompt: '图 1',
-        usage: 'inline',
-        anchorBlockIndex: 1,
-        alt: '图一',
+        type: 'generate_images',
+        images: [
+          {
+            prompt: '图 1',
+            usage: 'inline',
+            anchorBlockIndex: 1,
+            alt: '图一',
+          },
+        ],
       },
       tool: {
-        name: 'generate_image',
+        name: 'generate_images',
         payload: {
-          prompt: '图 1',
-          usage: 'inline',
-          anchorBlockIndex: 1,
-          alt: '图一',
-          generatedImage: { url: '/1.webp', alt: '图一' },
+          images: [
+            {
+              prompt: '图 1',
+              usage: 'inline',
+              anchorBlockIndex: 1,
+              alt: '图一',
+            },
+          ],
+          generatedImages: [{ url: '/1.webp', alt: '图一' }],
         },
       },
     })

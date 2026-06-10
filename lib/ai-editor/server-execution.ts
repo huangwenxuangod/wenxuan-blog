@@ -2,6 +2,7 @@ import { convertActionToLegacyTool } from '@/lib/ai-editor/action-schema'
 import type { EditorAiAction, EditorAiRuntimeCompletedResult, EditorAiRuntimeEvent } from '@/lib/ai-editor/runtime-types'
 import { appendAiArticleMessage, updateAiArticleMessageContent } from '@/lib/repositories/ai-article-threads'
 import { upsertAiArticleMemoryItem } from '@/lib/repositories/ai-article-memory'
+import { refreshAiArticleSummaryFromTurn } from '@/lib/repositories/ai-article-summary'
 
 export interface FinalizedEditorAiResponse {
   message: string
@@ -15,6 +16,8 @@ interface FinalizeEditorAiCompletionOptions {
   db: D1Database
   threadId: number
   assistantMessageId?: number | null
+  title?: string | null
+  userMessage?: string | null
   completed: EditorAiRuntimeCompletedResult
 }
 
@@ -23,6 +26,8 @@ export async function finalizeEditorAiCompletion({
   db,
   threadId,
   assistantMessageId,
+  title,
+  userMessage,
   completed,
 }: FinalizeEditorAiCompletionOptions): Promise<FinalizedEditorAiResponse> {
   const legacyTool = convertActionToLegacyTool(completed.action)
@@ -64,6 +69,13 @@ export async function finalizeEditorAiCompletion({
       sourceToolName: legacyTool.name || null,
     })
   }
+
+  await refreshAiArticleSummaryFromTurn(db, articleKey, {
+    userMessage: userMessage || '',
+    assistantMessage: String(responsePayload.message || ''),
+    actionType: completed.action?.type || legacyTool.name || null,
+    title: title || null,
+  })
 
   return {
     message: String(responsePayload.message || ''),

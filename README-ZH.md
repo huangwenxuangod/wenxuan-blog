@@ -2,8 +2,8 @@
 
 [English](README.md) | 简体中文
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/huangwenxuangod/wenxuan-blog-opensource)
-[![Use this template](https://img.shields.io/badge/GitHub-Use%20this%20template-111111?logo=github)](https://github.com/huangwenxuangod/wenxuan-blog-opensource/generate)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/huangwenxuangod/wenxuan-blog)
+[![Use this template](https://img.shields.io/badge/GitHub-Use%20this%20template-111111?logo=github)](https://github.com/huangwenxuangod/wenxuan-blog/generate)
 
 如果你也想拥有一个真正属于自己的学习、写作、分享阵地，而不是把内容完全寄托在平台算法上，这个项目就是为此做的。
 
@@ -11,7 +11,7 @@
 
 - 在线示例：部署后补充
 - 介绍文章：部署后补充
-- 当前仓库：<https://github.com/huangwenxuangod/wenxuan-blog-opensource>
+- 当前仓库：<https://github.com/huangwenxuangod/wenxuan-blog>
 
 ## 为什么值得做成自己的站
 
@@ -175,8 +175,8 @@ npm run deploy
 ## 本地开发
 
 ```bash
-git clone https://github.com/huangwenxuangod/wenxuan-blog-opensource.git
-cd wenxuan-blog-opensource
+git clone https://github.com/huangwenxuangod/wenxuan-blog.git
+cd wenxuan-blog
 npm install
 cp .env.example .env.local
 npm run dev

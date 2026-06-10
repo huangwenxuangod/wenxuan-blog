@@ -108,6 +108,9 @@ export interface AiEditorContextInput {
   userMessage?: string
   history?: AiEditorThreadMessage[]
   memoryItems?: AiEditorMemoryItem[]
+  articleSummary?: string | null
+  userSummary?: string | null
+  sessionSummary?: string | null
   activeBlockIndex?: number | null
   selectionText?: string | null
 }

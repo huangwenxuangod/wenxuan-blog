@@ -114,13 +114,14 @@ function buildThreadSummary(history: AiEditorContextInput['history']) {
 function buildThreadContext(
   history: AiEditorContextInput['history'],
   memoryItems: AiEditorContextInput['memoryItems'],
+  sessionSummary?: string | null,
 ): AiEditorThreadContext {
   const { recentMessages, threadSummary } = buildThreadSummary(history)
   const activeItems = (memoryItems || []).filter((item) => !item.archived)
 
   return {
     recentMessages,
-    threadSummary,
+    threadSummary: (sessionSummary || '').trim() || threadSummary,
     acceptedDecisions: activeItems
       .filter((item) => item.kind === 'decision' || item.kind === 'completed_task')
       .slice(0, 3)
@@ -149,9 +150,16 @@ export function buildAiEditorContext(input: AiEditorContextInput): AiEditorConte
     memoryItems,
     userMessage: input.userMessage || '',
   })
-  const memorySummary = buildAiEditorMemorySummary(
-    retrievedMemoryItems.length > 0 ? retrievedMemoryItems : memoryItems.slice(0, 6),
-  )
+  const summaryParts = [
+    (input.userSummary || '').trim(),
+    (input.articleSummary || '').trim(),
+    (input.sessionSummary || '').trim(),
+  ].filter(Boolean)
+  const memorySummary = summaryParts.length > 0
+    ? summaryParts.join('\n\n')
+    : buildAiEditorMemorySummary(
+        retrievedMemoryItems.length > 0 ? retrievedMemoryItems : memoryItems.slice(0, 6),
+      )
 
   return {
     title: normalizedTitle,
@@ -175,7 +183,7 @@ export function buildAiEditorContext(input: AiEditorContextInput): AiEditorConte
       ...retrievedBlocks,
       memoryItems: retrievedMemoryItems,
     },
-    threadContext: buildThreadContext(input.history, memoryItems),
+    threadContext: buildThreadContext(input.history, memoryItems, input.sessionSummary),
     memorySummary,
   }
 }

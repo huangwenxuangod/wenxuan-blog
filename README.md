@@ -2,8 +2,8 @@
 
 English | [简体中文](README-ZH.md)
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/huangwenxuangod/wenxuan-blog-opensource)
-[![Use this template](https://img.shields.io/badge/GitHub-Use%20this%20template-111111?logo=github)](https://github.com/huangwenxuangod/wenxuan-blog-opensource/generate)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/huangwenxuangod/wenxuan-blog)
+[![Use this template](https://img.shields.io/badge/GitHub-Use%20this%20template-111111?logo=github)](https://github.com/huangwenxuangod/wenxuan-blog/generate)
 
 If you want to have a learning, writing, and sharing space that truly belongs to you, rather than fully entrusting your content to platform algorithms, this project is built for exactly that.
 
@@ -11,7 +11,7 @@ Wenxuan Blog is not just a static template that renders Markdown; it is a fully 
 
 - Live Demo: To be added after deployment
 - Introduction Article: To be added after deployment
-- Current Repository: <https://github.com/huangwenxuangod/wenxuan-blog-opensource>
+- Current Repository: <https://github.com/huangwenxuangod/wenxuan-blog>
 
 ## Why Build Your Own Blog?
 
@@ -165,8 +165,8 @@ npm run deploy
 ## Local Development
 
 ```bash
-git clone https://github.com/huangwenxuangod/wenxuan-blog-opensource.git
-cd wenxuan-blog-opensource
+git clone https://github.com/huangwenxuangod/wenxuan-blog.git
+cd wenxuan-blog
 npm install
 cp .env.example .env.local
 npm run dev

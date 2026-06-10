@@ -50,6 +50,9 @@ export interface EditorAiRuntimeInput {
   selectionText?: string | null
   history: AiEditorThreadMessage[]
   memoryItems: AiEditorMemoryItem[]
+  userSummary?: string | null
+  articleSummary?: string | null
+  sessionSummary?: string | null
   activeSkill?: ActiveSkillInstructions | null
   textProfileId?: number | null
   imageProfileId?: number | null

@@ -1,5 +1,5 @@
 const DEV_SITE_URL = 'http://localhost:3000'
-const DEFAULT_PRODUCTION_SITE_URL = 'https://wenxuan-blog-opensource.pages.dev'
+const DEFAULT_PRODUCTION_SITE_URL = 'https://wenxuan-blog.pages.dev'
 
 function parseSiteUrl(value: string): URL | null {
   try {

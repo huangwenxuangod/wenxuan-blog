@@ -19,26 +19,26 @@ describe('default cover images', () => {
   it('falls back to a bundled default cover when no explicit cover is set', () => {
     const cover = resolvePostCoverImage(
       { slug: 'missing-cover', title: 'No cover here' },
-      { baseUrl: 'https://wenxuan-blog-opensource.pages.dev' },
+      { baseUrl: 'https://wenxuan-blog.pages.dev' },
     )
 
-    expect(cover).toMatch(/^https:\/\/wenxuan-blog-opensource\.pages\.dev\/default-covers\/qm-cover-[1-3]\.jpg$/)
+    expect(cover).toMatch(/^https:\/\/wenxuan-blog\.pages\.dev\/default-covers\/qm-cover-[1-3]\.jpg$/)
   })
 
   it('prefers the explicit cover image and resolves relative paths', () => {
     expect(resolvePostCoverImage(
       { cover_image: '/api/images/example.png', slug: 'post-slug', title: 'Post title' },
-      { baseUrl: 'https://wenxuan-blog-opensource.pages.dev' },
-    )).toBe('https://wenxuan-blog-opensource.pages.dev/api/images/example.png')
+      { baseUrl: 'https://wenxuan-blog.pages.dev' },
+    )).toBe('https://wenxuan-blog.pages.dev/api/images/example.png')
 
     expect(resolvePostCoverImage(
       { cover_image: 'https://cdn.example.com/cover.jpg', slug: 'post-slug', title: 'Post title' },
-      { baseUrl: 'https://wenxuan-blog-opensource.pages.dev' },
+      { baseUrl: 'https://wenxuan-blog.pages.dev' },
     )).toBe('https://cdn.example.com/cover.jpg')
   })
 
   it('resolves the site-wide fallback cover image', () => {
-    expect(resolveDefaultSiteCoverImage('https://wenxuan-blog-opensource.pages.dev'))
-      .toBe('https://wenxuan-blog-opensource.pages.dev/default-covers/qm-cover-1.jpg')
+    expect(resolveDefaultSiteCoverImage('https://wenxuan-blog.pages.dev'))
+      .toBe('https://wenxuan-blog.pages.dev/default-covers/qm-cover-1.jpg')
   })
 })

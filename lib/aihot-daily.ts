@@ -53,6 +53,14 @@ export interface AihotDailyRecord {
   status: string
 }
 
+export interface AihotDailyListItem {
+  date: string
+  generatedAt: string
+  leadTitle: string | null
+  fetchedAt: string
+  status: string
+}
+
 function normalizeText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -279,6 +287,58 @@ export async function getLatestAihotDaily(db: D1Database) {
     ORDER BY date DESC
     LIMIT 1
   `).first<AihotDailyCacheRow>()
+
+  return mapAihotDailyRow(row)
+}
+
+export async function listAihotDailies(db: D1Database, limit = 90) {
+  await ensureAihotDailyTable(db)
+  const { results } = await db.prepare(`
+    SELECT
+      date,
+      generated_at,
+      lead_title,
+      fetched_at,
+      status
+    FROM aihot_daily_cache
+    ORDER BY date DESC
+    LIMIT ?
+  `).bind(Math.max(1, Math.min(limit, 365))).all<{
+    date: string
+    generated_at: string
+    lead_title: string | null
+    fetched_at: string
+    status: string
+  }>()
+
+  return (results ?? []).map((row) => ({
+    date: row.date,
+    generatedAt: row.generated_at,
+    leadTitle: row.lead_title,
+    fetchedAt: row.fetched_at,
+    status: row.status,
+  })) satisfies AihotDailyListItem[]
+}
+
+export async function getAihotDailyByDate(db: D1Database, date: string) {
+  await ensureAihotDailyTable(db)
+  const row = await db.prepare(`
+    SELECT
+      date,
+      generated_at,
+      window_start,
+      window_end,
+      lead_title,
+      lead_paragraph,
+      sections_json,
+      raw_json,
+      source_url,
+      fetched_at,
+      status
+    FROM aihot_daily_cache
+    WHERE date = ?
+    LIMIT 1
+  `).bind(date).first<AihotDailyCacheRow>()
 
   return mapAihotDailyRow(row)
 }

@@ -12,6 +12,7 @@ import {
   updateAiArticleMessageContent,
 } from '@/lib/repositories/ai-article-threads'
 import { listAiArticleMemoryItems } from '@/lib/repositories/ai-article-memory'
+import { getAiArticleSummary } from '@/lib/repositories/ai-article-summary'
 import {
   ensureAuthenticatedRequest,
   parseJsonBody,
@@ -97,9 +98,10 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
     content: '',
   })
 
-  const [persistedHistory, memoryRows] = await Promise.all([
+  const [persistedHistory, memoryRows, articleSummary] = await Promise.all([
     listAiArticleMessages(db, thread.id, 30),
     listAiArticleMemoryItems(db, articleKey, 40),
+    getAiArticleSummary(db, articleKey),
   ])
 
   const [{ runEditorAiRuntime }, { getAiRuntimeEnv }] = await Promise.all([
@@ -138,6 +140,9 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
       createdAt: item.created_at,
       updatedAt: item.updated_at,
     })),
+    userSummary: articleSummary?.user_summary || '',
+    articleSummary: articleSummary?.article_summary || '',
+    sessionSummary: articleSummary?.session_summary || '',
     activeSkill,
     textProfileId: Number.isInteger(body.textProfileId) ? Number(body.textProfileId) : null,
     imageProfileId: Number.isInteger(body.imageProfileId) ? Number(body.imageProfileId) : null,
@@ -158,6 +163,8 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
       db,
       threadId: thread.id,
       assistantMessageId: pendingAssistantMessage?.id ?? null,
+      title: body.title || '',
+      userMessage,
       completed,
     })
   })

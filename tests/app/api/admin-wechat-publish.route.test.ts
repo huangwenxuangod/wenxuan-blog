@@ -130,6 +130,6 @@ describe('/api/admin/wechat-publish route', () => {
     expect(forwarded.author).toBe('文轩')
     expect(forwarded.need_open_comment).toBe(true)
     expect(forwarded.only_fans_can_comment).toBe(false)
-    expect(forwarded.cover_image_url).toMatch(/^https:\/\/wenxuan-blog-opensource\.pages\.dev\/default-covers\/qm-cover-[1-3]\.jpg$/)
+    expect(forwarded.cover_image_url).toMatch(/^https:\/\/wenxuan-blog\.pages\.dev\/default-covers\/qm-cover-[1-3]\.jpg$/)
   })
 })

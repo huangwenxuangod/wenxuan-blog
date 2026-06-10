@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import type { AihotDailyListItem, AihotDailyRecord } from '@/lib/aihot-daily'
 
 const AihotDailyPageClient = dynamic(
   () => import('@/components/AihotDailyPageClient').then((module) => module.AihotDailyPageClient),
@@ -14,6 +15,14 @@ const AihotDailyPageClient = dynamic(
   },
 )
 
-export function AihotDailyPageShell() {
-  return <AihotDailyPageClient />
+export function AihotDailyPageShell({
+  daily,
+  archive,
+  selectedDate,
+}: {
+  daily: AihotDailyRecord | null
+  archive: AihotDailyListItem[]
+  selectedDate: string | null
+}) {
+  return <AihotDailyPageClient daily={daily} archive={archive} selectedDate={selectedDate} />
 }

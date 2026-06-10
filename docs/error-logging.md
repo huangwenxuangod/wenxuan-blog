@@ -60,13 +60,13 @@ API 日志输出为单行 JSON，包含：
 实时查看 Worker 日志：
 
 ```bash
-npx wrangler tail wenxuan-blog-opensource --format pretty
+npx wrangler tail wenxuan-blog --format pretty
 ```
 
 需要机器可读日志时：
 
 ```bash
-npx wrangler tail wenxuan-blog-opensource --format json
+npx wrangler tail wenxuan-blog --format json
 ```
 
 复制插件错误中的 `requestId`，在输出中搜索同一个值。

@@ -57,4 +57,30 @@ describe('ai editor context', () => {
     expect(context.memorySummary).toContain('克制')
     expect(context.threadContext.threadSummary).toContain('用户')
   })
+
+  it('prefers compact article summary inputs when provided', () => {
+    const context = buildAiEditorContext({
+      title: 'AI 写作系统',
+      postSlug: 'ai-writing-system',
+      documentText: 'AI 写作系统 总览 这一节讨论上下文与记忆。',
+      documentJson: {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: '这一节讨论上下文与记忆设计。' }],
+          },
+        ],
+      },
+      userMessage: '帮我继续写',
+      userSummary: '用户偏好：整体语气克制、简洁。',
+      articleSummary: '文章目标：解释 AI 写作系统的上下文与记忆设计。',
+      sessionSummary: '最近对话：刚确认文章要更偏产品设计视角。',
+      memoryItems: [],
+    })
+
+    expect(context.memorySummary).toContain('用户偏好')
+    expect(context.memorySummary).toContain('文章目标')
+    expect(context.threadContext.threadSummary).toContain('最近对话')
+  })
 })

@@ -1,5 +1,5 @@
 {
-  "name": "wenxuan-blog-opensource",
+  "name": "wenxuan-blog",
   "version": "0.1.0",
   "private": false,
   "scripts": {
@@ -74,11 +74,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/huangwenxuangod/wenxuan-blog-opensource.git"
+    "url": "git+https://github.com/huangwenxuangod/wenxuan-blog.git"
   },
-  "homepage": "https://github.com/huangwenxuangod/wenxuan-blog-opensource",
+  "homepage": "https://github.com/huangwenxuangod/wenxuan-blog",
   "bugs": {
-    "url": "https://github.com/huangwenxuangod/wenxuan-blog-opensource/issues"
+    "url": "https://github.com/huangwenxuangod/wenxuan-blog/issues"
   },
   "cloudflare": {
     "bindings": {
