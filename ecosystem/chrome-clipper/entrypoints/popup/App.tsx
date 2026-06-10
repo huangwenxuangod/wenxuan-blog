@@ -15,6 +15,7 @@ interface Category {
 function App() {
   const [view, setView] = useState<ViewState>('clip');
   const [title, setTitle] = useState('');
+  const [titleTouched, setTitleTouched] = useState(false);
   const [category, setCategory] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
@@ -82,6 +83,7 @@ function App() {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab && tab.title) {
         setTitle(tab.title);
+        setTitleTouched(false);
       }
     } catch (err) {
       void writeLog('warn', 'ACTIVE_TAB_TITLE_FAILED', { error: err });
@@ -158,7 +160,7 @@ function App() {
     try {
       const response: any = await chrome.runtime.sendMessage({
         action: 'clip',
-        title: title.trim(),
+        title: titleTouched ? title.trim() : undefined,
         category: category || undefined,
         status: status,
       });
@@ -266,7 +268,10 @@ function App() {
                 <input
                   type="text"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setTitleTouched(true);
+                  }}
                   placeholder="正在获取标题..."
                   className="w-full px-3 py-1.5 rounded bg-[#fcfbf7] border border-[#e5e5df] focus:border-[#8c8273] focus:outline-none text-xs transition-colors"
                 />

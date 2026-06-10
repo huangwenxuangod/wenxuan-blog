@@ -254,6 +254,8 @@
 - 是否引入了新的手写按钮/手写输入框/手写弹层
 - 是否新增了不必要的说明文字
 - 是否破坏了后台与编辑器的统一视觉
+- **涉及 TypeScript 组件接口、事件处理器签名、回调参数、动态导入 props、设置面板 tab 跳转等改动后，不能只看 diff 或只跑 lint，必须至少运行一次完整 `npx tsc --noEmit`**
+- **如果改动跨越编辑器、设置弹窗、API 请求链路或运行时 provider 选择，提交前还必须补跑 `npm run build`，避免 `MouseEvent` / props 签名不兼容这类仅在完整类型检查或生产构建阶段暴露的问题**
 
 ---
 
@@ -364,6 +366,7 @@
 | `npm run dev` | 启动 Next.js 本地开发服务器 |
 | `npm run build` | 构建生产版本 |
 | `npm run lint` | 运行 ESLint |
+| `npx tsc --noEmit` | 完整 TypeScript 类型检查；涉及组件 props、事件处理器、回调签名、动态导入组件接口时必须运行 |
 | `npm run test` | 启动 Vitest 交互式测试 |
 | `npm run test:run` | 单次运行测试 |
 | `npm run verify:quick` | 快速验证链路 |
@@ -382,3 +385,5 @@
 如果一个页面为了“快点做完”绕过了现有组件库，这个实现就不合格。
 
 如果一个改动让后台和编辑器看起来像来自两个产品，这个实现就不合格。
+
+如果一次 review 或修复没有跑完整 `npx tsc --noEmit`，却对涉及 props、事件签名、回调参数的前端改动给出“没问题”的结论，这个 review 就不合格。

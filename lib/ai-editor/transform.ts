@@ -4,12 +4,10 @@ import {
 } from '@/lib/ai-post-generator/parsers'
 import {
   getAiRuntimeEnv,
-  getClientFromConfig,
-  isWorkersAiBaseUrl,
-  normalizeBaseUrl,
   resolveConfig,
   type AIEnv,
 } from '@/lib/ai-runtime'
+import { runExternalTextRequest } from '@/lib/ai-runtime/external-text'
 
 export interface TransformOptions {
   customPrompt?: string
@@ -69,42 +67,6 @@ function createTextStream(output: string): ReadableStream<Uint8Array> {
       controller.close()
     },
   })
-}
-
-async function collectStreamText(
-  stream: AsyncIterable<{
-    choices?: Array<{
-      delta?: {
-        content?: string | null
-        reasoning_content?: string | null
-      }
-      finish_reason?: string | null
-    }>
-  }>,
-) {
-  let content = ''
-  let reasoning = ''
-  let finishReason = ''
-
-  for await (const chunk of stream) {
-    const choice = chunk.choices?.[0]
-    const delta = choice?.delta || {}
-    if (typeof delta.content === 'string') {
-      content += delta.content
-    }
-    if (typeof delta.reasoning_content === 'string') {
-      reasoning += delta.reasoning_content
-    }
-    if (choice?.finish_reason) {
-      finishReason = choice.finish_reason
-    }
-  }
-
-  return {
-    content: content.trim(),
-    reasoning: reasoning.trim(),
-    finishReason,
-  }
 }
 
 export async function transformEditorSelectionStream(
@@ -178,75 +140,23 @@ export async function transformEditorSelectionStream(
     return createTextStream(output)
   }
 
-  if (isWorkersAiBaseUrl(config.baseURL)) {
-    const runCompatRequest = async (
-      nextMessages: Array<{ role: 'system' | 'user'; content: string }>,
-      nextMaxTokens: number,
-    ) => {
-      const response = await fetch(`${normalizeBaseUrl(config.baseURL)}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: config.model,
-          messages: nextMessages,
-          temperature,
-          max_tokens: nextMaxTokens,
-        }),
-      })
-
-      const rawBody = await response.text().catch(() => '')
-      if (!response.ok) {
-        throw new Error(rawBody.trim() || `AI 请求失败：HTTP ${response.status}`)
-      }
-
-      return rawBody ? JSON.parse(rawBody) : null
-    }
-
-    const primaryPayload = await runCompatRequest(messages, config.maxTokens)
-    const primary = getWorkersAiAssistantPayload(primaryPayload)
-    if (primary.content) {
-      return createTextStream(primary.content)
-    }
-
-    if (shouldRetryAssistantPayload(primary)) {
-      const retryPayload = await runCompatRequest(
-        retryMessages,
-        Math.min(Math.max(config.maxTokens * 3, 512), 2048),
-      )
-      const retried = getWorkersAiAssistantPayload(retryPayload)
-      if (retried.content) {
-        return createTextStream(retried.content)
-      }
-    }
-
-    return createTextStream(extractWorkersAiText(primaryPayload))
-  }
-
-  const client = getClientFromConfig(config)
-  const primaryStream = await client.chat.completions.create({
-    model: config.model,
+  const primary = await runExternalTextRequest({
+    config,
     messages,
     temperature,
-    max_tokens: config.maxTokens,
-    stream: true,
+    maxTokens: config.maxTokens,
   })
-  const primary = await collectStreamText(primaryStream)
   if (primary.content) {
     return createTextStream(primary.content)
   }
 
   if (shouldRetryAssistantPayload(primary)) {
-    const retryStream = await client.chat.completions.create({
-      model: config.model,
+    const retried = await runExternalTextRequest({
+      config,
       messages: retryMessages,
       temperature,
-      max_tokens: Math.min(Math.max(config.maxTokens * 3, 512), 2048),
-      stream: true,
+      maxTokens: Math.min(Math.max(config.maxTokens * 3, 512), 2048),
     })
-    const retried = await collectStreamText(retryStream)
     if (retried.content) {
       return createTextStream(retried.content)
     }

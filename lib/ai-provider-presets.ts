@@ -3,7 +3,7 @@ export type AIProviderCategory = '海外大模型' | '海外聚合' | '国内大
 export interface AIProviderPreset {
   id: string
   name: string
-  providerType: 'openai_compatible' | 'gemini'
+  providerType: 'openai_compatible' | 'anthropic'
   category: AIProviderCategory
   baseUrl: string
   defaultModel: string
@@ -32,23 +32,6 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     description: 'Cloudflare 官方 Workers AI。使用 API Token，Base URL 里的 <ACCOUNT_ID> 需替换为你的账号 ID。',
   },
   {
-    id: 'openrouter',
-    name: 'OpenRouter',
-    providerType: 'openai_compatible',
-    category: '海外聚合',
-    baseUrl: 'https://openrouter.ai/api/v1',
-    defaultModel: 'anthropic/claude-sonnet-4',
-    quickModels: [
-      'anthropic/claude-sonnet-4',
-      'openai/gpt-4o-mini',
-      'google/gemini-2.5-flash',
-      'deepseek/deepseek-chat',
-    ],
-    apiKeyUrl: 'https://openrouter.ai/settings/keys',
-    description: '多模型聚合平台，模型最全',
-    recommended: true,
-  },
-  {
     id: 'openai',
     name: 'OpenAI',
     providerType: 'openai_compatible',
@@ -60,37 +43,15 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     description: 'OpenAI 官方接口',
   },
   {
-    id: 'grok',
-    name: 'xAI Grok',
-    providerType: 'openai_compatible',
+    id: 'anthropic',
+    name: 'Anthropic Claude',
+    providerType: 'anthropic',
     category: '海外大模型',
-    baseUrl: 'https://api.x.ai/v1',
-    defaultModel: 'grok-4-0709',
-    quickModels: ['grok-4-0709', 'grok-3-mini'],
-    apiKeyUrl: 'https://console.x.ai/team/api-keys',
-    description: 'xAI 官方 Grok',
-  },
-  {
-    id: 'groq',
-    name: 'Groq',
-    providerType: 'openai_compatible',
-    category: '海外聚合',
-    baseUrl: 'https://api.groq.com/openai/v1',
-    defaultModel: 'llama-3.3-70b-versatile',
-    quickModels: ['llama-3.3-70b-versatile', 'qwen/qwen3-32b', 'gemma2-9b-it'],
-    apiKeyUrl: 'https://console.groq.com/keys',
-    description: '高吞吐低延迟',
-  },
-  {
-    id: 'together',
-    name: 'Together',
-    providerType: 'openai_compatible',
-    category: '海外聚合',
-    baseUrl: 'https://api.together.xyz/v1',
-    defaultModel: 'deepseek-ai/DeepSeek-R1-0528',
-    quickModels: ['deepseek-ai/DeepSeek-R1-0528', 'meta-llama/Llama-3.3-70B-Instruct-Turbo'],
-    apiKeyUrl: 'https://api.together.ai/settings/api-keys',
-    description: '开源模型聚合',
+    baseUrl: 'https://api.anthropic.com/v1',
+    defaultModel: 'claude-sonnet-4-20250514',
+    quickModels: ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022'],
+    apiKeyUrl: 'https://console.anthropic.com/settings/keys',
+    description: 'Anthropic 官方接口',
   },
   {
     id: 'deepseek',
@@ -98,10 +59,10 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     providerType: 'openai_compatible',
     category: '国内大模型',
     baseUrl: 'https://api.deepseek.com/v1',
-    defaultModel: 'deepseek-chat',
-    quickModels: ['deepseek-chat', 'deepseek-reasoner'],
+    defaultModel: 'deepseek-v4-flash',
+    quickModels: ['deepseek-v4-flash', 'deepseek-v4-pro'],
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
-    description: 'DeepSeek 官方',
+    description: 'DeepSeek 官方接口，适合中文写作与推理任务',
     recommended: true,
   },
   {
@@ -125,6 +86,7 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     quickModels: ['glm-4-plus', 'glm-4-flash'],
     apiKeyUrl: 'https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys',
     description: '智谱 GLM 系列',
+    recommended: true,
   },
   {
     id: 'qwen',
@@ -136,6 +98,7 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     quickModels: ['qwen-max', 'qwen-plus', 'qwen-turbo'],
     apiKeyUrl: 'https://bailian.console.aliyun.com/?tab=model#/api-key',
     description: '通义千问',
+    recommended: true,
   },
   {
     id: 'siliconflow',
@@ -146,8 +109,7 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     defaultModel: 'Qwen/Qwen2.5-7B-Instruct',
     quickModels: ['Qwen/Qwen2.5-7B-Instruct', 'deepseek-ai/DeepSeek-V3'],
     apiKeyUrl: 'https://cloud.siliconflow.cn/account/ak',
-    description: '国产聚合平台',
-    recommended: true,
+    description: '国产聚合平台，适合作为统一兼容入口',
   },
   {
     id: 'doubao',
@@ -167,7 +129,7 @@ export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
     category: '国内聚合',
     baseUrl: 'https://aihubmix.com/v1',
     defaultModel: 'claude-sonnet-4-20250514',
-    quickModels: ['claude-sonnet-4-20250514', 'o3-mini', 'gemini-2.5-pro-search'],
+    quickModels: ['claude-sonnet-4-20250514', 'deepseek-chat', 'glm-4-plus'],
     apiKeyUrl: 'https://aihubmix.com/token',
     description: '国内聚合平台',
   },

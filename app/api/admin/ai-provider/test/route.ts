@@ -10,17 +10,6 @@ import {
   resolveAiConfigSecret,
 } from '@/lib/ai-provider-profiles'
 
-function isGeminiBaseUrl(baseUrl: string): boolean {
-  return /generativelanguage\.googleapis\.com/i.test(baseUrl)
-}
-
-function ensureGeminiBase(baseUrl: string): string {
-  if (baseUrl.includes('/v1') || baseUrl.includes('/v1beta')) {
-    return baseUrl
-  }
-  return `${baseUrl}/v1`
-}
-
 function toStringSafe(value: unknown): string {
   if (typeof value === 'string') return value
   if (value === null || value === undefined) return ''
@@ -94,6 +83,12 @@ function buildProviderErrorMessage(resStatus: number, resStatusText: string, raw
   return `HTTP ${resStatus}: ${resStatusText}`
 }
 
+function normalizeProviderType(value: string) {
+  if (value === 'anthropic') return 'anthropic'
+  if (value === 'gemini') return 'legacy_gemini'
+  return 'openai_compatible'
+}
+
 export async function POST(req: NextRequest) {
   const env = await getAppCloudflareEnv()
   const db = env?.DB as D1Database | undefined
@@ -115,6 +110,7 @@ export async function POST(req: NextRequest) {
     model?: string
     temperature?: number
     max_tokens?: number
+    provider_type?: string
   }
 
   const profileId = Number(body.profile_id)
@@ -122,11 +118,12 @@ export async function POST(req: NextRequest) {
     base_url: string
     model: string
     api_key_encrypted: string
+    provider_type: string
   } | null = null
 
   if (Number.isFinite(profileId) && profileId > 0) {
     selectedProfile = await db.prepare(`
-      SELECT base_url, model, api_key_encrypted
+      SELECT base_url, model, api_key_encrypted, provider_type
       FROM ai_provider_profiles
       WHERE id = ?
       LIMIT 1
@@ -134,11 +131,13 @@ export async function POST(req: NextRequest) {
       base_url: string
       model: string
       api_key_encrypted: string
+      provider_type: string
     }>()
   }
 
   const normalizedBaseUrl = normalizeBaseUrl(body.base_url || selectedProfile?.base_url || '')
   const normalizedModel = (body.model || selectedProfile?.model || '').trim()
+  const providerType = normalizeProviderType((body.provider_type || selectedProfile?.provider_type || 'openai_compatible').trim())
   const temperature = clampTemperature(Number(body.temperature))
   const maxTokens = Math.max(1, Math.min(256, Math.floor(clampMaxTokens(Number(body.max_tokens)))))
 
@@ -161,40 +160,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '缺少必要参数' }, { status: 400 })
   }
 
+  if (providerType === 'legacy_gemini') {
+    return NextResponse.json({
+      success: false,
+      error: '检测到旧版 Gemini 配置。当前版本已不再兼容该接口，请改为 OpenAI 兼容接口或 Anthropic 接口。',
+    })
+  }
+
   try {
     const t0 = Date.now()
-    let res: Response
-
-    if (isGeminiBaseUrl(normalizedBaseUrl)) {
-      const geminiBase = ensureGeminiBase(normalizedBaseUrl)
-      const endpoint = `${geminiBase}/models/${encodeURIComponent(normalizedModel)}:generateContent?key=${encodeURIComponent(key)}`
-      res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: 'Say "OK"' }] }],
-          generationConfig: { temperature, maxOutputTokens: maxTokens },
-        }),
-        signal: AbortSignal.timeout(15000),
-      })
-    } else {
-      res = await fetch(`${normalizedBaseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: normalizedModel,
-          messages: [{ role: 'user', content: 'Say "OK"' }],
-          temperature,
-          max_tokens: maxTokens,
-        }),
-        signal: AbortSignal.timeout(15000),
-      })
-    }
+    const res = providerType === 'anthropic'
+      ? await fetch(`${normalizedBaseUrl}/messages`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: normalizedModel,
+            max_tokens: maxTokens,
+            temperature,
+            messages: [{ role: 'user', content: 'Say "OK"' }],
+          }),
+          signal: AbortSignal.timeout(15000),
+        })
+      : await fetch(`${normalizedBaseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: normalizedModel,
+            messages: [{ role: 'user', content: 'Say "OK"' }],
+            temperature,
+            max_tokens: maxTokens,
+          }),
+          signal: AbortSignal.timeout(15000),
+        })
 
     if (!res.ok) {
       const rawBody = await res.text().catch(() => '')

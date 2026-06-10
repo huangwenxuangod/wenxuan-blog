@@ -4,14 +4,13 @@ import {
   clampTemperature,
   decryptApiKey,
   ensureAiConfigInfrastructure,
-  isDeepSeekBaseUrl,
   resolveAiConfigSecret,
   normalizeBaseUrl,
   isWorkersAiBaseUrl,
 } from '@/lib/ai-provider-profiles'
 
-const DEFAULT_EXTERNAL_BASE_URL = 'https://api.siliconflow.cn/v1'
-const DEFAULT_EXTERNAL_MODEL = 'Qwen/Qwen2.5-7B-Instruct'
+const DEFAULT_EXTERNAL_BASE_URL = 'https://api.deepseek.com/v1'
+const DEFAULT_EXTERNAL_MODEL = 'deepseek-chat'
 const DEFAULT_WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct'
 
 export interface AIEnv {
@@ -25,10 +24,17 @@ export interface AIEnv {
   ADMIN_TOKEN_SALT?: string
 }
 
+function resolveProviderType(value: unknown): 'openai_compatible' | 'anthropic' | 'legacy_gemini' {
+  if (value === 'anthropic') return 'anthropic'
+  if (value === 'gemini') return 'legacy_gemini'
+  return 'openai_compatible'
+}
+
 export type ResolvedConfig =
   | {
       strategy: 'external-provider'
       apiKey: string
+      providerType: 'openai_compatible' | 'anthropic'
       baseURL: string
       model: string
       temperature: number
@@ -84,6 +90,7 @@ function resolveEnv(env?: AIEnv): ResolvedConfig {
     return {
       strategy: 'external-provider',
       apiKey: externalApiKey,
+      providerType: 'openai_compatible',
       baseURL: env?.AI_BASE_URL || process.env.AI_BASE_URL || DEFAULT_EXTERNAL_BASE_URL,
       model: env?.AI_MODEL || process.env.AI_MODEL || DEFAULT_EXTERNAL_MODEL,
       temperature: 0.7,
@@ -127,7 +134,7 @@ export async function resolveConfig(env?: AIEnv, db?: D1Database, profileId?: nu
 
       const selected = Number.isFinite(profileId) && Number(profileId) > 0
         ? await db.prepare(`
-            SELECT base_url, model, temperature, max_tokens, api_key_encrypted
+            SELECT base_url, model, temperature, max_tokens, api_key_encrypted, provider_type
             FROM ai_provider_profiles
             WHERE id = ?
             LIMIT 1
@@ -137,9 +144,10 @@ export async function resolveConfig(env?: AIEnv, db?: D1Database, profileId?: nu
             temperature: number
             max_tokens: number
             api_key_encrypted: string
+            provider_type: string
           }>()
         : await db.prepare(`
-            SELECT base_url, model, temperature, max_tokens, api_key_encrypted
+            SELECT base_url, model, temperature, max_tokens, api_key_encrypted, provider_type
             FROM ai_provider_profiles
             ORDER BY is_default DESC, id ASC
             LIMIT 1
@@ -149,14 +157,20 @@ export async function resolveConfig(env?: AIEnv, db?: D1Database, profileId?: nu
             temperature: number
             max_tokens: number
             api_key_encrypted: string
+            provider_type: string
           }>()
 
       if (selected?.base_url && selected.model) {
         const key = await decryptApiKey(selected.api_key_encrypted || '', secret)
         if (key) {
+          const providerType = resolveProviderType(selected.provider_type)
+          if (providerType === 'legacy_gemini') {
+            return getDisabledConfig('检测到旧版 Gemini 配置。当前版本已不再兼容该接口，请在后台重新配置为 OpenAI 兼容接口或 Anthropic 接口。')
+          }
           return {
             strategy: 'external-provider',
             apiKey: key,
+            providerType,
             baseURL: normalizeBaseUrl(selected.base_url),
             model: selected.model,
             temperature: clampTemperature(Number(selected.temperature)),
@@ -172,6 +186,7 @@ export async function resolveConfig(env?: AIEnv, db?: D1Database, profileId?: nu
 
       if (providerRow?.value && keyRow?.value) {
         const cfg = JSON.parse(providerRow.value) as {
+          provider_type?: string
           base_url?: string
           model?: string
           temperature?: number
@@ -179,9 +194,14 @@ export async function resolveConfig(env?: AIEnv, db?: D1Database, profileId?: nu
         }
 
         if (cfg.base_url && cfg.model) {
+          const providerType = resolveProviderType(cfg.provider_type)
+          if (providerType === 'legacy_gemini') {
+            return getDisabledConfig('检测到旧版 Gemini 配置。当前版本已不再兼容该接口，请在后台重新配置为 OpenAI 兼容接口或 Anthropic 接口。')
+          }
           return {
             strategy: 'external-provider',
             apiKey: keyRow.value,
+            providerType,
             baseURL: normalizeBaseUrl(cfg.base_url),
             model: cfg.model,
             temperature: clampTemperature(Number(cfg.temperature)),
@@ -198,4 +218,3 @@ export async function resolveConfig(env?: AIEnv, db?: D1Database, profileId?: nu
 }
 
 export { isWorkersAiBaseUrl, normalizeBaseUrl }
-export { isDeepSeekBaseUrl }

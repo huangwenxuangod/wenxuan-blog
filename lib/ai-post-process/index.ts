@@ -1,14 +1,10 @@
-import {
-  getExternalAssistantPayload,
-} from '@/lib/ai-post-generator/parsers'
 import { buildAutoDescription } from '@/lib/post-utils'
 import {
-  getClientFromConfig,
   getAiRuntimeEnv,
-  isWorkersAiBaseUrl,
   resolveConfig,
   type AIEnv,
 } from '@/lib/ai-runtime'
+import { runExternalTextRequest } from '@/lib/ai-runtime/external-text'
 import {
   buildPostProcessResponseSchema,
   buildWorkersAiJsonSchemaResponseFormat,
@@ -131,25 +127,15 @@ export async function processPost(
           buildWorkersAiJsonSchemaResponseFormat(buildPostProcessResponseSchema()),
         )
       } else {
-        const client = getClientFromConfig(resolved)
-        const response = await client.chat.completions.create(
-          isWorkersAiBaseUrl(resolved.baseURL)
-            ? {
-                model: resolved.model,
-                messages,
-                temperature: 0.5,
-                max_tokens: Math.min(resolved.maxTokens, 2000),
-              }
-            : {
-                model: resolved.model,
-                messages,
-                temperature: 0.5,
-                max_tokens: Math.min(resolved.maxTokens, 2000),
-                response_format: { type: 'json_object' },
-              },
-        )
+        const response = await runExternalTextRequest({
+          config: resolved,
+          messages,
+          temperature: 0.5,
+          maxTokens: Math.min(resolved.maxTokens, 2000),
+          jsonMode: resolved.providerType !== 'anthropic',
+        })
 
-        resultText = getExternalAssistantPayload(response).content || ''
+        resultText = response.content || ''
       }
 
       const result = parseJsonObject(resultText) || {}

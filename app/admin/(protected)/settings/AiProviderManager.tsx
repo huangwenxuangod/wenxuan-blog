@@ -1,16 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react'
+import { ChevronDown } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useToast } from '@/components/Toast'
 import { Modal } from '@/components/Modal'
+import { cx } from '@/components/ui/primitives'
 import { AI_PROVIDER_PRESETS } from '@/lib/ai-provider-presets'
 import { clampMaxTokens, clampTemperature, normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 import {
+  createModelOptions,
   ProviderBasicFields,
   ProviderDialog,
   ProviderListTable,
   type BaseProviderFormState,
   type BaseProviderProfile,
+  type ModelsResponse,
 } from '@/app/admin/(protected)/settings/provider-manager-shared'
 
 const CUSTOM_PROVIDER_ID = 'custom'
@@ -26,18 +31,25 @@ interface ProviderFormState extends BaseProviderFormState {
   max_tokens: number
 }
 
+interface LoadedModel {
+  id: string
+  name: string
+}
+
 function createEmptyForm(): ProviderFormState {
+  const deepseekPreset = AI_PROVIDER_PRESETS.find((preset) => preset.id === 'deepseek')
+
   return {
-    name: '',
-    provider: CUSTOM_PROVIDER_ID,
-    provider_name: '自定义',
-    provider_type: 'openai_compatible',
-    provider_category: '',
-    api_key_url: '',
-    base_url: '',
-    model: '',
-    temperature: 0.7,
-    max_tokens: 2000,
+    name: deepseekPreset?.name || '',
+    provider: deepseekPreset?.id || CUSTOM_PROVIDER_ID,
+    provider_name: deepseekPreset?.name || '自定义',
+    provider_type: deepseekPreset?.providerType || 'openai_compatible',
+    provider_category: deepseekPreset?.category || '',
+    api_key_url: deepseekPreset?.apiKeyUrl || '',
+    base_url: deepseekPreset?.baseUrl || '',
+    model: deepseekPreset?.defaultModel || '',
+    temperature: 0,
+    max_tokens: 0,
     api_key: '',
     is_default: false,
     api_key_masked: '',
@@ -73,9 +85,11 @@ export function AiProviderManager() {
   const [editing, setEditing] = useState<ProviderFormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-
+  const [loadingModels, setLoadingModels] = useState(false)
+  const [models, setModels] = useState<LoadedModel[]>([])
+  const [modelsSource, setModelsSource] = useState<'provider' | 'preset' | null>(null)
+  const [modelsWarning, setModelsWarning] = useState('')
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
-
   const [deleteTarget, setDeleteTarget] = useState<ProviderProfile | null>(null)
 
   const loadProfiles = async () => {
@@ -93,25 +107,124 @@ export function AiProviderManager() {
   }
 
   useEffect(() => {
-    loadProfiles()
+    void loadProfiles()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const resetModelState = () => {
+    setModels([])
+    setModelsSource(null)
+    setModelsWarning('')
+    setLoadingModels(false)
+  }
+
   const openCreate = () => {
     setEditing(createEmptyForm())
+    resetModelState()
     setTestResult(null)
   }
 
   const openEdit = (profile: ProviderProfile) => {
     setEditing(mapProfileToForm(profile))
+    resetModelState()
     setTestResult(null)
   }
+
+  const updateEditing = (patch: Partial<ProviderFormState>) => {
+    setEditing((current) => (current ? { ...current, ...patch } : current))
+  }
+
+  const modelOptions = useMemo(
+    () => createModelOptions(models, editing?.model || ''),
+    [models, editing?.model],
+  )
+
+  useEffect(() => {
+    if (!editing) return
+
+    const preset = AI_PROVIDER_PRESETS.find((item) => item.id === editing.provider)
+    const isCustomProvider = editing.provider === CUSTOM_PROVIDER_ID
+    const hasInlineApiKey = Boolean(editing.api_key.trim())
+    const canReuseStoredKey = Boolean(editing.id && editing.api_key_masked)
+
+    if (isCustomProvider) {
+      resetModelState()
+      return
+    }
+
+    if (!preset) {
+      resetModelState()
+      return
+    }
+
+    if (!hasInlineApiKey && !canReuseStoredKey) {
+      setModels(preset.quickModels.map((id) => ({ id, name: id })))
+      setModelsSource('preset')
+      setModelsWarning('填写 API Key 后会自动尝试拉取完整模型列表')
+      setLoadingModels(false)
+      return
+    }
+
+    const controller = new AbortController()
+    const params = new URLSearchParams({
+      provider: editing.provider,
+      base_url: normalizeBaseUrl(editing.base_url),
+      provider_type: editing.provider_type,
+    })
+
+    if (editing.id) {
+      params.set('profile_id', String(editing.id))
+    }
+    if (hasInlineApiKey) {
+      params.set('api_key', editing.api_key.trim())
+    }
+
+    setLoadingModels(true)
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/admin/ai-provider/models?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        const data = (await res.json().catch(() => ({}))) as ModelsResponse
+        if (!res.ok) {
+          throw new Error(data.error || '获取模型列表失败')
+        }
+
+        const nextModels = (data.models || []).map((item) => ({
+          id: item.id,
+          name: item.name || item.id,
+        }))
+
+        setModels(nextModels)
+        setModelsSource(data.source || null)
+        setModelsWarning(data.warning || '')
+
+        setEditing((current) => {
+          if (!current || current.provider !== editing.provider) return current
+          if (current.model.trim() || !nextModels[0]) return current
+          return { ...current, model: nextModels[0].id }
+        })
+      } catch (error) {
+        if (controller.signal.aborted) return
+        setModels(preset.quickModels.map((id) => ({ id, name: id })))
+        setModelsSource('preset')
+        setModelsWarning(error instanceof Error ? error.message : '获取模型列表失败，已回退预设模型')
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoadingModels(false)
+        }
+      }
+    })()
+
+    return () => controller.abort()
+  }, [editing])
 
   const handleTest = async () => {
     if (!editing) return
 
-    if (!editing.base_url.trim() || !editing.model.trim()) {
-      toast.error('请填写 Base URL 和模型')
+    if (!editing.model.trim()) {
+      toast.error('请先选择或填写模型')
       return
     }
 
@@ -122,8 +235,14 @@ export function AiProviderManager() {
       const payload: Record<string, unknown> = {
         base_url: normalizeBaseUrl(editing.base_url),
         model: editing.model.trim(),
-        temperature: clampTemperature(editing.temperature),
-        max_tokens: Math.min(clampMaxTokens(editing.max_tokens), 256),
+        provider_type: editing.provider_type,
+      }
+
+      if (editing.temperature > 0) {
+        payload.temperature = clampTemperature(editing.temperature)
+      }
+      if (editing.max_tokens > 0) {
+        payload.max_tokens = Math.min(clampMaxTokens(editing.max_tokens), 256)
       }
       if (editing.id) payload.profile_id = editing.id
       if (editing.api_key.trim()) payload.api_key = editing.api_key.trim()
@@ -150,8 +269,8 @@ export function AiProviderManager() {
   const handleSave = async () => {
     if (!editing) return
 
-    if (!editing.name.trim() || !editing.base_url.trim() || !editing.model.trim()) {
-      toast.error('请填写名称、Base URL、模型')
+    if (!editing.name.trim() || !editing.model.trim()) {
+      toast.error('请填写名称和模型')
       return
     }
 
@@ -167,11 +286,15 @@ export function AiProviderManager() {
         api_key_url: editing.api_key_url,
         base_url: normalizeBaseUrl(editing.base_url),
         model: editing.model.trim(),
-        temperature: clampTemperature(editing.temperature),
-        max_tokens: clampMaxTokens(editing.max_tokens),
         is_default: editing.is_default,
       }
 
+      if (editing.temperature > 0) {
+        payload.temperature = clampTemperature(editing.temperature)
+      }
+      if (editing.max_tokens > 0) {
+        payload.max_tokens = clampMaxTokens(editing.max_tokens)
+      }
       if (editing.id) payload.id = editing.id
       if (editing.api_key.trim()) payload.api_key = editing.api_key.trim()
 
@@ -186,6 +309,7 @@ export function AiProviderManager() {
 
       toast.success('配置已保存')
       setEditing(null)
+      resetModelState()
       await loadProfiles()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '保存失败')
@@ -246,16 +370,14 @@ export function AiProviderManager() {
     }
   }
 
-  const updateEditing = (patch: Partial<ProviderFormState>) => {
-    setEditing((current) => (current ? { ...current, ...patch } : current))
+  if (loading) {
+    return <div className="py-8 text-center text-sm text-[var(--editor-muted)]">加载中…</div>
   }
-
-  if (loading) return <div className="py-8 text-center text-sm text-[var(--editor-muted)]">加载中…</div>
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-[var(--editor-ink)]">AI 模型配置</h3>
+        <h3 className="text-base font-semibold text-[var(--editor-ink)]">文本模型配置</h3>
         <button
           type="button"
           onClick={openCreate}
@@ -276,102 +398,119 @@ export function AiProviderManager() {
 
       {editing && (
         <ProviderDialog
-          title={editing.id ? '编辑配置' : '新增配置'}
+          title={editing.id ? '编辑文本模型配置' : '新增文本模型配置'}
           onClose={() => setEditing(null)}
         >
           <ProviderBasicFields
             editing={editing}
-            modelOptions={[]}
-            models={[]}
-            modelsSource={null}
-            modelsWarning=""
+            modelOptions={modelOptions}
+            models={models}
+            modelsSource={modelsSource}
+            modelsWarning={modelsWarning}
+            modelsLoading={loadingModels}
             onChange={updateEditing}
             presets={AI_PROVIDER_PRESETS}
-            onClearModels={() => {}}
+            mode="text_simplified"
+            onClearModels={resetModelState}
           />
 
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Temperature</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  value={editing.temperature}
-                  onChange={e => updateEditing({ temperature: clampTemperature(Number(e.target.value)) })}
-                  className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Max Tokens</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="2000"
-                  value={editing.max_tokens > 0 ? String(editing.max_tokens) : ''}
-                  onChange={e => {
-                    const digits = e.target.value.replace(/[^\d]/g, '')
-                    updateEditing({ max_tokens: digits ? clampMaxTokens(Number(digits)) : 0 })
-                  }}
-                  onBlur={() => {
-                    if (editing.max_tokens <= 0) {
-                      updateEditing({ max_tokens: 2000 })
-                    }
-                  }}
-                  className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
-                />
-                <div className="mt-1 text-xs text-[var(--editor-muted)]">留空默认 2000，支持任意正整数。</div>
-              </div>
-              <div className="flex items-end">
-                <label className="inline-flex items-center gap-2 text-sm text-[var(--editor-ink)]">
-                  <input
-                    type="checkbox"
-                    checked={editing.is_default}
-                    onChange={e => updateEditing({ is_default: e.target.checked })}
-                  />
-                  默认配置
-                </label>
-              </div>
-            </div>
+          <div className="mt-3 space-y-3">
+            <label className="inline-flex items-center gap-2 text-sm text-[var(--editor-ink)]">
+              <input
+                type="checkbox"
+                checked={editing.is_default}
+                onChange={(event) => updateEditing({ is_default: event.target.checked })}
+              />
+              保存为默认配置
+            </label>
 
-            {testResult ? (
-              <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${testResult.success ? 'border-[color-mix(in_srgb,var(--ui-success)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-success)_12%,transparent)] text-[var(--ui-ink)]' : 'border-[color-mix(in_srgb,var(--ui-danger)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-danger)_12%,transparent)] text-[var(--ui-ink)]'}`}>
-                {testResult.success ? '✅ ' : '❌ '}
-                {testResult.message}
-              </div>
-            ) : null}
+            <Disclosure>
+              {({ open }) => (
+                <div className="rounded-xl border border-[var(--editor-line)] bg-[color-mix(in_srgb,var(--ui-bg)_88%,var(--ui-panel))]">
+                  <DisclosureButton className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left">
+                    <div>
+                      <div className="text-sm font-medium text-[var(--editor-ink)]">可选参数</div>
+                      <div className="text-xs text-[var(--editor-muted)]">Temperature 和 Max Tokens 默认可留空</div>
+                    </div>
+                    <ChevronDown
+                      className={cx(
+                        'h-4 w-4 shrink-0 text-[var(--editor-muted)] transition-transform duration-150',
+                        open ? 'rotate-180' : '',
+                      )}
+                    />
+                  </DisclosureButton>
+                  <DisclosurePanel className="grid grid-cols-1 gap-3 border-t border-[var(--editor-line)] px-3 pb-3 pt-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Temperature</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={2}
+                        step={0.1}
+                        placeholder="默认"
+                        value={editing.temperature > 0 ? String(editing.temperature) : ''}
+                        onChange={(event) => {
+                          const value = event.target.value.trim()
+                          updateEditing({ temperature: value ? clampTemperature(Number(value)) : 0 })
+                        }}
+                        className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Max Tokens</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="默认"
+                        value={editing.max_tokens > 0 ? String(editing.max_tokens) : ''}
+                        onChange={(event) => {
+                          const digits = event.target.value.replace(/[^\d]/g, '')
+                          updateEditing({ max_tokens: digits ? clampMaxTokens(Number(digits)) : 0 })
+                        }}
+                        className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
+                      />
+                    </div>
+                  </DisclosurePanel>
+                </div>
+              )}
+            </Disclosure>
+          </div>
 
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={handleTest}
-                disabled={testing}
-                className="rounded-lg border border-[var(--editor-line)] px-4 py-2 text-sm text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] disabled:opacity-50"
-              >
-                {testing ? '测试中…' : '测试连接'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(null)}
-                className="rounded-lg border border-[var(--editor-line)] px-4 py-2 text-sm text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-ink)] hover:brightness-105 disabled:opacity-50"
-              >
-                {saving ? '保存中…' : '保存'}
-              </button>
+          {testResult ? (
+            <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${testResult.success ? 'border-[color-mix(in_srgb,var(--ui-success)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-success)_12%,transparent)] text-[var(--ui-ink)]' : 'border-[color-mix(in_srgb,var(--ui-danger)_32%,transparent)] bg-[color-mix(in_srgb,var(--ui-danger)_12%,transparent)] text-[var(--ui-ink)]'}`}>
+              {testResult.success ? '✅ ' : '❌ '}
+              {testResult.message}
             </div>
+          ) : null}
+
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleTest}
+              disabled={testing}
+              className="rounded-lg border border-[var(--editor-line)] px-4 py-2 text-sm text-[var(--editor-ink)] hover:bg-[var(--editor-soft)] disabled:opacity-50"
+            >
+              {testing ? '测试中…' : '测试连接'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              className="rounded-lg border border-[var(--editor-line)] px-4 py-2 text-sm text-[var(--editor-ink)] hover:bg-[var(--editor-soft)]"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-[var(--ui-accent)] px-4 py-2 text-sm font-semibold text-[var(--ui-accent-ink)] hover:brightness-105 disabled:opacity-50"
+            >
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </div>
         </ProviderDialog>
       )}
-
-
 
       {deleteTarget && (
         <Modal

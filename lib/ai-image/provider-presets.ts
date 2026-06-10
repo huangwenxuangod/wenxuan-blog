@@ -41,7 +41,6 @@ export const AI_IMAGE_PROVIDER_PRESETS: AIImageProviderPreset[] = [
     quickModels: ['gpt-image-1', 'gpt-image-1-mini', 'dall-e-3'],
     apiKeyUrl: 'https://platform.openai.com/api-keys',
     description: 'OpenAI 官方文生图接口',
-    recommended: true,
   },
   {
     id: 'doubao',
@@ -53,6 +52,7 @@ export const AI_IMAGE_PROVIDER_PRESETS: AIImageProviderPreset[] = [
     quickModels: ['ep-20250916145609-9bqzl', 'doubao-seedream-4-0-250828'],
     apiKeyUrl: 'https://www.volcengine.com/experience/ark',
     description: '豆包 / 火山引擎 OpenAI 兼容生图接口',
+    recommended: true,
   },
 ]
 

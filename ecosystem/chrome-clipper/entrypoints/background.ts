@@ -354,8 +354,8 @@ async function clipPage(options: { title?: string; category?: string; status?: s
   if (uniqueImages.length > 0) {
     sendProgress('uploading', 0, uniqueImages.length);
 
-    // Concurrency pool size: 3
-    await runConcurrentTasks(uniqueImages, 3, async (img) => {
+    // Concurrency pool size: 10
+    await runConcurrentTasks(uniqueImages, 10, async (img) => {
       try {
         const blob = await downloadImage(img.resolved, operationId);
         if (!blob || blob.size === 0) return;

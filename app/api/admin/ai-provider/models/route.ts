@@ -43,10 +43,6 @@ function buildProviderErrorMessage(resStatus: number, resStatusText: string, raw
   return `HTTP ${resStatus}: ${resStatusText}`
 }
 
-function isSiliconFlowProvider(provider: string, baseUrl: string) {
-  return provider === 'siliconflow' || /siliconflow\.(cn|com)/i.test(baseUrl)
-}
-
 function isWorkersAiProvider(provider: string, baseUrl: string) {
   return provider === 'workers_ai' || /api\.cloudflare\.com\/client\/v4\/accounts\/[^/]+\/ai\//i.test(baseUrl)
 }
@@ -80,21 +76,25 @@ function extractModelItems(payload: unknown): RawModelItem[] {
   return arrays.flatMap((value) => (Array.isArray(value) ? value as RawModelItem[] : []))
 }
 
-function filterCompatibleModels(items: RawModelItem[], provider: string, baseUrl: string) {
-  if (!isSiliconFlowProvider(provider, baseUrl)) return items
-
+function filterCompatibleModels(items: RawModelItem[]) {
   const filtered = items.filter((item) => {
     if (typeof item === 'string') return true
 
     const subType = `${item.sub_type || item.subType || ''}`.toLowerCase()
     const type = `${item.type || item.category || ''}`.toLowerCase()
 
-    if (subType) return /(chat|text|language|llm)/.test(subType)
-    if (type) return /(text|language|llm)/.test(type)
+    if (subType) return !/(image|audio|speech|tts|embedding|rerank|moderation)/.test(subType)
+    if (type) return !/(image|audio|speech|tts|embedding|rerank|moderation)/.test(type)
     return true
   })
 
   return filtered.length > 0 ? filtered : items
+}
+
+function normalizeProviderType(value: string) {
+  if (value === 'anthropic') return 'anthropic'
+  if (value === 'gemini') return 'legacy_gemini'
+  return 'openai_compatible'
 }
 
 export async function GET(req: NextRequest) {
@@ -112,30 +112,39 @@ export async function GET(req: NextRequest) {
   const queryProvider = requestUrl.searchParams.get('provider')?.trim() || ''
   const queryBaseUrl = requestUrl.searchParams.get('base_url')?.trim() || ''
   const queryApiKey = requestUrl.searchParams.get('api_key')?.trim() || ''
+  const queryProviderType = requestUrl.searchParams.get('provider_type')?.trim() || ''
   const queryProfileId = Number(requestUrl.searchParams.get('profile_id') || '')
 
   let selectedProfile: {
     id: number
     provider: string
+    provider_type: string
     base_url: string
     api_key_encrypted: string
   } | null = null
 
   if (Number.isFinite(queryProfileId) && queryProfileId > 0) {
     selectedProfile = await db.prepare(`
-      SELECT id, provider, base_url, api_key_encrypted
+      SELECT id, provider, provider_type, base_url, api_key_encrypted
       FROM ai_provider_profiles
       WHERE id = ?
       LIMIT 1
     `).bind(queryProfileId).first<{
       id: number
       provider: string
+      provider_type: string
       base_url: string
       api_key_encrypted: string
     }>()
   }
 
   const provider = queryProvider || selectedProfile?.provider || 'custom'
+  const providerType = normalizeProviderType(
+    queryProviderType ||
+    selectedProfile?.provider_type ||
+    AI_PROVIDER_MAP[provider]?.providerType ||
+    'openai_compatible',
+  )
   const fallbackPreset = AI_PROVIDER_MAP[provider]
   const fallbackModels = fallbackPreset?.quickModels || []
 
@@ -150,7 +159,13 @@ export async function GET(req: NextRequest) {
 
   if (!baseUrl) return NextResponse.json({ error: '缺少 base_url 参数' }, { status: 400 })
 
-  if (!apiKey && provider !== 'openrouter') {
+  if (providerType === 'legacy_gemini') {
+    return NextResponse.json({
+      error: '检测到旧版 Gemini 配置。当前版本已不再兼容该接口，请在后台重新配置为 OpenAI 兼容接口或 Anthropic 接口。',
+    }, { status: 400 })
+  }
+
+  if (!apiKey) {
     const warning = storedKeyUnavailable
       ? '已保存 API Key 无法解密，请重新输入 API Key，或检查 AI_CONFIG_ENCRYPTION_SECRET / ADMIN_TOKEN_SALT 是否与保存时一致'
       : '未提供 API Key，返回预设模型列表'
@@ -190,11 +205,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ models, source: 'provider' })
     }
 
-    const headers: Record<string, string> = {}
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`
+    const headers: Record<string, string> = providerType === 'anthropic'
+      ? {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        }
+      : {
+          Authorization: `Bearer ${apiKey}`,
+        }
 
-    const requestUrls = isSiliconFlowProvider(provider, baseUrl)
-      ? [`${baseUrl}/models?sub_type=chat`, `${baseUrl}/models`]
+    const requestUrls = providerType === 'anthropic'
+      ? [`${baseUrl}/models`]
       : [`${baseUrl}/models`]
 
     const collectedItems: RawModelItem[] = []
@@ -213,11 +234,11 @@ export async function GET(req: NextRequest) {
       }
 
       const data = await res.json().catch(() => null)
-      const items = filterCompatibleModels(extractModelItems(data), provider, baseUrl)
+      const items = filterCompatibleModels(extractModelItems(data))
       collectedItems.push(...items)
     }
 
-    const models = buildWorkersAiModelOptions(filterCompatibleModels(collectedItems, provider, baseUrl))
+    const models = buildWorkersAiModelOptions(filterCompatibleModels(collectedItems))
 
     if (models.length === 0 && warnings.length > 0) {
       const message = warnings[0]

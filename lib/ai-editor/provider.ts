@@ -1,8 +1,8 @@
-import { isDeepSeekBaseUrl, resolveConfig } from '@/lib/ai'
+import { resolveConfig } from '@/lib/ai'
 import type { EditorAiProviderStreamResult, EditorAiRuntimePreparedInput } from '@/lib/ai-editor/runtime-types'
-import { runDeepSeekEditorProvider } from '@/lib/ai-editor/providers/deepseek'
 import { runWorkersEditorProvider } from '@/lib/ai-editor/providers/workers'
 import { runOpenAiEditorProvider } from '@/lib/ai-editor/providers/openai'
+import { runAnthropicEditorProvider } from '@/lib/ai-editor/providers/anthropic'
 
 export async function runEditorAiProvider(input: EditorAiRuntimePreparedInput): Promise<EditorAiProviderStreamResult> {
   const config = await resolveConfig(
@@ -21,8 +21,8 @@ export async function runEditorAiProvider(input: EditorAiRuntimePreparedInput): 
     return runWorkersEditorProvider(input, config)
   }
 
-  if (isDeepSeekBaseUrl(config.baseURL)) {
-    return runDeepSeekEditorProvider(input, config)
+  if (config.providerType === 'anthropic') {
+    return runAnthropicEditorProvider(input, config)
   }
 
   return runOpenAiEditorProvider(input, config)

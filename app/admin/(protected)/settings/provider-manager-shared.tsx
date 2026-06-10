@@ -1,7 +1,10 @@
 'use client'
 
+import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react'
+import { ChevronDown } from 'lucide-react'
 import { type ReactNode, useMemo } from 'react'
 import { Dropdown } from '@/components/Dropdown'
+import { cx } from '@/components/ui/primitives'
 
 export interface BaseProviderProfile {
   id: number
@@ -33,6 +36,11 @@ export interface BaseProviderFormState {
   api_key_masked?: string
 }
 
+function isPresetProvider(provider: string, presets?: Array<{ id: string }>) {
+  if (!presets?.length) return false
+  return presets.some((preset) => preset.id === provider)
+}
+
 export interface ModelsResponse {
   models?: Array<{ id: string; name: string }>
   source?: 'provider' | 'preset'
@@ -48,6 +56,11 @@ export interface ProviderTemplatePreset {
   description: string
   recommended?: boolean
 }
+
+type ProviderTypeOption =
+  | 'openai_compatible'
+  | 'anthropic'
+  | 'openai_images'
 
 export interface ProviderTemplateGroup {
   category: string
@@ -249,16 +262,19 @@ interface ProviderBasicFieldsProps<T extends BaseProviderFormState> {
   models: Array<{ id: string; name: string }>
   modelsSource: 'provider' | 'preset' | null
   modelsWarning: string
+  modelsLoading?: boolean
   onChange: (patch: Partial<T>) => void
   presets?: Array<{
     id: string
     name: string
+    providerType?: ProviderTypeOption
     baseUrl: string
     defaultModel: string
     apiKeyUrl?: string
     description?: string
   }>
   onClearModels?: () => void
+  mode?: 'full' | 'text_simplified'
 }
 
 export function ProviderBasicFields<T extends BaseProviderFormState>({
@@ -267,10 +283,15 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
   models,
   modelsSource,
   modelsWarning,
+  modelsLoading = false,
   onChange,
   presets,
   onClearModels,
+  mode = 'full',
 }: ProviderBasicFieldsProps<T>) {
+  const presetProviderSelected = isPresetProvider(editing.provider, presets)
+  const isCustomProvider = editing.provider === 'custom'
+  const isSimplifiedTextMode = mode === 'text_simplified'
   const platformOptions = useMemo(() => {
     if (!presets) return []
     return [
@@ -278,6 +299,30 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
       { value: 'custom', label: '自定义兼容接口' },
     ]
   }, [presets])
+
+  const providerTypeOptions = useMemo(() => ([
+    { value: 'openai_compatible', label: 'OpenAI 兼容接口' },
+    { value: 'anthropic', label: 'Anthropic 接口' },
+  ]), [])
+
+  const imageProviderTypeOptions = useMemo(() => ([
+    { value: 'openai_images', label: 'OpenAI Images 接口' },
+  ]), [])
+
+  const activeProviderTypeOptions = editing.provider_type === 'openai_images'
+    ? imageProviderTypeOptions
+    : providerTypeOptions
+
+  const showProviderTypeField = !isSimplifiedTextMode || isCustomProvider
+  const showBaseUrlField = !isSimplifiedTextMode || isCustomProvider
+  const showModelTextInput = !isSimplifiedTextMode || isCustomProvider || models.length === 0
+  const modelHelperText = modelsLoading
+    ? '正在拉取模型列表…'
+    : models.length > 0
+      ? `已加载 ${models.length} 个模型，可直接选择`
+      : presetProviderSelected
+        ? '填写 API Key 后会自动尝试拉取该平台可用模型，失败时回退到预设模型。'
+        : ''
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -301,6 +346,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
                 onChange({
                   provider: 'custom',
                   provider_name: '自定义',
+                  provider_type: 'openai_compatible',
                   base_url: '',
                   model: '',
                   api_key_url: '',
@@ -311,6 +357,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
                   onChange({
                     provider: preset.id,
                     provider_name: preset.name,
+                    provider_type: preset.providerType || 'openai_compatible',
                     base_url: preset.baseUrl,
                     model: preset.defaultModel,
                     api_key_url: preset.apiKeyUrl || '',
@@ -333,15 +380,35 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
         )}
       </div>
 
-      <div className="sm:col-span-2">
-        <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Base URL</label>
-        <input
-          type="url"
-          value={editing.base_url}
-          onChange={(event) => onChange({ base_url: event.target.value } as Partial<T>)}
-          className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
-        />
-      </div>
+      {showProviderTypeField ? (
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">接口类型</label>
+          <Dropdown
+            options={activeProviderTypeOptions}
+            value={editing.provider_type || activeProviderTypeOptions[0]?.value || 'openai_compatible'}
+            onChange={(value) => {
+              if (presetProviderSelected) return
+              onChange({ provider_type: value } as Partial<T>)
+            }}
+            disabled={presetProviderSelected}
+          />
+          {presetProviderSelected ? (
+            <div className="mt-1 text-xs text-[var(--editor-muted)]">预设平台的接口类型已自动锁定，只有自定义兼容接口可手动修改。</div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showBaseUrlField ? (
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Base URL</label>
+          <input
+            type="url"
+            value={editing.base_url}
+            onChange={(event) => onChange({ base_url: event.target.value } as Partial<T>)}
+            className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
+          />
+        </div>
+      ) : null}
 
       <div className="sm:col-span-2">
         <div className="mb-1 flex items-center justify-between gap-2">
@@ -370,21 +437,29 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
 
       <div className="sm:col-span-2">
         <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">模型</label>
-        <input
-          type="text"
-          value={editing.model}
-          onChange={(event) => onChange({ model: event.target.value } as Partial<T>)}
-          className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
-        />
         {models.length > 0 ? (
-          <div className="mt-2">
-            <Dropdown
-              options={modelOptions}
-              value={editing.model}
-              onChange={(value) => onChange({ model: value } as Partial<T>)}
-              placeholder={`选择已加载的 ${models.length} 个模型`}
-            />
-          </div>
+          <Dropdown
+            options={modelOptions}
+            value={editing.model}
+            onChange={(value) => onChange({ model: value } as Partial<T>)}
+            placeholder={modelsLoading ? '正在加载模型…' : `选择已加载的 ${models.length} 个模型`}
+            disabled={modelsLoading}
+          />
+        ) : null}
+        {showModelTextInput ? (
+          <input
+            type="text"
+            value={editing.model}
+            onChange={(event) => onChange({ model: event.target.value } as Partial<T>)}
+            placeholder={isCustomProvider ? '输入模型名称' : '填写 API Key 后自动加载模型'}
+            className={cx(
+              'w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]',
+              models.length > 0 ? 'mt-2' : '',
+            )}
+          />
+        ) : null}
+        {modelHelperText ? (
+          <div className="mt-1 text-xs text-[var(--editor-muted)]">{modelHelperText}</div>
         ) : null}
         {modelsSource || modelsWarning ? (
           <div className="mt-1 text-xs text-[var(--editor-muted)]">
@@ -393,6 +468,43 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
           </div>
         ) : null}
       </div>
+
+      {isSimplifiedTextMode && presetProviderSelected ? (
+        <div className="sm:col-span-2">
+          <Disclosure>
+            {({ open }) => (
+              <div className="rounded-xl border border-[var(--editor-line)] bg-[color-mix(in_srgb,var(--ui-bg)_88%,var(--ui-panel))]">
+                <DisclosureButton className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left">
+                  <div>
+                    <div className="text-sm font-medium text-[var(--editor-ink)]">高级设置</div>
+                    <div className="text-xs text-[var(--editor-muted)]">查看接口类型、Base URL 和其他可选项</div>
+                  </div>
+                  <ChevronDown
+                    className={cx(
+                      'h-4 w-4 shrink-0 text-[var(--editor-muted)] transition-transform duration-150',
+                      open ? 'rotate-180' : '',
+                    )}
+                  />
+                </DisclosureButton>
+                <DisclosurePanel className="grid grid-cols-1 gap-3 border-t border-[var(--editor-line)] px-3 pb-3 pt-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">接口类型</label>
+                    <div className="rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-muted)]">
+                      {editing.provider_type === 'anthropic' ? 'Anthropic 接口' : 'OpenAI 兼容接口'}
+                    </div>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Base URL</label>
+                    <div className="rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-muted)]">
+                      {editing.base_url || '-'}
+                    </div>
+                  </div>
+                </DisclosurePanel>
+              </div>
+            )}
+          </Disclosure>
+        </div>
+      ) : null}
     </div>
   )
 }

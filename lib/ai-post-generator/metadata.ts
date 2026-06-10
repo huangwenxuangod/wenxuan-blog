@@ -1,10 +1,7 @@
-import OpenAI from 'openai'
 import { getAiRuntimeEnv } from '@/lib/ai'
 import {
   clampMaxTokens,
   clampTemperature,
-  isWorkersAiBaseUrl,
-  normalizeBaseUrl,
   resolveAiConfigSecret,
   resolveAiProfileConfig,
 } from '@/lib/ai-provider-profiles'
@@ -17,7 +14,6 @@ import {
   extractGeneratedText,
   getWorkersAiAssistantPayload,
   extractWorkersAiText,
-  getExternalAssistantPayload,
   normalizeSummary,
   parseJsonValue,
   shouldRetryAssistantPayload,
@@ -42,6 +38,7 @@ import {
   buildPostMetadataResponseSchema,
   buildWorkersAiJsonSchemaResponseFormat,
 } from '@/lib/workers-ai-json'
+import { runExternalTextRequest } from '@/lib/ai-runtime/external-text'
 
 type TextRuntime =
   | {
@@ -54,6 +51,7 @@ type TextRuntime =
   | {
       strategy: 'external-provider'
       apiKey: string
+      providerType: 'openai_compatible' | 'anthropic'
       baseURL: string
       model: string
       temperature: number
@@ -126,119 +124,21 @@ async function runTextGenerator(
     }
   }
 
-  if (isWorkersAiBaseUrl(config.baseURL)) {
-    const requestOptions = buildTextGenerationRequestOptions({
-      strategy: 'external-provider',
-      baseURL: config.baseURL,
-      model: config.model,
-    })
-    const runCompatRequest = async (
-      nextMessages: Array<{ role: 'system' | 'user'; content: string }>,
-      nextMaxTokens: number,
-    ) => {
-      const response = await fetch(`${normalizeBaseUrl(config.baseURL)}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${config.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: config.model,
-          messages: nextMessages,
-          temperature: config.temperature,
-          max_tokens: nextMaxTokens,
-          ...requestOptions,
-        }),
-        signal: AbortSignal.timeout(30000),
-      })
-
-      const rawBody = await response.text().catch(() => '')
-      if (!response.ok) {
-        try {
-          const parsed = rawBody ? JSON.parse(rawBody) as {
-            errors?: Array<{ message?: string }>
-            error?: { message?: string } | string
-            message?: string
-          } : null
-
-          const firstWorkersError = parsed?.errors?.find((item) => typeof item?.message === 'string' && item.message.trim())
-          if (firstWorkersError?.message) {
-            throw new Error(firstWorkersError.message.trim())
-          }
-          if (typeof parsed?.error === 'object' && parsed.error?.message) {
-            throw new Error(parsed.error.message.trim())
-          }
-          if (typeof parsed?.error === 'string' && parsed.error.trim()) {
-            throw new Error(parsed.error.trim())
-          }
-          if (typeof parsed?.message === 'string' && parsed.message.trim()) {
-            throw new Error(parsed.message.trim())
-          }
-        } catch (error) {
-          if (error instanceof Error) throw error
-        }
-
-        throw new Error(rawBody.trim() || `Workers AI 文本生成失败：HTTP ${response.status}`)
-      }
-
-      return rawBody ? JSON.parse(rawBody) : null
-    }
-
-    const payload = await runCompatRequest(messages, config.maxTokens)
-    const primary = getWorkersAiAssistantPayload(payload)
-    if (primary.content) {
-      return {
-        text: primary.content,
-        reasoningText: primary.reasoning,
-      }
-    }
-
-    if (shouldRetryAssistantPayload(primary)) {
-      const retryPayload = await runCompatRequest(
-        retryMessages,
-        Math.min(Math.max(config.maxTokens * 3, 512), 2048),
-      )
-      const retried = getWorkersAiAssistantPayload(retryPayload)
-      if (retried.content) {
-        return {
-          text: retried.content,
-          reasoningText: retried.reasoning || primary.reasoning,
-        }
-      }
-
-      return {
-        text: extractWorkersAiText(retryPayload),
-        reasoningText: retried.reasoning || primary.reasoning,
-      }
-    }
-
-    return {
-      text: extractWorkersAiText(payload),
-      reasoningText: primary.reasoning,
-    }
-  }
-
-  const client = new OpenAI({
-    apiKey: config.apiKey,
-    baseURL: config.baseURL,
-  })
-
   const requestOptions = buildTextGenerationRequestOptions({
     strategy: 'external-provider',
     baseURL: config.baseURL,
     model: config.model,
   })
 
-  const response = await client.chat.completions.create({
-    model: config.model,
+  const primary = await runExternalTextRequest({
+    config,
     messages,
     temperature: config.temperature,
-    max_tokens: config.maxTokens,
-    response_format: { type: 'json_object' },
-    ...requestOptions,
-  } as never)
-
-  const primary = getExternalAssistantPayload(response)
+    maxTokens: config.maxTokens,
+    jsonMode: config.providerType !== 'anthropic',
+    requestOptions,
+    timeoutMs: 30000,
+  })
   if (primary.content) {
     return {
       text: primary.content,
@@ -247,15 +147,14 @@ async function runTextGenerator(
   }
 
   if (primary.reasoning || primary.finishReason === 'length') {
-    const retry = await client.chat.completions.create({
-      model: config.model,
+    const retryPayload = await runExternalTextRequest({
+      config,
       messages: retryMessages,
       temperature: config.temperature,
-      max_tokens: Math.min(Math.max(config.maxTokens * 3, 512), 2048),
-      ...requestOptions,
-    } as never)
-
-    const retryPayload = getExternalAssistantPayload(retry)
+      maxTokens: Math.min(Math.max(config.maxTokens * 3, 512), 2048),
+      requestOptions,
+      timeoutMs: 30000,
+    })
     if (retryPayload.content) {
       return {
         text: retryPayload.content,
@@ -304,6 +203,7 @@ async function resolveTextRuntime(
         return {
           strategy: 'external-provider',
           apiKey: selectedWorkersProfile.api_key,
+          providerType: selectedWorkersProfile.provider_type === 'anthropic' ? 'anthropic' : 'openai_compatible',
           baseURL: selectedWorkersProfile.base_url,
           model: generator.workers_model || selectedWorkersProfile.model || DEFAULT_TEXT_WORKERS_MODEL,
           temperature: clampTemperature(generator.temperature),
@@ -333,6 +233,7 @@ async function resolveTextRuntime(
   return {
     strategy: 'external-provider',
     apiKey: profile.api_key,
+    providerType: profile.provider_type === 'anthropic' ? 'anthropic' : 'openai_compatible',
     baseURL: profile.base_url,
     model: profile.model,
     temperature: clampTemperature(generator.temperature || profile.temperature),

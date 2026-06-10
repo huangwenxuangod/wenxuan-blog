@@ -3,7 +3,6 @@ export {
   getAiRuntimeEnv,
   getClientFromConfig,
   resolveConfig,
-  isDeepSeekBaseUrl,
   isWorkersAiBaseUrl,
   normalizeBaseUrl,
 } from '@/lib/ai-runtime'

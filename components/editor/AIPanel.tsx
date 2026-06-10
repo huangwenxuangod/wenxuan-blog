@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bot, Image as ImageIcon, Loader2, Send } from 'lucide-react'
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Bot, ChevronDown, Image as ImageIcon, Loader2, Send, SlidersHorizontal } from 'lucide-react'
 import type { EditorInstance, JSONContent } from 'novel'
 import type { LegacyEditorAiTool } from '@/lib/ai-editor/action-schema'
 import {
@@ -68,8 +69,10 @@ function shouldApplyImmediately(action: EditorAiAction) {
 
 const TEXT_PROFILE_STORAGE_KEY = 'qmblog:editor-ai-text-profile-id'
 const IMAGE_PROFILE_STORAGE_KEY = 'qmblog:editor-ai-image-profile-id'
-const CUSTOM_TEXT_PROFILE_VALUE = '__custom_text_profile__'
-const CUSTOM_IMAGE_PROFILE_VALUE = '__custom_image_profile__'
+
+function resolveActiveProfile(profiles: ProviderOption[], selectedId: string) {
+  return profiles.find((profile) => String(profile.id) === selectedId) || null
+}
 
 export function AIPanel({
   articleKey,
@@ -243,21 +246,14 @@ export function AIPanel({
     resizeComposer()
   }, [input, resizeComposer])
 
-  const handleTextProfileChange = useCallback((value: string) => {
-    if (value === CUSTOM_TEXT_PROFILE_VALUE) {
-      onOpenSettingsTab?.('ai-provider')
-      return
-    }
-    setSelectedTextProfileId(value)
-  }, [onOpenSettingsTab])
-
-  const handleImageProfileChange = useCallback((value: string) => {
-    if (value === CUSTOM_IMAGE_PROFILE_VALUE) {
-      onOpenSettingsTab?.('ai-image-provider')
-      return
-    }
-    setSelectedImageProfileId(value)
-  }, [onOpenSettingsTab])
+  const activeTextProfile = useMemo(
+    () => resolveActiveProfile(textProfiles, selectedTextProfileId),
+    [selectedTextProfileId, textProfiles],
+  )
+  const activeImageProfile = useMemo(
+    () => resolveActiveProfile(imageProfiles, selectedImageProfileId),
+    [imageProfiles, selectedImageProfileId],
+  )
 
   const sendMessage = useCallback(async (rawInput?: string) => {
     const nextInput = (rawInput ?? input).trim()
@@ -386,7 +382,14 @@ export function AIPanel({
             continue
           }
 
-            if (event.type === 'assistant_done') {
+          if (event.type === 'assistant_done') {
+              if (event.message) {
+                setMessages((current) => current.map((item) => (
+                  item.id === assistantId
+                    ? { ...item, content: event.message }
+                    : item
+                )))
+              }
               finalTool = event.tool || { name: 'reply_only', payload: null }
               if (!actionApplied && finalTool.name !== 'generate_image') {
                 if (finalTool.name === 'edit_title' && onTitleApply) {
@@ -541,51 +544,51 @@ export function AIPanel({
 
           <div className="mt-2 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
-                  <Bot className="h-4.5 w-4.5" />
-                </span>
-                <SelectDropdown
-                  options={[
-                    ...textProfiles.map((profile) => ({
-                      value: String(profile.id),
-                      label: profile.name,
-                      title: profile.model,
-                      searchText: `${profile.model} ${profile.name}`,
-                    })),
-                    { value: CUSTOM_TEXT_PROFILE_VALUE, label: '添加自定义模型', title: '前往设置配置文本模型' },
-                  ]}
-                  value={selectedTextProfileId}
-                  onChange={handleTextProfileChange}
-                  menuPlacement="top"
-                  searchable={textProfiles.length > 6}
-                  placeholder="文本模型"
-                  className="w-[10.75rem]"
-                />
-              </div>
+              <Menu>
+                <MenuButton className="ui-control group inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-sm text-[var(--ui-ink)]">
+                  <SlidersHorizontal className="h-4 w-4 text-[var(--ui-muted)] transition group-data-[hover]:text-[var(--ui-ink)]" />
+                  <span>模型</span>
+                  <ChevronDown className="h-4 w-4 text-[var(--ui-muted)] transition duration-150 group-data-[open]:rotate-180 group-data-[hover]:text-[var(--ui-ink)]" />
+                </MenuButton>
 
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
-                  <ImageIcon className="h-4.5 w-4.5" />
-                </span>
-                <SelectDropdown
-                  options={[
-                    ...imageProfiles.map((profile) => ({
-                      value: String(profile.id),
-                      label: profile.name,
-                      title: profile.model,
-                      searchText: `${profile.model} ${profile.name}`,
-                    })),
-                    { value: CUSTOM_IMAGE_PROFILE_VALUE, label: '添加自定义模型', title: '前往设置配置图片模型' },
-                  ]}
-                  value={selectedImageProfileId}
-                  onChange={handleImageProfileChange}
-                  menuPlacement="top"
-                  searchable={imageProfiles.length > 6}
-                  placeholder="图像模型"
-                  className="w-[10.75rem]"
-                />
-              </div>
+                <MenuItems
+                  anchor="top start"
+                  transition
+                  className="ui-popover z-50 mb-2 w-[18rem] overflow-hidden rounded-[1rem] p-1.5 outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0"
+                >
+                  <MenuItem>
+                    <button
+                      type="button"
+                      onClick={() => onOpenSettingsTab?.('ai-provider')}
+                      className="group flex w-full cursor-pointer items-center gap-3 rounded-[0.9rem] px-3 py-2.5 text-left transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
+                      title={activeTextProfile?.model || '未配置文本模型'}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
+                        <Bot className="h-4.5 w-4.5" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-[var(--ui-ink)]">
+                        {activeTextProfile?.model || '未配置'}
+                      </span>
+                    </button>
+                  </MenuItem>
+
+                  <MenuItem>
+                    <button
+                      type="button"
+                      onClick={() => onOpenSettingsTab?.('ai-image-provider')}
+                      className="group flex w-full cursor-pointer items-center gap-3 rounded-[0.9rem] px-3 py-2.5 text-left transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
+                      title={activeImageProfile?.model || '未配置图像模型'}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-soft))] text-[var(--ui-muted)]">
+                        <ImageIcon className="h-4.5 w-4.5" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-[var(--ui-ink)]">
+                        {activeImageProfile?.model || '未配置'}
+                      </span>
+                    </button>
+                  </MenuItem>
+                </MenuItems>
+              </Menu>
             </div>
 
             <div className="flex items-center gap-2.5">
