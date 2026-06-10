@@ -296,13 +296,13 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
     if (!presets) return []
     return [
       ...presets.map((preset) => ({ value: preset.id, label: preset.name })),
-      { value: 'custom', label: '自定义兼容接口' },
+      { value: 'custom', label: '自定义请求地址' },
     ]
   }, [presets])
 
   const providerTypeOptions = useMemo(() => ([
-    { value: 'openai_compatible', label: 'OpenAI 兼容接口' },
-    { value: 'anthropic', label: 'Anthropic 接口' },
+    { value: 'openai_compatible', label: 'OpenAI Chat Completions' },
+    { value: 'anthropic', label: 'Anthropic Messages' },
   ]), [])
 
   const imageProviderTypeOptions = useMemo(() => ([
@@ -382,7 +382,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
 
       {showProviderTypeField ? (
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">接口类型</label>
+          <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">请求格式</label>
           <Dropdown
             options={activeProviderTypeOptions}
             value={editing.provider_type || activeProviderTypeOptions[0]?.value || 'openai_compatible'}
@@ -393,14 +393,14 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
             disabled={presetProviderSelected}
           />
           {presetProviderSelected ? (
-            <div className="mt-1 text-xs text-[var(--editor-muted)]">预设平台的接口类型已自动锁定，只有自定义兼容接口可手动修改。</div>
+            <div className="mt-1 text-xs text-[var(--editor-muted)]">预设平台的请求格式已自动锁定，只有自定义请求地址可手动修改。</div>
           ) : null}
         </div>
       ) : null}
 
       {showBaseUrlField ? (
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Base URL</label>
+          <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">请求地址</label>
           <input
             type="url"
             value={editing.base_url}
@@ -477,7 +477,7 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
                 <DisclosureButton className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left">
                   <div>
                     <div className="text-sm font-medium text-[var(--editor-ink)]">高级设置</div>
-                    <div className="text-xs text-[var(--editor-muted)]">查看接口类型、Base URL 和其他可选项</div>
+                    <div className="text-xs text-[var(--editor-muted)]">查看请求格式、请求地址和其他可选项</div>
                   </div>
                   <ChevronDown
                     className={cx(
@@ -488,13 +488,13 @@ export function ProviderBasicFields<T extends BaseProviderFormState>({
                 </DisclosureButton>
                 <DisclosurePanel className="grid grid-cols-1 gap-3 border-t border-[var(--editor-line)] px-3 pb-3 pt-3 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">接口类型</label>
+                    <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">请求格式</label>
                     <div className="rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-muted)]">
-                      {editing.provider_type === 'anthropic' ? 'Anthropic 接口' : 'OpenAI 兼容接口'}
+                      {editing.provider_type === 'anthropic' ? 'Anthropic Messages' : 'OpenAI Chat Completions'}
                     </div>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">Base URL</label>
+                    <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">请求地址</label>
                     <div className="rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-muted)]">
                       {editing.base_url || '-'}
                     </div>
