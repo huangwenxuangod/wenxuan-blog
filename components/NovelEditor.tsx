@@ -78,6 +78,7 @@ import { buildAutoDescription, normalizePostSlug } from '@/lib/post-utils'
 import { getSiteDisplayUrl, getSiteUrl } from '@/lib/site-config'
 import { resizeTextareaHeight, useAutoResizeTextarea } from '@/lib/textarea-autosize'
 import { UiButton, UiIconButton, UiPanel, UiTextarea, cx } from '@/components/ui/primitives'
+import { fetchAdminCategories, normalizeVisibleCategories, type ClientCategory } from '@/lib/categories-client'
 import {
   buildDocumentContextText,
   extractTitleCandidate,
@@ -329,6 +330,7 @@ export function NovelEditor({ initialData, initialCategory }: NovelEditorProps =
   const [providerRefreshKey, setProviderRefreshKey] = useState(0)
   const [homeShortcutEnabled, setHomeShortcutEnabled] = useState(true)
   const [settingsLoading, setSettingsLoading] = useState(false)
+  const [editorCategories, setEditorCategories] = useState<ClientCategory[]>([])
   const [settingsData, setSettingsData] = useState<{
     navLinks: string
     customJs: string
@@ -348,6 +350,20 @@ export function NovelEditor({ initialData, initialCategory }: NovelEditorProps =
         }
       })
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    void fetchAdminCategories()
+      .then((categories) => {
+        if (active) setEditorCategories(categories)
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
   }, [])
 
   const openSettingsModal = async (tabId: SettingsTabId = 'nav') => {
@@ -416,6 +432,10 @@ export function NovelEditor({ initialData, initialCategory }: NovelEditorProps =
   const handleOpenSettings = () => {
     void openSettingsModal()
   }
+  const createCategoryOptions = useMemo(
+    () => normalizeVisibleCategories(settingsData?.categories ?? editorCategories),
+    [editorCategories, settingsData?.categories],
+  )
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -1628,23 +1648,20 @@ export function NovelEditor({ initialData, initialCategory }: NovelEditorProps =
               </Tooltip>
               <MenuItems
                 anchor="bottom end"
-                className="z-50 mt-2 w-52 rounded-[1.2rem] border border-[color-mix(in_srgb,var(--ui-line)_84%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_96%,var(--ui-panel))] p-2 shadow-[0_20px_48px_rgb(var(--ui-shadow-rgb)/0.12)] [--anchor-gap:10px]"
+                className="z-50 mt-2 w-52 rounded-[1.2rem] border border-[color-mix(in_srgb,var(--ui-line)_84%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_96%,var(--ui-panel))] p-2 shadow-[0_20px_48px_rgb(var(--ui-shadow-rgb)/0.12)] outline-none [--anchor-gap:10px]"
               >
-                {[
-                  { category: 'AI', label: 'AI', description: '创建 AI 分类文章' },
-                  { category: 'AI工具', label: 'AI工具', description: '创建 AI工具 分类文章' },
-                ].map((item) => (
-                  <MenuItem key={item.category}>
+                {createCategoryOptions.map((item) => (
+                  <MenuItem key={item.slug}>
                     <button
                       type="button"
                       onClick={() => {
-                        window.location.assign(`/editor?new=1&category=${encodeURIComponent(item.category)}`)
+                        window.location.assign(`/editor?new=1&category=${encodeURIComponent(item.name)}`)
                       }}
                       className="group flex w-full items-start gap-3 rounded-[0.9rem] px-3 py-2.5 text-left text-[var(--ui-ink)] transition data-[focus]:bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium">{item.label}</div>
-                        <div className="mt-0.5 text-xs text-[var(--ui-muted)]">{item.description}</div>
+                        <div className="text-sm font-medium">{item.name}</div>
+                        <div className="mt-0.5 text-xs text-[var(--ui-muted)]">{`创建 ${item.name} 分类文章`}</div>
                       </div>
                     </button>
                   </MenuItem>

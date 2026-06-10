@@ -1,14 +1,10 @@
 'use client'
 
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { cx } from '@/components/ui/primitives'
-
-interface Category {
-  name: string
-  slug: string
-}
+import { fetchAdminCategories, type ClientCategory } from '@/lib/categories-client'
 
 interface CategorySelectorProps {
   value: string
@@ -16,31 +12,24 @@ interface CategorySelectorProps {
   className?: string
 }
 
-interface CategoriesResponse {
-  categories?: Category[]
-}
-
 export function CategorySelector({ value, onChange, className = '' }: CategorySelectorProps) {
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<ClientCategory[]>([])
 
   useEffect(() => {
-    fetch('/api/admin/categories')
-      .then((r) => r.json() as Promise<Category[] | CategoriesResponse>)
-      .then((data: Category[] | CategoriesResponse) => {
-        const cats = Array.isArray(data) ? data : data?.categories
-        if (Array.isArray(cats)) setCategories(cats)
+    let active = true
+
+    void fetchAdminCategories()
+      .then((nextCategories) => {
+        if (active) setCategories(nextCategories)
       })
       .catch(() => {})
+
+    return () => {
+      active = false
+    }
   }, [])
 
-  const allCategories = useMemo(() => {
-    const filtered = categories.filter((c) => c.name !== '未分类')
-    const hasAi = filtered.some((c) => c.name === 'AI')
-    const list = hasAi ? filtered : [{ name: 'AI', slug: 'ai' }, ...filtered]
-    return list
-  }, [categories])
-
-  const selectedCategory = allCategories.find((cat) => cat.name === value) || allCategories[0] || { name: 'AI', slug: 'ai' }
+  const selectedCategory = categories.find((cat) => cat.name === value) || categories[0] || { name: 'AI', slug: 'ai' }
 
   return (
     <Listbox value={selectedCategory.name} onChange={onChange}>
@@ -55,7 +44,7 @@ export function CategorySelector({ value, onChange, className = '' }: CategorySe
           transition
           className="z-50 mt-2 min-w-[184px] rounded-[1.15rem] border border-[color-mix(in_srgb,var(--ui-line)_84%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_94%,var(--ui-panel))] p-1.5 text-[13px] text-[var(--ui-ink)] shadow-[0_20px_48px_rgb(var(--ui-shadow-rgb)/0.12)] outline-none transition duration-150 ease-out data-[closed]:translate-y-1 data-[closed]:opacity-0"
         >
-          {allCategories.map((cat) => (
+          {categories.map((cat) => (
             <ListboxOption
               key={cat.slug}
               value={cat.name}
