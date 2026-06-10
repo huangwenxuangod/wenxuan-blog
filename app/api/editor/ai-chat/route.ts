@@ -21,20 +21,6 @@ import {
 import type { NextRequest } from 'next/server'
 import { getEnabledSkillInstructions } from '@/lib/skills/repository'
 
-type ImageBucket = {
-  put: (
-    key: string,
-    value: File | ArrayBuffer | ArrayBufferView | ReadableStream,
-    options?: {
-      httpMetadata?: {
-        contentType?: string
-        cacheControl?: string
-      }
-      customMetadata?: Record<string, string>
-    }
-  ) => Promise<void>
-}
-
 interface ChatRequestBody {
   articleKey?: string
   postSlug?: string
@@ -65,7 +51,6 @@ function safeParseMemoryPayload(payloadJson: string | null): Record<string, unkn
 export const POST = withRouteErrorHandling(async (req: NextRequest) => {
   const env = await getAppCloudflareEnv()
   const db = env?.DB as D1Database | undefined
-  const images = env?.IMAGES as ImageBucket | undefined
 
   if (!db) {
     throw AppError.dbUnavailable()
@@ -168,32 +153,12 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
       })
     }
 
-    const generateEditorImage = async (input: {
-      action: 'custom'
-      userPrompt: string
-      articleTitle?: string
-      contextText?: string
-      aspectRatio?: string
-      resolution?: string
-      db: D1Database
-      env: Record<string, string | undefined>
-      images: ImageBucket
-    }) => {
-      const { generateEditorImage } = await import('@/lib/ai-image')
-      return generateEditorImage(input)
-    }
-
     return finalizeEditorAiCompletion({
       articleKey,
-      articleTitle: body.title,
-      imageProfileId: Number.isInteger(body.imageProfileId) ? Number(body.imageProfileId) : null,
       db,
-      env: env as Record<string, string | undefined>,
-      images,
       threadId: thread.id,
       assistantMessageId: pendingAssistantMessage?.id ?? null,
       completed,
-      generateEditorImage,
     })
   })
 

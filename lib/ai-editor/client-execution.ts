@@ -41,6 +41,10 @@ function findInsertPosition(editor: EditorInstance, blockIndex: number, position
   return insertPos
 }
 
+export function getInsertPositionForBlock(editor: EditorInstance, blockIndex: number, position: 'before' | 'after' = 'after') {
+  return findInsertPosition(editor, blockIndex, position)
+}
+
 export function getActiveBlockIndex(editor: EditorInstance) {
   const anchor = editor.state.selection.from
   let currentIndex = -1
@@ -93,21 +97,31 @@ export function applyLegacyToolResult(editor: EditorInstance, tool: LegacyEditor
     return
   }
 
-  if (tool.name === 'generate_image') {
-    if (!tool.payload.generatedImage || tool.payload.usage === 'cover') {
-      return
-    }
+  if (tool.name === 'generate_images') {
+    const generatedImages = tool.payload.generatedImages || []
+    generatedImages
+      .slice()
+      .sort((a, b) => {
+        const aIndex = Number.isFinite(a.anchorBlockIndex) ? Number(a.anchorBlockIndex) : Number.MAX_SAFE_INTEGER
+        const bIndex = Number.isFinite(b.anchorBlockIndex) ? Number(b.anchorBlockIndex) : Number.MAX_SAFE_INTEGER
+        return bIndex - aIndex
+      })
+      .forEach((item) => {
+        if (item.usage === 'cover') {
+          return
+        }
 
-    const insertPos = Number.isFinite(tool.payload.anchorBlockIndex)
-      ? findInsertPosition(editor, Number(tool.payload.anchorBlockIndex), 'after')
-      : editor.state.selection.to
+        const insertPos = Number.isFinite(item.anchorBlockIndex)
+          ? findInsertPosition(editor, Number(item.anchorBlockIndex), 'after')
+          : editor.state.selection.to
 
-    insertGeneratedImageAtPosition(
-      editor,
-      tool.payload.generatedImage.url,
-      tool.payload.alt || tool.payload.generatedImage.alt,
-      insertPos,
-    )
+        insertGeneratedImageAtPosition(
+          editor,
+          item.image.url,
+          item.alt || item.image.alt,
+          insertPos,
+        )
+      })
     return
   }
 

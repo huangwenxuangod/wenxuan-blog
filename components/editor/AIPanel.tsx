@@ -1,21 +1,28 @@
 'use client'
 
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
+import { Menu, MenuButton, MenuItem, MenuItems, Transition } from '@headlessui/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Bot, ChevronDown, Image as ImageIcon, Loader2, Send, SlidersHorizontal } from 'lucide-react'
+import { Bot, ChevronDown, Image as ImageIcon, Loader2, Send, SlidersHorizontal, X } from 'lucide-react'
 import type { EditorInstance, JSONContent } from 'novel'
 import type { LegacyEditorAiTool } from '@/lib/ai-editor/action-schema'
 import {
   applyEditorAiAction,
   applyLegacyToolResult,
   getActiveBlockIndex,
+  getInsertPositionForBlock,
 } from '@/lib/ai-editor/client-execution'
+import {
+  buildSkillCommandEntries,
+  getSkillSlashQuery,
+  parseSkillCommandInput,
+  type SkillCommandEntry,
+} from '@/lib/ai-editor/skill-command'
 import type { EditorAiAction } from '@/lib/ai-editor/runtime-types'
+import { insertGeneratedImageAtPosition } from '@/lib/editor-file-upload'
 import { renderMarkdownToHtml } from '@/lib/editor-markdown'
 import { useToast } from '@/components/Toast'
-import { UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
+import { cx, UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { SelectDropdown } from '@/components/SelectDropdown'
 
 type ChatMessage = {
   id: string
@@ -36,6 +43,17 @@ type ProviderOption = {
   name: string
   model: string
   is_default: number
+}
+
+type SkillMatchResponse = {
+  match?: {
+    skillId: number
+    name: string
+    description: string
+    trigger: string
+    score: number
+    reason: string
+  } | null
 }
 
 interface AIPanelProps {
@@ -60,12 +78,42 @@ type ChatEvent =
   | { type: 'assistant_done'; message: string; tool?: LegacyEditorAiTool; error?: string }
   | { type: 'assistant_error'; error: string }
 
+type GeneratedImageResult = {
+  url: string
+  alt: string
+}
+
+function legacyGenerateImagesToolToAction(tool: LegacyEditorAiTool): Extract<EditorAiAction, { type: 'generate_images' }> | null {
+  if (tool.name !== 'generate_images') return null
+  if (!Array.isArray(tool.payload.images) || tool.payload.images.length === 0) return null
+
+  const images = tool.payload.images
+    .slice(0, 5)
+    .map((item) => ({
+      prompt: String(item.prompt || ''),
+      usage: item.usage === 'cover' ? 'cover' as const : 'inline' as const,
+      anchorBlockIndex: typeof item.anchorBlockIndex === 'number' ? item.anchorBlockIndex : undefined,
+      alt: typeof item.alt === 'string' ? item.alt : undefined,
+      aspectRatio: typeof item.aspectRatio === 'string' ? item.aspectRatio : undefined,
+      resolution: typeof item.resolution === 'string' ? item.resolution : undefined,
+      imageProfileId: null,
+    }))
+    .filter((item) => item.prompt.trim().length > 0)
+
+  if (images.length === 0) return null
+
+  return {
+    type: 'generate_images',
+    images,
+  }
+}
+
 function createMessageId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function shouldApplyImmediately(action: EditorAiAction) {
-  return action.type !== 'generate_image'
+  return action.type !== 'generate_images'
 }
 
 const TEXT_PROFILE_STORAGE_KEY = 'qmblog:editor-ai-text-profile-id'
@@ -112,10 +160,12 @@ export function AIPanel({
   const [toolStatus, setToolStatus] = useState<string | null>(null)
   const [skills, setSkills] = useState<SkillOption[]>([])
   const [selectedSkillId, setSelectedSkillId] = useState('')
+  const [selectedSkillSource, setSelectedSkillSource] = useState<'manual' | 'auto' | null>(null)
   const [textProfiles, setTextProfiles] = useState<ProviderOption[]>([])
   const [imageProfiles, setImageProfiles] = useState<ProviderOption[]>([])
   const [selectedTextProfileId, setSelectedTextProfileId] = useState('')
   const [selectedImageProfileId, setSelectedImageProfileId] = useState('')
+  const [slashMenuIndex, setSlashMenuIndex] = useState(0)
   const listRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -274,10 +324,162 @@ export function AIPanel({
     () => resolveActiveProfile(imageProfiles, selectedImageProfileId),
     [imageProfiles, selectedImageProfileId],
   )
+  const skillCommandEntries = useMemo<SkillCommandEntry[]>(
+    () => buildSkillCommandEntries(skills),
+    [skills],
+  )
+  const slashQuery = useMemo(
+    () => getSkillSlashQuery(input),
+    [input],
+  )
+  const slashMenuOptions = useMemo(() => {
+    const trimmedLeft = input.replace(/^\s+/, '')
+    if (!trimmedLeft.startsWith('/')) return []
+    const normalizedQuery = slashQuery.trim().toLowerCase()
+    if (!normalizedQuery) return skillCommandEntries
+    return skillCommandEntries.filter((entry) => (
+      entry.trigger.includes(normalizedQuery)
+      || entry.name.toLowerCase().includes(normalizedQuery)
+      || entry.description.toLowerCase().includes(normalizedQuery)
+    ))
+  }, [input, skillCommandEntries, slashQuery])
+  const slashMenuOpen = slashMenuOptions.length > 0 && input.replace(/^\s+/, '').startsWith('/')
+  const selectedSkill = useMemo(
+    () => skills.find((skill) => String(skill.id) === selectedSkillId) || null,
+    [selectedSkillId, skills],
+  )
+
+  useEffect(() => {
+    setSlashMenuIndex(0)
+  }, [slashQuery, slashMenuOpen])
+
+  const handleSelectSkillCommand = useCallback((entry: SkillCommandEntry) => {
+    setSelectedSkillId(String(entry.id))
+    setSelectedSkillSource('manual')
+    setInput('')
+    setSlashMenuIndex(0)
+    textareaRef.current?.focus()
+  }, [])
+
+  const clearSelectedSkill = useCallback(() => {
+    setSelectedSkillId('')
+    setSelectedSkillSource(null)
+  }, [])
+
+  const runGenerateImagesAction = useCallback(async (
+    action: Extract<EditorAiAction, { type: 'generate_images' }>,
+  ) => {
+    const images = action.images.slice(0, 5)
+    if (images.length === 0) return
+
+    let completedCount = 0
+
+    setToolStatus(`AI 正在并发生成 ${images.length} 张图片…`)
+
+    const results = await Promise.allSettled(images.map(async (item, index) => {
+      setToolStatus(`AI 正在生成第 ${index + 1}/${images.length} 张图片…`)
+
+      const response = await fetch('/api/editor/ai-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sceneKey: item.usage === 'cover' ? 'article_cover' : 'editor_inline',
+          prompt: item.prompt,
+          articleTitle: title,
+          contextText: documentText.slice(0, 4000),
+          aspectRatio: item.aspectRatio || (item.usage === 'cover' ? '5:2' : undefined),
+          resolution: item.resolution,
+          profileId: item.imageProfileId ?? (selectedImageProfileId ? Number(selectedImageProfileId) : null),
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({})) as {
+        error?: string
+        image?: GeneratedImageResult
+      }
+
+      if (!response.ok || !payload.image) {
+        throw new Error(payload.error || `第 ${index + 1} 张图片生成失败`)
+      }
+
+      completedCount += 1
+      setToolStatus(`已生成 ${completedCount}/${images.length} 张图片…`)
+
+      if (item.usage === 'cover') {
+        onCoverImageApply?.(payload.image.url)
+        return
+      }
+
+      if (!editor) {
+        return
+      }
+
+      const insertPos = Number.isFinite(item.anchorBlockIndex)
+        ? getInsertPositionForBlock(editor, Number(item.anchorBlockIndex), 'after')
+        : editor.state.selection.to
+
+      insertGeneratedImageAtPosition(
+        editor,
+        payload.image.url,
+        item.alt || payload.image.alt,
+        insertPos,
+      )
+    }))
+
+    const failedCount = results.filter((result) => result.status === 'rejected').length
+    if (failedCount > 0) {
+      toast.error(`${failedCount} 张图片生成失败，其余已继续完成`)
+    }
+
+    setToolStatus(
+      failedCount > 0
+        ? `图片生成完成，成功 ${images.length - failedCount} 张，失败 ${failedCount} 张`
+        : `图片生成完成，共 ${images.length} 张`,
+    )
+
+    window.setTimeout(() => {
+      setToolStatus((current) => (
+        current?.includes('图片生成完成') ? null : current
+      ))
+    }, 2200)
+  }, [documentText, editor, onCoverImageApply, selectedImageProfileId, title, toast])
 
   const sendMessage = useCallback(async (rawInput?: string) => {
-    const nextInput = (rawInput ?? input).trim()
+    const rawNextInput = rawInput ?? input
+    const parsedCommand = parseSkillCommandInput(rawNextInput, skillCommandEntries)
+    let nextInput = parsedCommand.messageWithoutCommand.trim()
+    let effectiveSkillId = selectedSkillId
+    let effectiveSkillSource = selectedSkillSource
+
+    if (parsedCommand.mode === 'manual' && parsedCommand.matchedSkillId) {
+      effectiveSkillId = String(parsedCommand.matchedSkillId)
+      effectiveSkillSource = 'manual'
+      setSelectedSkillId(String(parsedCommand.matchedSkillId))
+      setSelectedSkillSource('manual')
+    }
+
     if (!nextInput || loading) return
+
+    if (!effectiveSkillId && nextInput.length >= 6) {
+      try {
+        const matchResponse = await fetch('/api/editor/skills/match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: nextInput }),
+        })
+        if (matchResponse.ok) {
+          const matchData = await matchResponse.json() as SkillMatchResponse
+          if (matchData.match?.skillId) {
+            effectiveSkillId = String(matchData.match.skillId)
+            effectiveSkillSource = 'auto'
+            setSelectedSkillId(String(matchData.match.skillId))
+            setSelectedSkillSource('auto')
+          }
+        }
+      } catch {
+        // ignore auto-match failures and continue as plain chat
+      }
+    }
 
     const userMessage: ChatMessage = {
       id: createMessageId('user'),
@@ -322,7 +524,7 @@ export function AIPanel({
           documentJson,
           activeBlockIndex,
           selectionText,
-          skillId: selectedSkillId ? Number(selectedSkillId) : null,
+          skillId: effectiveSkillId ? Number(effectiveSkillId) : null,
           textProfileId: selectedTextProfileId ? Number(selectedTextProfileId) : null,
           imageProfileId: selectedImageProfileId ? Number(selectedImageProfileId) : null,
         }),
@@ -339,6 +541,7 @@ export function AIPanel({
       let buffer = ''
       let finalTool: LegacyEditorAiTool = { name: 'reply_only', payload: null }
       let actionApplied = false
+      let deferredImageAction: Extract<EditorAiAction, { type: 'generate_images' }> | null = null
 
       while (true) {
         const { done, value } = await reader.read()
@@ -370,36 +573,26 @@ export function AIPanel({
                 applyEditorAiAction(editor, event.action)
                 actionApplied = true
               }
+            } else if (event.action.type === 'generate_images') {
+              deferredImageAction = event.action
             }
             continue
           }
 
           if (event.type === 'tool_pending') {
-            if (event.tool === 'generate_image') {
-              const usage = (
+            if (event.tool === 'generate_images') {
+              const count = (
                 event.payload
                 && typeof event.payload === 'object'
-                && 'usage' in event.payload
-                && event.payload.usage === 'cover'
-              ) ? 'cover' : 'inline'
-              setToolStatus(usage === 'cover' ? 'AI 正在生成封面图…' : 'AI 正在生成并插入配图…')
+                && 'count' in event.payload
+                && typeof event.payload.count === 'number'
+              ) ? event.payload.count : 0
+              setToolStatus(count > 0 ? `AI 已规划 ${count} 张图片，准备开始生成…` : 'AI 正在规划图片…')
             }
             continue
           }
 
           if (event.type === 'tool_result') {
-            if (event.tool === 'generate_image') {
-              const usage = (
-                event.payload
-                && typeof event.payload === 'object'
-                && 'generatedImage' in event.payload
-                && event.payload.generatedImage
-                && typeof event.payload.generatedImage === 'object'
-                && 'usage' in event.payload.generatedImage
-                && event.payload.generatedImage.usage === 'cover'
-              ) ? 'cover' : 'inline'
-              setToolStatus(usage === 'cover' ? '封面图已生成，正在写入文章设置…' : '配图已生成，正在写入编辑器…')
-            }
             continue
           }
 
@@ -418,7 +611,7 @@ export function AIPanel({
                 )))
               }
               finalTool = event.tool || { name: 'reply_only', payload: null }
-              if (!actionApplied && finalTool.name !== 'generate_image') {
+              if (!actionApplied && finalTool.name !== 'generate_images') {
                 if (finalTool.name === 'edit_title' && onTitleApply) {
                   onTitleApply(finalTool.payload.title)
                 } else if (editor) {
@@ -430,7 +623,6 @@ export function AIPanel({
                 toast.error(event.error)
               }
               setStreamingId(null)
-              setToolStatus(null)
               setLoading(false)
               continue
             }
@@ -444,16 +636,17 @@ export function AIPanel({
       if (!actionApplied) {
         if (finalTool.name === 'edit_title' && onTitleApply) {
           onTitleApply(finalTool.payload.title)
-        } else if (
-          finalTool.name === 'generate_image'
-          && finalTool.payload.usage === 'cover'
-          && finalTool.payload.generatedImage
-          && onCoverImageApply
-        ) {
-          onCoverImageApply(finalTool.payload.generatedImage.url)
         } else if (editor) {
           applyLegacyToolResult(editor, finalTool)
         }
+      }
+
+      const imageAction = deferredImageAction || legacyGenerateImagesToolToAction(finalTool)
+
+      if (imageAction) {
+        await runGenerateImagesAction(imageAction)
+      } else {
+        setToolStatus(null)
       }
     } catch (error) {
       setMessages((current) => current.map((item) => (
@@ -477,10 +670,9 @@ export function AIPanel({
       }
     } finally {
       setStreamingId(null)
-      setToolStatus(null)
       setLoading(false)
     }
-  }, [articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, postSlug, selectedImageProfileId, selectedSkillId, selectedTextProfileId, title, toast])
+  }, [articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, postSlug, selectedImageProfileId, selectedSkillId, selectedSkillSource, selectedTextProfileId, skillCommandEntries, title, toast])
 
   if (!hydrated) {
     return (
@@ -535,41 +727,95 @@ export function AIPanel({
             </div>
           ) : null}
 
-          {skills.length > 0 ? (
-            <SelectDropdown
-              options={[
-                { value: '', label: '不使用 Skill' },
-                ...skills.map((skill) => ({
-                  value: String(skill.id),
-                  label: skill.name,
-                  title: skill.description,
-                  searchText: `${skill.description} ${skill.version}`,
-                })),
-              ]}
-              value={selectedSkillId}
-              onChange={setSelectedSkillId}
-              menuPlacement="top"
-              searchable={skills.length > 6}
-              placeholder="选择 Skill"
-              className="mb-2"
-            />
+          {selectedSkill ? (
+            <div className="mb-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={clearSelectedSkill}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--ui-line)_88%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_84%,var(--ui-soft))] px-3 py-1 text-xs text-[var(--ui-ink)] transition hover:bg-[color-mix(in_srgb,var(--ui-line)_24%,transparent)]"
+              >
+                <span>{selectedSkill.name}</span>
+                {selectedSkillSource === 'auto' ? (
+                  <span className="text-[var(--ui-muted)]">· 自动</span>
+                ) : null}
+                <X className="h-3.5 w-3.5 text-[var(--ui-muted)]" />
+              </button>
+            </div>
           ) : null}
 
-          <UiTextarea
-            ref={textareaRef}
-            rows={1}
-            variant="composer"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault()
-                void sendMessage()
-              }
-            }}
-            placeholder="输入你的修改意图"
-            className="min-h-[3.5rem] max-h-36 overflow-y-auto text-[15px] leading-7 placeholder:text-[color-mix(in_srgb,var(--ui-muted)_66%,transparent)]"
-          />
+          <div className="relative">
+            <UiTextarea
+              ref={textareaRef}
+              rows={1}
+              variant="composer"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (slashMenuOpen && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+                  event.preventDefault()
+                  setSlashMenuIndex((current) => {
+                    const next = event.key === 'ArrowDown' ? current + 1 : current - 1
+                    if (next < 0) return slashMenuOptions.length - 1
+                    if (next >= slashMenuOptions.length) return 0
+                    return next
+                  })
+                  return
+                }
+
+                if (slashMenuOpen && event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault()
+                  const currentEntry = slashMenuOptions[slashMenuIndex]
+                  if (currentEntry) {
+                    handleSelectSkillCommand(currentEntry)
+                    return
+                  }
+                }
+
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault()
+                  void sendMessage()
+                }
+              }}
+              placeholder="输入你的修改意图，或输入 / 调用 skill"
+              className="min-h-[3.5rem] max-h-36 overflow-y-auto text-[15px] leading-7 placeholder:text-[color-mix(in_srgb,var(--ui-muted)_66%,transparent)]"
+            />
+
+            <Transition
+              show={slashMenuOpen}
+              enter="transition duration-150 ease-out"
+              enterFrom="translate-y-1 opacity-0"
+              enterTo="translate-y-0 opacity-100"
+              leave="transition duration-120 ease-in"
+              leaveFrom="translate-y-0 opacity-100"
+              leaveTo="translate-y-1 opacity-0"
+            >
+              <div className="ui-popover absolute bottom-[calc(100%+10px)] left-0 z-40 w-full overflow-hidden rounded-[1rem] p-1">
+                {slashMenuOptions.map((entry, index) => (
+                  <button
+                    key={`${entry.id}-${entry.trigger}`}
+                    type="button"
+                    onClick={() => handleSelectSkillCommand(entry)}
+                    className={cx(
+                      'flex w-full cursor-pointer items-start gap-3 rounded-[0.85rem] px-3 py-2.5 text-left transition',
+                      index === slashMenuIndex
+                        ? 'bg-[color-mix(in_srgb,var(--editor-line)_36%,transparent)]'
+                        : 'hover:bg-[color-mix(in_srgb,var(--editor-line)_20%,transparent)]',
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-[var(--ui-ink)]">/{entry.trigger}</span>
+                        <span className="truncate text-xs text-[var(--ui-muted)]">{entry.name}</span>
+                      </div>
+                      <div className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--ui-muted)]">
+                        {entry.description}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </Transition>
+          </div>
 
           <div className="mt-2 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">

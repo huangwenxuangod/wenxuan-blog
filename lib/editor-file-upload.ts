@@ -41,6 +41,63 @@ export function downloadEditorImage(imageUrl: string, fallbackName?: string) {
   anchor.remove()
 }
 
+function canvasToBlob(canvas: HTMLCanvasElement, type: string) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob)
+        return
+      }
+      reject(new Error('图片转码失败'))
+    }, type)
+  })
+}
+
+async function convertImageBlobToPng(blob: Blob) {
+  if (typeof document === 'undefined') {
+    throw new Error('当前环境不支持图片复制')
+  }
+
+  const drawToCanvas = async (width: number, height: number, draw: (ctx: CanvasRenderingContext2D) => void) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      throw new Error('当前浏览器不支持图片复制')
+    }
+    draw(ctx)
+    return canvasToBlob(canvas, 'image/png')
+  }
+
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(blob)
+    try {
+      return await drawToCanvas(bitmap.width, bitmap.height, (ctx) => {
+        ctx.drawImage(bitmap, 0, 0)
+      })
+    } finally {
+      bitmap.close()
+    }
+  }
+
+  const imageUrl = URL.createObjectURL(blob)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => reject(new Error('图片解码失败'))
+      img.src = imageUrl
+    })
+
+    return await drawToCanvas(image.naturalWidth || image.width, image.naturalHeight || image.height, (ctx) => {
+      ctx.drawImage(image, 0, 0)
+    })
+  } finally {
+    URL.revokeObjectURL(imageUrl)
+  }
+}
+
 export async function copyEditorImage(imageUrl: string) {
   if (
     typeof navigator === 'undefined'
@@ -61,10 +118,17 @@ export async function copyEditorImage(imageUrl: string) {
 
   const blob = await response.blob()
   const mimeType = blob.type || 'image/png'
+  const supportsClipboardType = typeof window.ClipboardItem.supports === 'function'
+    ? window.ClipboardItem.supports(mimeType)
+    : mimeType === 'image/png'
+  const clipboardBlob = supportsClipboardType
+    ? blob
+    : await convertImageBlobToPng(blob)
+  const clipboardMimeType = supportsClipboardType ? mimeType : 'image/png'
 
   await navigator.clipboard.write([
     new window.ClipboardItem({
-      [mimeType]: blob,
+      [clipboardMimeType]: clipboardBlob,
     }),
   ])
 }

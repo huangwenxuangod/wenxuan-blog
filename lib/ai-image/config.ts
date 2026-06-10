@@ -48,6 +48,12 @@ export interface AIImageActionRow {
   updated_at: number
 }
 
+export interface AIImageSceneBindingRow {
+  scene_key: string
+  action_key: string
+  updated_at: number
+}
+
 interface DefaultImageActionSeed {
   action_key: string
   label: string
@@ -58,6 +64,11 @@ interface DefaultImageActionSeed {
   size: string
   quality: string
   sort_order: number
+}
+
+interface DefaultImageSceneBindingSeed {
+  scene_key: string
+  action_key: string
 }
 
 const DEFAULT_IMAGE_ACTIONS: DefaultImageActionSeed[] = [
@@ -121,6 +132,13 @@ const DEFAULT_IMAGE_ACTIONS: DefaultImageActionSeed[] = [
     quality: 'high',
     sort_order: 40,
   },
+]
+
+const DEFAULT_IMAGE_SCENE_BINDINGS: DefaultImageSceneBindingSeed[] = [
+  { scene_key: 'editor_inline', action_key: 'chapter_illustration' },
+  { scene_key: 'article_cover', action_key: 'blog_cover_banner' },
+  { scene_key: 'wechat_cover', action_key: 'blog_cover_banner' },
+  { scene_key: 'social_card', action_key: 'mondo_landscape' },
 ]
 
 export async function ensureAiImageProviderProfilesTable(db: D1Database): Promise<void> {
@@ -236,6 +254,24 @@ async function ensureAiImageActionsTable(db: D1Database): Promise<void> {
   }
 }
 
+async function ensureAiImageSceneBindingsTable(db: D1Database): Promise<void> {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS ai_image_scene_bindings (
+      scene_key TEXT PRIMARY KEY,
+      action_key TEXT NOT NULL,
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+    )
+  `).run()
+
+  for (const seed of DEFAULT_IMAGE_SCENE_BINDINGS) {
+    await db.prepare(`
+      INSERT INTO ai_image_scene_bindings (scene_key, action_key, updated_at)
+      VALUES (?, ?, strftime('%s', 'now'))
+      ON CONFLICT(scene_key) DO NOTHING
+    `).bind(seed.scene_key, seed.action_key).run()
+  }
+}
+
 export function getDefaultImageActionSeed(actionKey?: string) {
   if (!actionKey) return null
   return DEFAULT_IMAGE_ACTIONS.find((seed) => seed.action_key === actionKey) || null
@@ -272,6 +308,7 @@ export async function ensureAiImageConfigInfrastructure(
 ): Promise<void> {
   await ensureAiImageProviderProfilesTable(db)
   await ensureAiImageActionsTable(db)
+  await ensureAiImageSceneBindingsTable(db)
 
   const defaultProfileId = await ensureDefaultImageProfileId(db)
   if (defaultProfileId) {
@@ -281,6 +318,10 @@ export async function ensureAiImageConfigInfrastructure(
       WHERE profile_id IS NULL
     `).bind(defaultProfileId).run()
   }
+}
+
+export function listDefaultImageSceneBindings() {
+  return DEFAULT_IMAGE_SCENE_BINDINGS.slice()
 }
 
 export async function resolveAiImageProfileConfig(

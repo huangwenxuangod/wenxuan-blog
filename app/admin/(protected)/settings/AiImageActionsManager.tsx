@@ -36,6 +36,15 @@ interface AiImageProfile {
   is_default: number
 }
 
+type SceneKey = 'editor_inline' | 'article_cover' | 'wechat_cover' | 'social_card'
+
+const SCENE_LABELS: Record<SceneKey, string> = {
+  editor_inline: '正文配图',
+  article_cover: '文章封面',
+  wechat_cover: '微信封面',
+  social_card: '社媒配图',
+}
+
 const emptyAction: Partial<AiImageAction> = {
   action_key: '',
   label: '',
@@ -55,6 +64,8 @@ export function AiImageActionsManager() {
   const [isNew, setIsNew] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<AiImageAction | null>(null)
+  const [sceneBindings, setSceneBindings] = useState<Record<string, string>>({})
+  const [savingBindings, setSavingBindings] = useState(false)
 
   const profileOptions = profiles.map((profile) => ({
     ...profile,
@@ -64,9 +75,10 @@ export function AiImageActionsManager() {
 
   const loadData = useCallback(async () => {
     try {
-      const [actionsRes, profilesRes] = await Promise.all([
+      const [actionsRes, profilesRes, sceneBindingsRes] = await Promise.all([
         fetch('/api/admin/ai-image-actions'),
         fetch('/api/admin/ai-image-provider'),
+        fetch('/api/admin/ai-image-scene-bindings'),
       ])
 
       if (actionsRes.ok) {
@@ -77,6 +89,11 @@ export function AiImageActionsManager() {
       if (profilesRes.ok) {
         const profileData = await profilesRes.json() as { profiles: AiImageProfile[] }
         setProfiles(profileData.profiles || [])
+      }
+
+      if (sceneBindingsRes.ok) {
+        const sceneBindingData = await sceneBindingsRes.json() as { bindings?: Record<string, string> }
+        setSceneBindings(sceneBindingData.bindings || {})
       }
     } finally {
       setLoading(false)
@@ -123,7 +140,7 @@ export function AiImageActionsManager() {
         })
         const data = await res.json().catch(() => ({})) as { error?: string }
         if (!res.ok) throw new Error(data.error || '创建失败')
-        toast.success('图片提示已创建')
+        toast.success('图片模板已创建')
       } else {
         const res = await fetch(`/api/admin/ai-image-actions/${editAction.id}`, {
           method: 'PUT',
@@ -132,7 +149,7 @@ export function AiImageActionsManager() {
         })
         const data = await res.json().catch(() => ({})) as { error?: string }
         if (!res.ok) throw new Error(data.error || '保存失败')
-        toast.success('图片提示已更新')
+        toast.success('图片模板已更新')
       }
 
       setEditAction(null)
@@ -152,7 +169,7 @@ export function AiImageActionsManager() {
       const res = await fetch(`/api/admin/ai-image-actions/${deleteTarget.id}`, { method: 'DELETE' })
       const data = await res.json().catch(() => ({})) as { error?: string }
       if (!res.ok) throw new Error(data.error || '删除失败')
-      toast.success('图片提示已删除')
+      toast.success('图片模板已删除')
       setDeleteTarget(null)
       await loadData()
     } catch (error) {
@@ -201,6 +218,25 @@ export function AiImageActionsManager() {
     }
   }
 
+  const handleSaveSceneBindings = async () => {
+    setSavingBindings(true)
+    try {
+      const res = await fetch('/api/admin/ai-image-scene-bindings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bindings: sceneBindings }),
+      })
+      const data = await res.json().catch(() => ({})) as { error?: string }
+      if (!res.ok) throw new Error(data.error || '保存失败')
+      toast.success('图片场景绑定已更新')
+      await loadData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '保存失败')
+    } finally {
+      setSavingBindings(false)
+    }
+  }
+
   if (loading) {
     return <div className="py-8 text-center text-sm text-[var(--editor-muted)]">加载中…</div>
   }
@@ -208,7 +244,7 @@ export function AiImageActionsManager() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-[var(--editor-ink)]">图片快捷提示</h3>
+        <h3 className="text-base font-semibold text-[var(--editor-ink)]">图片模板</h3>
         <button
           type="button"
           onClick={() => {
@@ -220,6 +256,49 @@ export function AiImageActionsManager() {
         >
           + 新增提示
         </button>
+      </div>
+
+      <div className="rounded-xl border border-[var(--editor-line)] bg-[var(--editor-soft)]/50 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-[var(--editor-ink)]">场景绑定</div>
+            <div className="mt-1 text-xs text-[var(--editor-muted)]">
+              统一控制正文配图、文章封面、微信封面和社媒配图默认使用哪个模板。
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleSaveSceneBindings()}
+            disabled={savingBindings}
+            className="rounded-lg bg-[var(--ui-accent)] px-3 py-1.5 text-sm font-semibold text-[var(--ui-accent-ink)] hover:brightness-105 disabled:opacity-50"
+          >
+            {savingBindings ? '保存中…' : '保存绑定'}
+          </button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(Object.keys(SCENE_LABELS) as SceneKey[]).map((sceneKey) => (
+            <div key={sceneKey}>
+              <label className="mb-1 block text-sm font-medium text-[var(--editor-ink)]">
+                {SCENE_LABELS[sceneKey]}
+              </label>
+              <Dropdown
+                options={actions.map((action) => ({
+                  value: action.action_key,
+                  label: `${action.label} · ${action.action_key}`,
+                }))}
+                value={sceneBindings[sceneKey] || ''}
+                onChange={(value) => {
+                  setSceneBindings((current) => ({
+                    ...current,
+                    [sceneKey]: value,
+                  }))
+                }}
+                placeholder="选择默认模板"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-[var(--editor-line)]">
@@ -303,7 +382,7 @@ export function AiImageActionsManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setEditAction(null)}>
           <div className="mx-4 w-full max-w-2xl rounded-xl border border-[var(--editor-line)] bg-[var(--editor-panel)] p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
             <h3 className="mb-4 text-lg font-semibold text-[var(--editor-ink)]">
-              {isNew ? '新增图片提示' : '编辑图片提示'}
+              {isNew ? '新增图片模板' : '编辑图片模板'}
             </h3>
 
             <div className="space-y-3">
@@ -436,7 +515,7 @@ export function AiImageActionsManager() {
           onClose={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
           title="确认删除"
-          description={`确定要删除图片提示「${deleteTarget.label}」吗？此操作不可撤销。`}
+          description={`确定要删除图片模板「${deleteTarget.label}」吗？此操作不可撤销。`}
           confirmText="删除"
           type="danger"
         />

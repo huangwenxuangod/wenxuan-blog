@@ -100,17 +100,29 @@ describe('ai editor client execution', () => {
     )
   })
 
-  it('inserts a generated image after the target block', () => {
+  it('inserts generated inline images after the target block', () => {
     const editor = createMockEditor()
 
     applyLegacyToolResult(editor as never, {
-      name: 'generate_image',
+      name: 'generate_images',
       payload: {
-        prompt: 'closing visual',
-        usage: 'inline',
-        anchorBlockIndex: 2,
-        alt: '尾图',
-        generatedImage: { url: '/c.webp', alt: 'C' },
+        images: [
+          {
+            prompt: 'closing visual',
+            usage: 'inline',
+            anchorBlockIndex: 2,
+            alt: '尾图',
+          },
+        ],
+        generatedImages: [
+          {
+            prompt: 'closing visual',
+            usage: 'inline',
+            anchorBlockIndex: 2,
+            alt: '尾图',
+            image: { url: '/c.webp', alt: 'C' },
+          },
+        ],
       },
     })
 
@@ -126,12 +138,23 @@ describe('ai editor client execution', () => {
     const editor = createMockEditor()
 
     applyLegacyToolResult(editor as never, {
-      name: 'generate_image',
+      name: 'generate_images',
       payload: {
-        prompt: 'cover visual',
-        usage: 'cover',
-        alt: '封面图',
-        generatedImage: { url: '/cover.webp', alt: '封面图' },
+        images: [
+          {
+            prompt: 'cover visual',
+            usage: 'cover',
+            alt: '封面图',
+          },
+        ],
+        generatedImages: [
+          {
+            prompt: 'cover visual',
+            usage: 'cover',
+            alt: '封面图',
+            image: { url: '/cover.webp', alt: '封面图' },
+          },
+        ],
       },
     })
 

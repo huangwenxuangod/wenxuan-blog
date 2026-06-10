@@ -531,6 +531,7 @@ export function InlineArticleEditor({
         <ImageGenerationModal
           open={imageModal.open}
           contextText={imageModal.contextText}
+          sceneKey="editor_inline"
           historyScope="inline-article"
           onClose={closeImageModal}
           onInsert={insertGeneratedImage}
@@ -541,6 +542,7 @@ export function InlineArticleEditor({
         <ImageGenerationModal
           open={Boolean(referenceImageTarget)}
           contextText=""
+          sceneKey="editor_inline"
           historyScope="inline-article"
           referenceImageUrl={referenceImageTarget.src}
           allowReplace

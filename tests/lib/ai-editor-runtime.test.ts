@@ -80,26 +80,34 @@ describe('ai editor runtime helpers', () => {
     })
   })
 
-  it('converts generate_image action back to the legacy tool payload shape', () => {
+  it('converts generate_images action back to the legacy tool payload shape', () => {
     const tool = convertActionToLegacyTool({
-      type: 'generate_image',
-      prompt: '一张极简插图',
-      usage: 'inline',
-      anchorBlockIndex: 2,
-      alt: '第二节插图',
-      aspectRatio: '16:9',
-      resolution: '2k',
+      type: 'generate_images',
+      images: [
+        {
+          prompt: '一张极简插图',
+          usage: 'inline',
+          anchorBlockIndex: 2,
+          alt: '第二节插图',
+          aspectRatio: '16:9',
+          resolution: '2k',
+        },
+      ],
     })
 
     expect(tool).toEqual({
-      name: 'generate_image',
+      name: 'generate_images',
       payload: {
-        prompt: '一张极简插图',
-        usage: 'inline',
-        anchorBlockIndex: 2,
-        alt: '第二节插图',
-        aspectRatio: '16:9',
-        resolution: '2k',
+        images: [
+          {
+            prompt: '一张极简插图',
+            usage: 'inline',
+            anchorBlockIndex: 2,
+            alt: '第二节插图',
+            aspectRatio: '16:9',
+            resolution: '2k',
+          },
+        ],
       },
     })
   })

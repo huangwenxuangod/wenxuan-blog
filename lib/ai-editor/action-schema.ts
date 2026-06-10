@@ -28,18 +28,26 @@ export type LegacyEditorAiTool =
       }
     }
   | {
-      name: 'generate_image'
+      name: 'generate_images'
       payload: {
-        prompt: string
-        usage: 'inline' | 'cover'
-        anchorBlockIndex?: number
-        alt?: string
-        aspectRatio?: string
-        resolution?: string
-        generatedImage?: {
-          url: string
-          alt: string
-        }
+        images: Array<{
+          prompt: string
+          usage: 'inline' | 'cover'
+          anchorBlockIndex?: number
+          alt?: string
+          aspectRatio?: string
+          resolution?: string
+        }>
+        generatedImages?: Array<{
+          prompt: string
+          usage: 'inline' | 'cover'
+          anchorBlockIndex?: number
+          alt?: string
+          image: {
+            url: string
+            alt: string
+          }
+        }>
       }
     }
   | {
@@ -129,21 +137,25 @@ export function normalizeToolCallToAction(tool: AiEditorToolCall | null | undefi
     }
   }
 
-  if (tool.name === 'generate_image' && tool.payload && 'prompt' in tool.payload) {
+  if (tool.name === 'generate_images' && tool.payload && 'images' in tool.payload && Array.isArray(tool.payload.images)) {
+    const images: Extract<EditorAiAction, { type: 'generate_images' }>['images'] = tool.payload.images
+      .slice(0, 5)
+      .map((item) => ({
+        prompt: String(item?.prompt || ''),
+        usage: item?.usage === 'cover' ? 'cover' as const : 'inline' as const,
+        anchorBlockIndex: typeof item?.anchorBlockIndex === 'number'
+          ? Number(item.anchorBlockIndex)
+          : undefined,
+        alt: typeof item?.alt === 'string' ? item.alt : undefined,
+        aspectRatio: typeof item?.aspectRatio === 'string' ? item.aspectRatio : undefined,
+        resolution: typeof item?.resolution === 'string' ? item.resolution : undefined,
+        imageProfileId: null,
+      }))
+      .filter((item) => item.prompt.trim().length > 0)
+
     return {
-      type: 'generate_image',
-      prompt: String(tool.payload.prompt || ''),
-      usage: tool.payload.usage === 'cover' ? 'cover' : 'inline',
-      anchorBlockIndex: 'anchorBlockIndex' in tool.payload && typeof tool.payload.anchorBlockIndex === 'number'
-        ? Number(tool.payload.anchorBlockIndex)
-        : undefined,
-      alt: 'alt' in tool.payload && typeof tool.payload.alt === 'string' ? tool.payload.alt : undefined,
-      aspectRatio: 'aspectRatio' in tool.payload && typeof tool.payload.aspectRatio === 'string'
-        ? tool.payload.aspectRatio
-        : undefined,
-      resolution: 'resolution' in tool.payload && typeof tool.payload.resolution === 'string'
-        ? tool.payload.resolution
-        : undefined,
+      type: 'generate_images',
+      images,
     }
   }
 
@@ -191,19 +203,27 @@ export function normalizeToolCallToAction(tool: AiEditorToolCall | null | undefi
   }
 
   if (tool.name === 'plan_article_images' && tool.payload && 'images' in tool.payload && Array.isArray(tool.payload.images)) {
-    const firstImage = tool.payload.images[0]
-    if (!firstImage) {
+    const payload = tool.payload as unknown as Extract<LegacyEditorAiTool, { name: 'plan_article_images' }>['payload']
+    const plannedImages: Extract<EditorAiAction, { type: 'generate_images' }>['images'] = (payload.images || [])
+      .slice(0, 5)
+      .map((item) => ({
+        prompt: String(item.prompt || ''),
+        usage: 'inline' as const,
+        anchorBlockIndex: Number(item.blockIndex),
+        alt: String(item.alt || ''),
+        aspectRatio: item.aspectRatio ? String(item.aspectRatio) : undefined,
+        resolution: item.resolution ? String(item.resolution) : undefined,
+        imageProfileId: null,
+      }))
+      .filter((item) => item.prompt.trim().length > 0)
+
+    if (plannedImages.length === 0) {
       return { type: 'reply_only' }
     }
 
     return {
-      type: 'generate_image',
-      prompt: String(firstImage.prompt || ''),
-      usage: 'inline',
-      anchorBlockIndex: Number(firstImage.blockIndex),
-      alt: String(firstImage.alt || ''),
-      aspectRatio: firstImage.aspectRatio ? String(firstImage.aspectRatio) : undefined,
-      resolution: firstImage.resolution ? String(firstImage.resolution) : undefined,
+      type: 'generate_images',
+      images: plannedImages,
     }
   }
 
@@ -245,16 +265,18 @@ export function convertActionToLegacyTool(action: EditorAiAction): LegacyEditorA
     }
   }
 
-  if (action.type === 'generate_image') {
+  if (action.type === 'generate_images') {
     return {
-      name: 'generate_image',
+      name: 'generate_images',
       payload: {
-        prompt: action.prompt,
-        usage: action.usage,
-        anchorBlockIndex: action.anchorBlockIndex,
-        alt: action.alt,
-        aspectRatio: action.aspectRatio,
-        resolution: action.resolution,
+        images: action.images.map((item) => ({
+          prompt: item.prompt,
+          usage: item.usage,
+          anchorBlockIndex: item.anchorBlockIndex,
+          alt: item.alt,
+          aspectRatio: item.aspectRatio,
+          resolution: item.resolution,
+        })),
       },
     }
   }

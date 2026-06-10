@@ -1991,6 +1991,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         <ImageGenerationModal
           open={imageModal.open}
           contextText={imageModal.contextText}
+          sceneKey="editor_inline"
           historyScope="admin-editor"
           closeOnGenerate={false}
           onClose={closeImageModal}
@@ -2002,6 +2003,7 @@ export function NovelEditor({ initialData }: NovelEditorProps = {}) {
         <ImageGenerationModal
           open={Boolean(referenceImageTarget)}
           contextText=""
+          sceneKey="editor_inline"
           historyScope="admin-editor"
           referenceImageUrl={referenceImageTarget.src}
           allowReplace

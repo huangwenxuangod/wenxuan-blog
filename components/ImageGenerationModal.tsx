@@ -102,6 +102,7 @@ function formatHistoryTime(timestamp: number) {
 interface ImageGenerationModalProps {
   open: boolean
   contextText?: string
+  sceneKey?: string
   historyScope?: string
   referenceImageUrl?: string
   allowReplace?: boolean
@@ -115,6 +116,7 @@ interface ImageGenerationModalProps {
 export function ImageGenerationModal({
   open,
   contextText = '',
+  sceneKey,
   historyScope = DEFAULT_HISTORY_SCOPE,
   referenceImageUrl,
   allowReplace = false,
@@ -246,9 +248,10 @@ export function ImageGenerationModal({
 
     const loadActions = async () => {
       try {
-        const [actionsRes, profilesRes] = await Promise.all([
+        const [actionsRes, profilesRes, sceneBindingsRes] = await Promise.all([
           fetch('/api/editor/ai-image-actions'),
           fetch('/api/admin/ai-image-provider'),
+          fetch('/api/admin/ai-image-scene-bindings'),
         ])
 
         const actionData = await actionsRes.json().catch(() => ({ actions: [] })) as { actions?: ImageActionItem[] }
@@ -256,9 +259,13 @@ export function ImageGenerationModal({
           profiles?: ImageProfileItem[]
           default_profile_id?: number | null
         }
+        const sceneBindingData = await sceneBindingsRes.json().catch(() => ({ bindings: {} })) as {
+          bindings?: Record<string, string>
+        }
 
         const nextActions = Array.isArray(actionData.actions) ? actionData.actions : []
         const nextProfiles = Array.isArray(profileData.profiles) ? profileData.profiles : []
+        const nextBindings = sceneBindingData.bindings || {}
         const nextDefaultProfileId = Number.isFinite(profileData.default_profile_id)
           ? Number(profileData.default_profile_id)
           : nextProfiles.find((profile) => profile.is_default === 1)?.id ?? null
@@ -266,10 +273,15 @@ export function ImageGenerationModal({
 
         setActions(nextActions)
         setProfiles(nextProfiles)
-        setSelectedAction('')
-        setSelectedAspectRatio('auto')
-        setSelectedResolution('2k')
-        setSelectedProfileId(fallbackProfileId)
+        const sceneActionKey = sceneKey ? nextBindings[sceneKey] || '' : ''
+        const matchedAction = sceneActionKey
+          ? nextActions.find((action) => action.action_key === sceneActionKey) || null
+          : null
+
+        setSelectedAction(matchedAction?.action_key || '')
+        setSelectedAspectRatio(matchedAction?.aspect_ratio || 'auto')
+        setSelectedResolution(matchedAction?.resolution || '2k')
+        setSelectedProfileId(matchedAction?.profile_id ?? fallbackProfileId)
       } catch {
         setActions([])
         setProfiles([])
@@ -281,7 +293,7 @@ export function ImageGenerationModal({
     }
 
     void loadActions()
-  }, [open])
+  }, [open, sceneKey])
 
   useEffect(() => {
     if (!open) return
@@ -344,7 +356,8 @@ export function ImageGenerationModal({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: selectedAction || 'custom',
+        action: selectedAction && selectedAction !== 'custom' ? selectedAction : undefined,
+        sceneKey: selectedAction && selectedAction !== 'custom' ? undefined : sceneKey,
         prompt: prompt.trim(),
         contextText: contextText.trim(),
         aspectRatio: selectedAspectRatio,
@@ -369,6 +382,7 @@ export function ImageGenerationModal({
     contextText,
     prompt,
     referenceImageUrl,
+    sceneKey,
     selectedAction,
     selectedAspectRatio,
     selectedProfileId,

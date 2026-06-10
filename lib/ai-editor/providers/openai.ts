@@ -12,6 +12,20 @@ import { appendSkillInstructions } from '@/lib/skills/prompt'
 import { describeAiEditorTools } from '@/lib/ai-editor/agent-tools'
 import { parseStructuredEditorToolCall } from '@/lib/ai-editor/providers/structured-tool'
 
+function chunkAssistantMessage(message: string) {
+  const normalized = String(message || '').replace(/\r/g, '').trim()
+  if (!normalized) return []
+
+  const paragraphs = normalized
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  return paragraphs.length > 0
+    ? paragraphs.map((part, index) => `${index > 0 ? '\n\n' : ''}${part}`)
+    : [normalized]
+}
+
 function buildPrompt(input: EditorAiRuntimePreparedInput): EditorAiModelPrompt {
   const systemPrompt = appendSkillInstructions(
     `${describeAiEditorTools(input.context.outline)}
@@ -20,12 +34,20 @@ function buildPrompt(input: EditorAiRuntimePreparedInput): EditorAiModelPrompt {
 {
   "message": "给用户看的简短回复",
   "tool": {
-    "name": "reply_only | edit_title | edit_selection | insert_block | generate_image",
+    "name": "reply_only | edit_title | edit_selection | insert_block | generate_images",
     "payload": null 或对象
   }
 }
 
-不要输出 Markdown 代码块，不要输出解释文字。`,
+要求：
+1. message 必须使用简洁 Markdown，可用小标题、项目符号、加粗。
+2. 优先输出短结构，不要返回大段连续正文。
+3. 如果是在总结文章内容，优先格式：
+   ## 小节名
+   - 核心点 1
+   - 核心点 2
+4. 如果用户要求插图、配图、封面图或基于文章生成多张图，优先返回 generate_images，最多 5 张。
+4. 不要输出 Markdown 代码块，不要输出 JSON 以外的解释文字。`,
     input.activeSkill,
   )
   const focusedBlocks = [
@@ -108,9 +130,11 @@ export async function runOpenAiEditorProvider(
       })
 
       if (parsed.message) {
-        yield {
-          type: 'assistant_delta',
-          delta: parsed.message,
+        for (const chunk of chunkAssistantMessage(parsed.message)) {
+          yield {
+            type: 'assistant_delta',
+            delta: chunk,
+          }
         }
       }
 

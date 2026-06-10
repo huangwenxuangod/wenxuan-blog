@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticateRequest } from '@/lib/admin-auth'
 import { getAppCloudflareEnv } from '@/lib/cloudflare'
 import { ensureAiImageConfigInfrastructure } from '@/lib/ai-image/config'
+import { resolveImageSceneBinding } from '@/lib/ai-image/scenes'
 
 type ImageBucket = {
   put: (
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
 
   let body: {
     action?: string
+    sceneKey?: string
     prompt?: string
     articleTitle?: string
     contextText?: string
@@ -52,9 +54,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '请求体不是有效 JSON' }, { status: 400 })
   }
 
-  const action = (body.action || '').trim()
+  const requestedAction = (body.action || '').trim()
+  const sceneKey = (body.sceneKey || '').trim()
+
+  let resolvedAction = requestedAction
+  if (!resolvedAction && sceneKey) {
+    const binding = await resolveImageSceneBinding(db, sceneKey)
+    resolvedAction = binding?.action_key || ''
+  }
+
+  const action = resolvedAction || 'custom'
   if (!action) {
-    return NextResponse.json({ error: '缺少 action 参数' }, { status: 400 })
+    return NextResponse.json({ error: '缺少 action 或 sceneKey 参数' }, { status: 400 })
   }
 
   try {

@@ -168,7 +168,7 @@ export function WeChatBridgeManager() {
           <div className="space-y-1">
             <h3 className="text-base font-semibold text-[var(--editor-ink)]">Bridge 连接</h3>
             <p className="text-sm text-[var(--editor-muted)]">
-              `qmblog` 只保存 bridge 地址和鉴权 token。多个公众号的 `AppID/Secret` 全部保存在 VPS bridge 上。
+              `文轩 / wx` 这里只保存 bridge 地址和鉴权 token。多个公众号的 `AppID/Secret` 全部保存在你的 VPS bridge 上。
             </p>
           </div>
 
@@ -209,7 +209,7 @@ export function WeChatBridgeManager() {
               className="w-full rounded-lg border border-[var(--ui-line)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-ink)] outline-none focus:border-[var(--ui-accent)]"
             />
             <p className="text-xs text-[var(--editor-muted)]">
-              这里不保存公众号密钥。后续新增公众号，只需要更新 VPS 上的 bridge 账号清单。
+              这里不保存公众号密钥。后续新增公众号，只需要更新 VPS 上 bridge 服务里的账号清单。
             </p>
           </div>
         </div>
@@ -245,7 +245,7 @@ export function WeChatBridgeManager() {
           <div>
             <h3 className="text-base font-semibold text-[var(--editor-ink)]">可用公众号</h3>
             <p className="mt-1 text-sm text-[var(--editor-muted)]">
-              这里展示 bridge 当前可切换的公众号账号列表。
+              这里展示 bridge 当前可切换的公众号账号列表，编辑器发布时会直接使用这里的目标账号。
             </p>
           </div>
 
@@ -274,7 +274,7 @@ export function WeChatBridgeManager() {
           ) : (
             <div className="px-4 py-6 text-sm text-[var(--editor-muted)]">
               {config.enabled && config.configured
-                ? 'Bridge 已连接，但还没有返回可用公众号账号。'
+                ? 'Bridge 已连接，但还没有返回可用公众号账号。请检查 VPS bridge 里的账号清单。'
                 : '先保存可用的 bridge 配置，再从 bridge 拉取公众号列表。'}
             </div>
           )}

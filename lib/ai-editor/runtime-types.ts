@@ -18,14 +18,16 @@ export type EditorAiAction =
   | { type: 'edit_selection'; markdown: string; blockIndex?: number }
   | { type: 'insert_block'; anchorBlockIndex?: number; position?: 'before' | 'after' | 'end'; markdown: string }
   | {
-      type: 'generate_image'
-      prompt: string
-      usage: 'inline' | 'cover'
-      anchorBlockIndex?: number
-      alt?: string
-      aspectRatio?: string
-      resolution?: string
-      imageProfileId?: number | null
+      type: 'generate_images'
+      images: Array<{
+        prompt: string
+        usage: 'inline' | 'cover'
+        anchorBlockIndex?: number
+        alt?: string
+        aspectRatio?: string
+        resolution?: string
+        imageProfileId?: number | null
+      }>
     }
 
 export type EditorAiRuntimeEvent =

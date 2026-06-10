@@ -5,7 +5,7 @@ export type AiEditorToolName =
   | 'edit_title'
   | 'edit_selection'
   | 'insert_block'
-  | 'generate_image'
+  | 'generate_images'
   | 'insert_text'
   | 'rewrite_block'
   | 'append_section'
@@ -26,20 +26,22 @@ export interface InsertBlockToolPayload {
   markdown: string
 }
 
-export interface GenerateImageToolPayload {
-  prompt: string
-  usage: 'inline' | 'cover'
-  anchorBlockIndex?: number
-  alt?: string
-  aspectRatio?: string
-  resolution?: string
+export interface GenerateImagesToolPayload {
+  images: Array<{
+    prompt: string
+    usage: 'inline' | 'cover'
+    anchorBlockIndex?: number
+    alt?: string
+    aspectRatio?: string
+    resolution?: string
+  }>
 }
 
 export type AiEditorToolPayload =
   | EditTitleToolPayload
   | EditSelectionToolPayload
   | InsertBlockToolPayload
-  | GenerateImageToolPayload
+  | GenerateImagesToolPayload
   | null
 
 export interface AiEditorToolCall {
@@ -56,7 +58,7 @@ export function describeAiEditorTools(outline: EditorDocumentBlock[]) {
 {
   "message": "给用户看的简短回复",
   "tool": {
-    "name": "reply_only | edit_title | edit_selection | insert_block | generate_image",
+    "name": "reply_only | edit_title | edit_selection | insert_block | generate_images",
     "payload": {}
   }
 }
@@ -66,8 +68,12 @@ export function describeAiEditorTools(outline: EditorDocumentBlock[]) {
 - edit_title: 直接改文章标题，payload 结构：{ "title": "..." }
 - edit_selection: 改当前选区；如果没有选区，则改当前 block，payload 结构：{ "markdown": "..." }
 - insert_block: 在某个 block 前后或文末插入 markdown，payload 结构：{ "anchorBlockIndex": 2, "position": "after | before | end", "markdown": "..." }
-- generate_image: 生成图片并插入正文或设为封面，payload 结构：
-  { "prompt": "...", "usage": "inline | cover", "anchorBlockIndex": 2, "alt": "...", "aspectRatio": "16:9", "resolution": "2k" }
+- generate_images: 规划并生成 1-5 张图片，payload 结构：
+  {
+    "images": [
+      { "prompt": "...", "usage": "inline | cover", "anchorBlockIndex": 2, "alt": "...", "aspectRatio": "16:9", "resolution": "2k" }
+    ]
+  }
 
 约束：
 - blockIndex 必须基于下面给出的文章块列表，从 0 开始
@@ -75,7 +81,9 @@ export function describeAiEditorTools(outline: EditorDocumentBlock[]) {
 - 如果要改文，尽量只改当前选区、当前 block、当前 section 或明确召回出的相关 block
 - 如果用户是问答、 brainstorming、解释概念，则用 reply_only
 - 如果用户要求改标题，优先用 edit_title，不要把新标题塞进正文
-- 如果用户要求插图，优先用 generate_image，usage 默认 inline，anchorBlockIndex 要尽量明确
+- 如果用户要求插图，优先用 generate_images
+- generate_images 最多返回 5 张图；没有必要时返回 1 张即可
+- inline 图片尽量给出明确的 anchorBlockIndex；cover 图片用 usage: "cover"
 - 返回必须是合法 JSON，不要加 markdown 代码块
 
 当前文章块列表：
