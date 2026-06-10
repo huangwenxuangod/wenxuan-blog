@@ -1,0 +1,72 @@
+name = "your-worker-name"
+main = "worker.ts"
+compatibility_date = "2026-04-14"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+workers_dev = false
+
+[observability]
+
+  [observability.logs]
+  enabled = false
+  invocation_logs = true
+
+  [observability.traces]
+  enabled = false
+
+[dev]
+port = 8788
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[ai]
+binding = "WORKERS_AI"
+
+[[services]]
+binding = "WORKER_SELF_REFERENCE"
+service = "your-worker-name"
+
+[[routes]]
+pattern = "example.com"
+custom_domain = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "your-d1-database-name"
+database_id = "replace-with-your-d1-database-id"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "your-images-bucket-name"
+
+[[r2_buckets]]
+binding = "SKILLS"
+bucket_name = "your-skills-bucket-name"
+
+# Optional Queue binding for background jobs. Uncomment after creating the queue.
+# [[queues.producers]]
+# binding = "BACKGROUND_QUEUE"
+# queue = "your-background-jobs-queue"
+#
+# [[queues.consumers]]
+# queue = "your-background-jobs-queue"
+
+[vars]
+NEXT_PUBLIC_SITE_URL = "https://example.com"
+AI_BASE_URL = "https://api.openai.com/v1"
+AI_MODEL = "gpt-4o-mini"
+WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+ENABLE_WORKERS_AI = "true"
+# Optional enhancement flags. Leave unset/disabled for open-source or low-cost deployments.
+# ENABLE_BACKGROUND_JOBS = "true"
+# ENABLE_VECTOR_SEARCH = "true"
+# ENABLE_CF_IMAGE_PIPELINE = "true"
+
+# Secrets（通过 wrangler secret put 设置）：
+# - ADMIN_PASSWORD
+# - ADMIN_TOKEN_SALT
+# - AI_CONFIG_ENCRYPTION_SECRET
+# - AI_API_KEY
+# - CLOUDFLARE_ACCOUNT_ID (optional, for Workers AI model discovery)
+# - CLOUDFLARE_API_TOKEN (optional, for Workers AI model discovery)

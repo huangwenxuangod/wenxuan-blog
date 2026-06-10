@@ -10,10 +10,32 @@ import {
   resolveAiConfigSecret,
 } from '@/lib/ai-provider-profiles'
 
+const PROVIDER_TEST_TIMEOUT_MS = 45_000
+
 function toStringSafe(value: unknown): string {
   if (typeof value === 'string') return value
   if (value === null || value === undefined) return ''
   return String(value)
+}
+
+function isTimeoutError(error: unknown): boolean {
+  if (!error) return false
+
+  if (error instanceof DOMException) {
+    return error.name === 'TimeoutError' || error.name === 'AbortError'
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase()
+    return (
+      error.name === 'TimeoutError'
+      || error.name === 'AbortError'
+      || message.includes('timeout')
+      || message.includes('aborted')
+    )
+  }
+
+  return false
 }
 
 function buildProviderErrorMessage(resStatus: number, resStatusText: string, rawBody: string): string {
@@ -140,6 +162,7 @@ export async function POST(req: NextRequest) {
   const providerType = normalizeProviderType((body.provider_type || selectedProfile?.provider_type || 'openai_compatible').trim())
   const temperature = clampTemperature(Number(body.temperature))
   const maxTokens = Math.max(1, Math.min(256, Math.floor(clampMaxTokens(Number(body.max_tokens)))))
+  const testMaxTokens = Math.max(8, Math.min(16, maxTokens))
 
   const profileApiKey = selectedProfile?.api_key_encrypted
     ? await decryptApiKey(selectedProfile.api_key_encrypted, secret)
@@ -179,11 +202,11 @@ export async function POST(req: NextRequest) {
           },
           body: JSON.stringify({
             model: normalizedModel,
-            max_tokens: maxTokens,
+            max_tokens: testMaxTokens,
             temperature,
-            messages: [{ role: 'user', content: 'Say "OK"' }],
+            messages: [{ role: 'user', content: 'Reply with exactly: OK' }],
           }),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(PROVIDER_TEST_TIMEOUT_MS),
         })
       : await fetch(`${normalizedBaseUrl}/chat/completions`, {
           method: 'POST',
@@ -193,11 +216,11 @@ export async function POST(req: NextRequest) {
           },
           body: JSON.stringify({
             model: normalizedModel,
-            messages: [{ role: 'user', content: 'Say "OK"' }],
+            messages: [{ role: 'user', content: 'Reply with exactly: OK' }],
             temperature,
-            max_tokens: maxTokens,
+            max_tokens: testMaxTokens,
           }),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(PROVIDER_TEST_TIMEOUT_MS),
         })
 
     if (!res.ok) {
@@ -215,6 +238,13 @@ export async function POST(req: NextRequest) {
       model: normalizedModel,
     })
   } catch (error) {
+    if (isTimeoutError(error)) {
+      return NextResponse.json({
+        success: false,
+        error: `测试请求超时：服务可访问，但在 ${Math.floor(PROVIDER_TEST_TIMEOUT_MS / 1000)} 秒内未返回结果。通常是模型冷启动、排队或接口响应较慢，不代表配置一定错误。`,
+      })
+    }
+
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : '连接失败',
