@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useSyncExternalStore } from 'react'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import { SearchEntry } from './SearchEntry'
 import { AihotDailyTrigger } from '@/components/AihotDailyTrigger'
+import { SiteHeaderShameIndicator } from '@/components/SiteHeaderShameIndicator'
 import { ThemeDropdown } from '@/components/ThemeDropdown'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { getClientThemePreference, subscribeToThemeChange, type Theme } from '@/lib/appearance'
@@ -216,6 +217,9 @@ export function SiteHeader({
       <div className="site-header-inner mx-auto max-w-3xl px-4 sm:px-6">
         <div className="h-14 flex items-center justify-between gap-4">
           {renderLogo()}
+
+          {/* Writing shame indicator */}
+          <SiteHeaderShameIndicator />
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-3 text-sm flex-shrink-0">
