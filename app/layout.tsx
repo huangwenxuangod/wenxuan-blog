@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { GlobalShortcuts } from "@/components/GlobalShortcuts";
 import { ToastProvider } from "@/components/Toast";
+import { WritingShameBanner } from "@/components/WritingShameBanner";
 import { CustomJsInjector } from "@/components/CustomJsInjector";
 import type { Theme } from "@/lib/appearance";
 import { FONT_CONFIG, THEME_OPTIONS, THEME_STORAGE_KEY, normalizeTheme } from "@/lib/appearance";
@@ -185,6 +186,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <ToastProvider>
           <GlobalShortcuts />
+          <WritingShameBanner />
           {children}
         </ToastProvider>
         {customJs && <CustomJsInjector code={customJs} />}
