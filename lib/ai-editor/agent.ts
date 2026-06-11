@@ -1,4 +1,3 @@
-import OpenAI from 'openai'
 import { resolveConfig, type AIEnv } from '@/lib/ai'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 import { normalizeAiEditorToolCall, type AiEditorToolCall } from './tool-registry'
@@ -99,6 +98,7 @@ export async function runAiEditorAgent(input: RunAiEditorAgentInput): Promise<Ag
     return safeParseAgentOutput(raw)
   }
 
+  const { default: OpenAI } = await import('openai')
   const client = new OpenAI({
     apiKey: config.apiKey,
     baseURL: normalizeBaseUrl(config.baseURL),

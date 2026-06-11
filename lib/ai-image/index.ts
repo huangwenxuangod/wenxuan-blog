@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+import type OpenAI from 'openai'
 import type { ImagesResponse } from 'openai/resources/images'
 import {
   ensureAiImageConfigInfrastructure,
@@ -465,6 +465,7 @@ export async function generateEditorImage(
         }
       })()
     : await (async () => {
+        const { default: OpenAI } = await import('openai')
         const client = new OpenAI({
           apiKey: profile.api_key,
           baseURL: normalizeBaseUrl(profile.base_url),

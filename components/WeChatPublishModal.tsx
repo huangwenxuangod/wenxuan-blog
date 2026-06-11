@@ -108,7 +108,7 @@ export function WeChatPublishModal({
     setSubmitting(true)
 
     try {
-      const { normalizedTitle, exportedHtml } = buildWechatBridgeArticleExport(title, html, stylePreset)
+      const { normalizedTitle, exportedHtml } = await buildWechatBridgeArticleExport(title, html, stylePreset)
       const finalCoverUrl =
         buildWechatBridgeCoverImageUrl(coverImageUrl) ||
         buildWechatBridgeCoverImageUrl(defaultCoverImageUrl) ||

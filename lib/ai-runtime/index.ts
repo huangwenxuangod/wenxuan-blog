@@ -1,4 +1,3 @@
-import OpenAI from 'openai'
 import {
   clampMaxTokens,
   clampTemperature,
@@ -122,7 +121,8 @@ export function getAiRuntimeEnv(env?: Partial<CloudflareEnv> | null): AIEnv {
   }
 }
 
-export function getClientFromConfig(config: Extract<ResolvedConfig, { strategy: 'external-provider' }>) {
+export async function getClientFromConfig(config: Extract<ResolvedConfig, { strategy: 'external-provider' }>) {
+  const { default: OpenAI } = await import('openai')
   return new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL })
 }
 

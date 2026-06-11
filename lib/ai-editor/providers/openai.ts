@@ -1,4 +1,3 @@
-import OpenAI from 'openai'
 import type {
   EditorAiProviderPlanExecution,
   EditorAiProviderPlanResult,
@@ -16,6 +15,7 @@ export async function planOpenAiEditorStep(
   config: Extract<ResolvedConfig, { strategy: 'external-provider' }>,
 ): Promise<EditorAiProviderPlanExecution> {
   const { systemPrompt, userPrompt } = buildEditorAiModelPrompt(input)
+  const { default: OpenAI } = await import('openai')
   const client = new OpenAI({
     apiKey: config.apiKey,
     baseURL: normalizeBaseUrl(config.baseURL),

@@ -1,6 +1,5 @@
 'use client'
 
-import juice from 'juice'
 import { saveBlobFile } from '@/lib/client-download'
 import { buildWechatExportCss, normalizeWechatExportHtml, type WechatExportStyleTokens } from './export-style'
 import type { WechatStylePresetId } from './style-presets'
@@ -318,12 +317,13 @@ async function prepareArticleExportStage(title: string, html: string, preset: We
   }
 }
 
-function buildWechatClipboardHtml(title: string, html: string, preset: WechatStylePresetId = 'default') {
+async function buildWechatClipboardHtml(title: string, html: string, preset: WechatStylePresetId = 'default') {
   const normalizedTitle = title.trim() || '无标题'
   const normalizedHtml = normalizeExportMarkup(html, 'clipboard')
   const css = buildWechatExportCss(readWechatExportStyleTokens(), preset)
   const fragment = buildWechatExportFragment(normalizedTitle, normalizedHtml)
 
+  const juice = (await import('juice')).default
   const exportedHtml = juice.inlineContent(fragment, css, {
     applyWidthAttributes: true,
     applyHeightAttributes: true,
@@ -809,7 +809,7 @@ function rewriteBridgeArticleHtml(exportedHtml: string) {
   return doc.body.innerHTML
 }
 
-export function buildWechatBridgeArticleExport(
+export async function buildWechatBridgeArticleExport(
   title: string,
   html: string,
   preset: WechatStylePresetId = 'default',
@@ -818,7 +818,7 @@ export function buildWechatBridgeArticleExport(
     throw new Error('当前环境不支持公众号发布导出')
   }
 
-  const { exportedHtml, normalizedTitle } = buildWechatClipboardHtml(title, html, preset)
+  const { exportedHtml, normalizedTitle } = await buildWechatClipboardHtml(title, html, preset)
 
   return {
     normalizedTitle,
@@ -971,7 +971,7 @@ export async function copyAsWechatArticleFormat(
     throw new Error('当前环境不支持复制')
   }
 
-  const { exportedHtml, normalizedTitle } = buildWechatClipboardHtml(title, html, preset)
+  const { exportedHtml, normalizedTitle } = await buildWechatClipboardHtml(title, html, preset)
   const plainText = new DOMParser()
     .parseFromString(exportedHtml, 'text/html')
     .body.textContent?.trim() || normalizedTitle

@@ -1,4 +1,3 @@
-import OpenAI from 'openai'
 import { getExternalAssistantPayload, getWorkersAiAssistantPayload } from '@/lib/ai-post-generator/parsers'
 import { isWorkersAiBaseUrl, normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 
@@ -150,6 +149,7 @@ async function runWorkersCompatibleRequest(input: ExternalTextRequest): Promise<
 }
 
 async function runOpenAiCompatibleRequest(input: ExternalTextRequest): Promise<ExternalTextResponse> {
+  const { default: OpenAI } = await import('openai')
   const client = new OpenAI({
     apiKey: input.config.apiKey,
     baseURL: normalizeBaseUrl(input.config.baseURL),
