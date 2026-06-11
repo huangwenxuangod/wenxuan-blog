@@ -9,17 +9,14 @@ import { parseStructuredEditorToolCall } from '@/lib/ai-editor/providers/structu
 import { StreamingJsonMessageExtractor } from '@/lib/ai-editor/providers/streaming-json-message'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
 import { normalizeAiEditorToolCall } from '@/lib/ai-editor/tool-registry'
+import { createChatCompletionStream } from '@/lib/openai-fetch'
 
 export async function planOpenAiEditorStep(
   input: EditorAiRuntimePreparedInput,
   config: Extract<ResolvedConfig, { strategy: 'external-provider' }>,
 ): Promise<EditorAiProviderPlanExecution> {
   const { systemPrompt, userPrompt } = buildEditorAiModelPrompt(input)
-  const { default: OpenAI } = await import('openai')
-  const client = new OpenAI({
-    apiKey: config.apiKey,
-    baseURL: normalizeBaseUrl(config.baseURL),
-  })
+  const auth = { apiKey: config.apiKey, baseURL: normalizeBaseUrl(config.baseURL) }
 
   const requestBodies = [
     buildOpenAiPlanRequestBody(config.model, systemPrompt, userPrompt, Math.min(config.maxTokens, 2400), true),
@@ -43,18 +40,7 @@ export async function planOpenAiEditorStep(
       const messageExtractor = new StreamingJsonMessageExtractor()
 
       try {
-        const response = (await client.chat.completions.create({
-          ...(requestBody as Record<string, unknown>),
-          stream: true,
-        } as never) as unknown) as AsyncIterable<{
-          choices?: Array<{
-            delta?: {
-              content?: string | null
-            }
-          }>
-        }>
-
-        for await (const chunk of response) {
+        for await (const chunk of createChatCompletionStream(auth, requestBody)) {
           const delta = chunk.choices?.[0]?.delta?.content || ''
           if (!delta) continue
 

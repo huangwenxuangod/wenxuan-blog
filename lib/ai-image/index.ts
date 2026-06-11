@@ -1,5 +1,5 @@
-import type OpenAI from 'openai'
-import type { ImagesResponse } from 'openai/resources/images'
+import { createImageGeneration, createImageEdit } from '@/lib/openai-fetch'
+import type { ImageGenerationResponse } from '@/lib/openai-fetch'
 import {
   ensureAiImageConfigInfrastructure,
   getDefaultImageActionSeed,
@@ -69,7 +69,6 @@ function sanitizeFilename(filename: string) {
 }
 
 async function runGenerateWithFallback(
-  client: OpenAI,
   config: {
     apiKey: string
     baseURL: string
@@ -81,7 +80,7 @@ async function runGenerateWithFallback(
     size: string
     quality: string
   },
-): Promise<ImagesResponse> {
+) {
   const attempts: Array<Record<string, unknown>> = [
     {
       model: params.model,
@@ -114,9 +113,11 @@ async function runGenerateWithFallback(
 
   let lastError: Error | null = null
 
+  const auth = { apiKey: config.apiKey, baseURL: normalizeBaseUrl(config.baseURL) }
+
   for (const body of attempts) {
     try {
-      return await client.images.generate(body as never) as ImagesResponse
+      return await createImageGeneration(auth, body as never)
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
     }
@@ -130,7 +131,7 @@ async function runGenerateWithFallback(
 }
 
 async function runEditWithFallback(
-  client: OpenAI,
+  auth: { apiKey: string; baseURL: string },
   params: {
     image: File | Array<File>
     inputFidelity?: 'high' | 'low'
@@ -140,57 +141,17 @@ async function runEditWithFallback(
     size: string
   },
 ) {
-  const attempts: Array<Record<string, unknown>> = [
-    {
-      model: params.model,
-      prompt: params.prompt,
-      image: params.image,
-      size: params.size,
-      quality: params.quality,
-      input_fidelity: params.inputFidelity ?? 'high',
-      output_format: 'webp',
-      background: 'auto',
-    },
-    {
-      model: params.model,
-      prompt: params.prompt,
-      image: params.image,
-      size: params.size,
-      quality: params.quality,
-      output_format: 'webp',
-      background: 'auto',
-    },
-    {
-      model: params.model,
-      prompt: params.prompt,
-      image: params.image,
-      size: params.size,
-      quality: params.quality,
-    },
-    {
-      model: params.model,
-      prompt: params.prompt,
-      image: params.image,
-      size: params.size,
-    },
-    {
-      model: params.model,
-      prompt: params.prompt,
-      image: params.image,
-    },
-  ]
-
-  let lastError: Error | null = null
-
-  for (const body of attempts) {
-    try {
-      return await client.images.edit(body as never) as ImagesResponse
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error))
-    }
-  }
-
-  throw lastError || new Error('参考图生成失败')
+  const file = Array.isArray(params.image) ? params.image[0] : params.image
+  const formData = new FormData()
+  formData.append('image', file)
+  formData.append('prompt', params.prompt)
+  formData.append('model', params.model)
+  formData.append('size', params.size)
+  formData.append('quality', params.quality)
+  if (params.inputFidelity) formData.append('input_fidelity', params.inputFidelity)
+  formData.append('output_format', 'webp')
+  formData.append('background', 'auto')
+  return await createImageEdit(auth, formData)
 }
 
 function parseOpenAiCompatImageErrorMessage(
@@ -325,7 +286,7 @@ async function runGenerateMultipartFallback(
         throw new Error('图片接口未返回结果')
       }
 
-      return parsed as ImagesResponse
+      return parsed as ImageGenerationResponse
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
     }
@@ -335,7 +296,7 @@ async function runGenerateMultipartFallback(
 }
 
 async function extractGeneratedImagePayload(
-  response: ImagesResponse,
+  response: ImageGenerationResponse,
 ): Promise<{
   bytes: Uint8Array
   contentType: string
@@ -476,7 +437,7 @@ export async function generateEditorImage(
 
         const response = hasReferenceImage
           ? await runEditWithFallback(
-              client,
+              { apiKey: profile.api_key, baseURL: profile.base_url },
               {
                 image: await fetchReferenceImageFile(String(input.referenceImageUrl).trim()),
                 inputFidelity: 'high',
@@ -486,9 +447,7 @@ export async function generateEditorImage(
                 quality,
               },
             )
-          : await runGenerateWithFallback(
-              client,
-              {
+          : await runGenerateWithFallback({
                 apiKey: profile.api_key,
                 baseURL: profile.base_url,
                 providerType: profile.provider_type,

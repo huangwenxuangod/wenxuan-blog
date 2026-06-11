@@ -121,11 +121,6 @@ export function getAiRuntimeEnv(env?: Partial<CloudflareEnv> | null): AIEnv {
   }
 }
 
-export async function getClientFromConfig(config: Extract<ResolvedConfig, { strategy: 'external-provider' }>) {
-  const { default: OpenAI } = await import('openai')
-  return new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL })
-}
-
 export async function resolveConfig(env?: AIEnv, db?: D1Database, profileId?: number): Promise<ResolvedConfig> {
   if (db) {
     try {

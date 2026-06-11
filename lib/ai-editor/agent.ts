@@ -9,6 +9,7 @@ import {
 } from '@/lib/workers-ai-json'
 import type { EditorAiToolObservation, WorkspaceAgentState } from '@/lib/ai-editor/runtime-types'
 import { buildEditorAiModelPrompt } from '@/lib/ai-editor/prompt-builder'
+import { createChatCompletion } from '@/lib/openai-fetch'
 
 interface AgentHistoryMessage {
   role: 'user' | 'assistant'
@@ -98,19 +99,16 @@ export async function runAiEditorAgent(input: RunAiEditorAgentInput): Promise<Ag
     return safeParseAgentOutput(raw)
   }
 
-  const { default: OpenAI } = await import('openai')
-  const client = new OpenAI({
-    apiKey: config.apiKey,
-    baseURL: normalizeBaseUrl(config.baseURL),
-  })
-
-  const response = await client.chat.completions.create({
-    model: config.model,
-    messages,
-    temperature: 0.4,
-    max_tokens: Math.min(config.maxTokens, 2400),
-    response_format: { type: 'json_object' },
-  })
+  const response = await createChatCompletion(
+    { apiKey: config.apiKey, baseURL: normalizeBaseUrl(config.baseURL) },
+    {
+      model: config.model,
+      messages,
+      temperature: 0.4,
+      max_tokens: Math.min(config.maxTokens, 2400),
+      response_format: { type: 'json_object' },
+    },
+  )
 
   const raw = response.choices?.[0]?.message?.content || ''
   return safeParseAgentOutput(raw)

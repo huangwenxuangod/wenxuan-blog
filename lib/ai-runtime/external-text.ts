@@ -1,5 +1,6 @@
 import { getExternalAssistantPayload, getWorkersAiAssistantPayload } from '@/lib/ai-post-generator/parsers'
 import { isWorkersAiBaseUrl, normalizeBaseUrl } from '@/lib/ai-provider-profiles'
+import { createChatCompletion } from '@/lib/openai-fetch'
 
 export interface ExternalTextMessage {
   role: 'system' | 'user' | 'assistant'
@@ -149,11 +150,7 @@ async function runWorkersCompatibleRequest(input: ExternalTextRequest): Promise<
 }
 
 async function runOpenAiCompatibleRequest(input: ExternalTextRequest): Promise<ExternalTextResponse> {
-  const { default: OpenAI } = await import('openai')
-  const client = new OpenAI({
-    apiKey: input.config.apiKey,
-    baseURL: normalizeBaseUrl(input.config.baseURL),
-  })
+  const auth = { apiKey: input.config.apiKey, baseURL: normalizeBaseUrl(input.config.baseURL) }
 
   const requestBodies = input.jsonMode
     ? [
@@ -166,7 +163,7 @@ async function runOpenAiCompatibleRequest(input: ExternalTextRequest): Promise<E
 
   for (let index = 0; index < requestBodies.length; index += 1) {
     try {
-      const response = await client.chat.completions.create(requestBodies[index] as never)
+      const response = await createChatCompletion(auth, requestBodies[index])
       return getExternalAssistantPayload(response)
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))

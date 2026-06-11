@@ -1,7 +1,6 @@
 export type { AIEnv, ResolvedConfig } from '@/lib/ai-runtime'
 export {
   getAiRuntimeEnv,
-  getClientFromConfig,
   resolveConfig,
   isWorkersAiBaseUrl,
   normalizeBaseUrl,
