@@ -66,6 +66,10 @@ export function getActiveBlockIndex(editor: EditorInstance) {
 export function applyLegacyToolResult(editor: EditorInstance, tool: LegacyEditorAiTool) {
   if (tool.name === 'reply_only') return
 
+  if (tool.name === 'create_post' || tool.name === 'update_post') {
+    return
+  }
+
   if (tool.name === 'edit_title') {
     return
   }

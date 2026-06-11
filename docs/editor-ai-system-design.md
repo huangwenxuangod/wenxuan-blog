@@ -2,6 +2,10 @@
 
 这份文档是编辑器右侧 AI 系统的主设计文档。
 
+运行时与工具层的最终定稿，见：
+
+- `docs/editor-ai-workspace-agent-runtime.md`
+
 后续关于：
 
 - AI 路线图

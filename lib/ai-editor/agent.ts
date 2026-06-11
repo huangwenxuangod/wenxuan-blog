@@ -1,13 +1,15 @@
 import OpenAI from 'openai'
 import { resolveConfig, type AIEnv } from '@/lib/ai'
 import { normalizeBaseUrl } from '@/lib/ai-provider-profiles'
-import { describeAiEditorTools, type AiEditorToolCall } from './agent-tools'
+import { normalizeAiEditorToolCall, type AiEditorToolCall } from './tool-registry'
 import type { buildAiEditorContext } from './context'
-import { appendSkillInstructions, type ActiveSkillInstructions } from '@/lib/skills/prompt'
+import type { ActiveSkillInstructions } from '@/lib/skills/prompt'
 import {
   buildEditorAgentResponseSchema,
   buildWorkersAiJsonSchemaResponseFormat,
 } from '@/lib/workers-ai-json'
+import type { EditorAiToolObservation, WorkspaceAgentState } from '@/lib/ai-editor/runtime-types'
+import { buildEditorAiModelPrompt } from '@/lib/ai-editor/prompt-builder'
 
 interface AgentHistoryMessage {
   role: 'user' | 'assistant'
@@ -19,6 +21,8 @@ interface RunAiEditorAgentInput {
   history: AgentHistoryMessage[]
   context: ReturnType<typeof buildAiEditorContext>
   activeSkill?: ActiveSkillInstructions | null
+  agentState?: WorkspaceAgentState | null
+  toolObservations?: EditorAiToolObservation[]
   env?: AIEnv
   db?: D1Database
 }
@@ -33,7 +37,7 @@ function safeParseAgentOutput(raw: string): AgentModelOutput {
     const parsed = JSON.parse(raw) as AgentModelOutput
     return {
       message: typeof parsed?.message === 'string' ? parsed.message.trim() : '',
-      tool: parsed?.tool ?? null,
+      tool: normalizeAiEditorToolCall(parsed?.tool ?? null),
     }
   } catch {
     return {
@@ -52,38 +56,21 @@ export async function runAiEditorAgent(input: RunAiEditorAgentInput): Promise<Ag
     throw new Error(config.reason)
   }
 
-  const systemPrompt = appendSkillInstructions(
-    describeAiEditorTools(input.context.outline),
-    input.activeSkill,
-  )
-  const focusedBlocks = [
-    ...input.context.focusedContext.previousBlocks,
-    ...(input.context.focusedContext.activeBlock ? [input.context.focusedContext.activeBlock] : []),
-    ...input.context.focusedContext.nextBlocks,
-  ]
-  const retrievedBlocks = input.context.retrievedContext.relevantBlocks
-  const supportingBlocks = input.context.retrievedContext.supportingBlocks
-
-  const contextPrompt = [
-    input.context.title ? `文章标题：${input.context.title}` : '',
-    `文档快照：\n${JSON.stringify(input.context.documentSnapshot, null, 2)}`,
-    input.context.memorySummary ? `结构化记忆摘要：\n${input.context.memorySummary}` : '',
-    input.context.threadContext.threadSummary ? `最近对话：\n${input.context.threadContext.threadSummary}` : '',
-    focusedBlocks.length > 0
-      ? `当前聚焦区域：\n${focusedBlocks.map((block) => `- #${block.index} [${block.type}] ${block.text.slice(0, 220) || '(空块)'}`).join('\n')}`
-      : '',
-    retrievedBlocks.length > 0
-      ? `相关召回块：\n${retrievedBlocks.map((block) => `- #${block.index} [${block.type}] ${block.text.slice(0, 220) || '(空块)'}`).join('\n')}`
-      : '',
-    supportingBlocks.length > 0
-      ? `辅助上下文：\n${supportingBlocks.map((block) => `- #${block.index} [${block.type}] ${block.text.slice(0, 180) || '(空块)'}`).join('\n')}`
-      : '',
-    input.context.retrievedContext.memoryItems.length > 0
-      ? `本轮相关记忆：\n${input.context.retrievedContext.memoryItems.map((item) => `- [${item.kind}] ${item.summary}`).join('\n')}`
-      : '',
-    input.context.outlineText ? `文章结构：\n${input.context.outlineText}` : '',
-    input.context.fullText ? `文章全文（截断）：\n${input.context.fullText.slice(0, 8000)}` : '',
-  ].filter(Boolean).join('\n\n')
+  const { systemPrompt, userPrompt } = buildEditorAiModelPrompt({
+    articleKey: input.context.postSlug || 'workspace',
+    userMessage: input.userMessage,
+    title: input.context.title,
+    postSlug: input.context.postSlug,
+    documentText: input.context.fullText,
+    history: input.history,
+    memoryItems: input.context.retrievedContext.memoryItems,
+    activeSkill: input.activeSkill,
+    env: input.env,
+    db: input.db,
+    context: input.context,
+    agentState: input.agentState,
+    toolObservations: input.toolObservations,
+  })
 
   const messages = [
     { role: 'system' as const, content: systemPrompt },
@@ -93,7 +80,7 @@ export async function runAiEditorAgent(input: RunAiEditorAgentInput): Promise<Ag
     })),
     {
       role: 'user' as const,
-      content: `${contextPrompt}\n\n用户当前请求：${input.userMessage.trim()}`,
+      content: userPrompt,
     },
   ]
 

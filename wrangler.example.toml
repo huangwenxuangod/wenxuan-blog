@@ -5,7 +5,8 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 workers_dev = false
 
 [triggers]
-crons = ["0 0 * * *"]
+# Daily AI report sync at 08:15 Asia/Shanghai (00:15 UTC).
+crons = ["15 0 * * *"]
 
 [observability]
 

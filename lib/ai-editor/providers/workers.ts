@@ -1,17 +1,19 @@
-import { normalizeToolCallToAction } from '@/lib/ai-editor/action-schema'
-import type { EditorAiProviderStreamResult, EditorAiRuntimePreparedInput } from '@/lib/ai-editor/runtime-types'
+import type { EditorAiProviderPlanResult, EditorAiRuntimePreparedInput } from '@/lib/ai-editor/runtime-types'
 import type { ResolvedConfig } from '@/lib/ai'
 import { runAiEditorAgent } from '@/lib/ai-editor/agent'
+import { normalizeAiEditorToolCall } from '@/lib/ai-editor/tool-registry'
 
-export async function runWorkersEditorProvider(
+export async function planWorkersEditorStep(
   input: EditorAiRuntimePreparedInput,
   config: Extract<ResolvedConfig, { strategy: 'workers-ai' }>,
-): Promise<EditorAiProviderStreamResult> {
+): Promise<EditorAiProviderPlanResult> {
   const result = await runAiEditorAgent({
     userMessage: input.userMessage,
     history: input.history,
     context: input.context,
     activeSkill: input.activeSkill,
+    agentState: input.agentState,
+    toolObservations: input.toolObservations,
     env: {
       WORKERS_AI: config.binding,
       WORKERS_AI_MODEL: config.model,
@@ -20,23 +22,8 @@ export async function runWorkersEditorProvider(
     db: input.db,
   })
 
-  const action = normalizeToolCallToAction(result.tool)
-  const events = [
-    { type: 'assistant_start' as const },
-    { type: 'assistant_delta' as const, delta: result.message },
-    { type: 'action_ready' as const, action },
-    { type: 'assistant_done' as const, message: result.message, action },
-  ]
-
   return {
-    stream: (async function* () {
-      for (const event of events) {
-        yield event
-      }
-    })(),
-    completed: Promise.resolve({
-      message: result.message,
-      action,
-    }),
+    message: result.message,
+    toolCall: normalizeAiEditorToolCall(result.tool),
   }
 }

@@ -3,7 +3,7 @@ import {
   finalizeEditorAiCompletion,
 } from '@/lib/ai-editor/server-execution'
 import { createEditorAiEventStream } from '@/lib/ai-editor/stream'
-import { getAppCloudflareEnv } from '@/lib/cloudflare'
+import { getAppCloudflareContext } from '@/lib/cloudflare'
 import { normalizeArticleKey } from '@/lib/repositories/ai-article-threads'
 import {
   appendAiArticleMessage,
@@ -50,7 +50,8 @@ function safeParseMemoryPayload(payloadJson: string | null): Record<string, unkn
 }
 
 export const POST = withRouteErrorHandling(async (req: NextRequest) => {
-  const env = await getAppCloudflareEnv()
+  const cf = await getAppCloudflareContext()
+  const env = cf.env
   const db = env?.DB as D1Database | undefined
 
   if (!db) {
@@ -147,6 +148,7 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
     textProfileId: Number.isInteger(body.textProfileId) ? Number(body.textProfileId) : null,
     imageProfileId: Number.isInteger(body.imageProfileId) ? Number(body.imageProfileId) : null,
     env: getAiRuntimeEnv(env),
+    appEnv: env,
     db,
   })
   const completion = result.completed.then(async (completed) => {
@@ -169,7 +171,10 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
     })
   })
 
-  const eventStream = createEditorAiEventStream(buildEditorAiRouteEvents(result.stream, completion))
+  const eventStream = createEditorAiEventStream(buildEditorAiRouteEvents(result.stream, completion, {
+    db,
+    threadId: thread.id,
+  }))
 
   return new Response(new ReadableStream({
     async start(controller) {

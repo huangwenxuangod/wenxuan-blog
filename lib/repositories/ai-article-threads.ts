@@ -239,6 +239,47 @@ export async function updateAiArticleMessageContent(
   `).bind(input.threadId).run()
 }
 
+export async function updateLatestAiArticleToolPayload(
+  db: Database,
+  input: {
+    threadId: number
+    toolName: string
+    toolPayload: string
+  },
+) {
+  await ensureAiArticleThreadTables(db)
+
+  const target = await db.prepare(`
+    SELECT id
+    FROM ai_article_messages
+    WHERE thread_id = ? AND role = 'tool' AND tool_name = ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).bind(input.threadId, input.toolName).first<{ id: number }>()
+
+  if (!target?.id) {
+    return false
+  }
+
+  await db.prepare(`
+    UPDATE ai_article_messages
+    SET tool_payload = ?
+    WHERE id = ? AND thread_id = ?
+  `).bind(
+    input.toolPayload,
+    target.id,
+    input.threadId,
+  ).run()
+
+  await db.prepare(`
+    UPDATE ai_article_threads
+    SET updated_at = strftime('%s', 'now')
+    WHERE id = ?
+  `).bind(input.threadId).run()
+
+  return true
+}
+
 export async function resetAiArticleThread(
   db: Database,
   input: {

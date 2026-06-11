@@ -1,10 +1,10 @@
 import { resolveConfig } from '@/lib/ai'
-import type { EditorAiProviderStreamResult, EditorAiRuntimePreparedInput } from '@/lib/ai-editor/runtime-types'
-import { runWorkersEditorProvider } from '@/lib/ai-editor/providers/workers'
-import { runOpenAiEditorProvider } from '@/lib/ai-editor/providers/openai'
-import { runAnthropicEditorProvider } from '@/lib/ai-editor/providers/anthropic'
+import type { EditorAiProviderPlanExecution, EditorAiRuntimePreparedInput } from '@/lib/ai-editor/runtime-types'
+import { planWorkersEditorStep } from '@/lib/ai-editor/providers/workers'
+import { planOpenAiEditorStep } from '@/lib/ai-editor/providers/openai'
+import { planAnthropicEditorStep } from '@/lib/ai-editor/providers/anthropic'
 
-export async function runEditorAiProvider(input: EditorAiRuntimePreparedInput): Promise<EditorAiProviderStreamResult> {
+export async function planEditorAiStep(input: EditorAiRuntimePreparedInput): Promise<EditorAiProviderPlanExecution> {
   const config = await resolveConfig(
     input.env,
     input.db,
@@ -18,12 +18,14 @@ export async function runEditorAiProvider(input: EditorAiRuntimePreparedInput): 
   }
 
   if (config.strategy === 'workers-ai') {
-    return runWorkersEditorProvider(input, config)
+    const completed = planWorkersEditorStep(input, config)
+    return { completed }
   }
 
   if (config.providerType === 'anthropic') {
-    return runAnthropicEditorProvider(input, config)
+    const completed = planAnthropicEditorStep(input, config)
+    return { completed }
   }
 
-  return runOpenAiEditorProvider(input, config)
+  return planOpenAiEditorStep(input, config)
 }

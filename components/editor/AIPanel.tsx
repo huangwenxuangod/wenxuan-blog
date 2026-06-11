@@ -25,7 +25,7 @@ import {
 import { insertGeneratedImageAtPosition } from '@/lib/editor-file-upload'
 import { renderMarkdownToHtml } from '@/lib/editor-markdown'
 import { useToast } from '@/components/Toast'
-import { cx, UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
+import { cx, UiButton, UiIconButton, UiPanel, UiTextarea } from '@/components/ui/primitives'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 type TextChatMessage = {
@@ -44,7 +44,19 @@ type ImageChatMessage = {
   items: ImageGenerationCardItem[]
 }
 
-type ChatMessage = TextChatMessage | ImageChatMessage
+type ToolChatMessage = {
+  id: string
+  role: 'assistant'
+  kind: 'tool'
+  tool: string
+  title: string
+  detail?: string
+  status: 'pending' | 'completed' | 'error'
+  openPostSlug?: string
+  openPostLabel?: string
+}
+
+type ChatMessage = TextChatMessage | ImageChatMessage | ToolChatMessage
 
 type SkillOption = {
   id: number
@@ -81,6 +93,7 @@ interface AIPanelProps {
   profilesRefreshKey?: number
   onTitleApply?: (nextTitle: string) => void
   onCoverImageApply?: (imageUrl: string) => void
+  onOpenPost?: (slug: string) => void
   onOpenSettingsTab?: (tabId: 'ai-provider' | 'ai-image-provider') => void
 }
 
@@ -90,12 +103,234 @@ type ChatEvent =
   | { type: 'action_ready'; action: EditorAiAction }
   | { type: 'tool_pending'; tool: string; payload?: unknown }
   | { type: 'tool_result'; tool: string; payload?: unknown }
-  | { type: 'assistant_done'; message: string; tool?: LegacyEditorAiTool; error?: string }
+  | { type: 'assistant_done'; message: string; action?: EditorAiAction | null; tool?: LegacyEditorAiTool; error?: string }
   | { type: 'assistant_error'; error: string }
 
 type GeneratedImageResult = {
   url: string
   alt: string
+}
+
+type GenerateImagesExecutionResult = {
+  count: number
+  completedCount: number
+  failedCount: number
+  coverCount: number
+  inlineCount: number
+  results: Array<{
+    status: 'completed' | 'failed'
+    usage: 'inline' | 'cover'
+    anchorBlockIndex?: number
+    sourceBlockIndex?: number
+    sourceHeadingPath?: string[]
+    generationReason?: string
+    visualRole?: string
+    styleFingerprint?: string
+    alt: string
+    url?: string
+  }>
+}
+
+function safeParseJson(raw: string | null | undefined): unknown {
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    return null
+  }
+}
+
+function reorderHistoryMessagesForReplay<T extends {
+  role: 'user' | 'assistant' | 'tool'
+}>(messages: T[]) {
+  const reordered: T[] = []
+
+  for (let index = 0; index < messages.length; index += 1) {
+    const current = messages[index]
+    if (current.role !== 'assistant') {
+      reordered.push(current)
+      continue
+    }
+
+    const trailingTools: T[] = []
+    let cursor = index + 1
+    while (cursor < messages.length && messages[cursor].role === 'tool') {
+      trailingTools.push(messages[cursor])
+      cursor += 1
+    }
+
+    if (trailingTools.length > 0) {
+      reordered.push(...trailingTools, current)
+      index = cursor - 1
+      continue
+    }
+
+    reordered.push(current)
+  }
+
+  return reordered
+}
+
+function formatToolList(items: Array<{ slug?: string; title?: string }>, maxItems = 3) {
+  return items
+    .slice(0, maxItems)
+    .map((item) => {
+      const title = String(item.title || '未命名文章').trim()
+      const slug = String(item.slug || '').trim()
+      return slug ? `《${title}》 (${slug})` : `《${title}》`
+    })
+    .join('、')
+}
+
+function summarizeToolPending(tool: string, payload?: unknown) {
+  if (tool === 'list_posts') {
+    return { title: '正在读取文章列表', detail: '从后台文章库读取候选文章' }
+  }
+  if (tool === 'search_posts') {
+    const query = payload && typeof payload === 'object' && 'query' in payload ? String((payload as { query?: unknown }).query || '').trim() : ''
+    return { title: '正在搜索文章库', detail: query ? `关键词：${query}` : '检索相关文章中' }
+  }
+  if (tool === 'get_post') {
+    const slug = payload && typeof payload === 'object' && 'slug' in payload ? String((payload as { slug?: unknown }).slug || '').trim() : ''
+    return { title: '正在读取文章', detail: slug || '读取指定文章内容中' }
+  }
+  if (tool === 'create_post') {
+    const title = payload && typeof payload === 'object' && 'title' in payload ? String((payload as { title?: unknown }).title || '').trim() : ''
+    return { title: '正在创建新文章', detail: title ? `目标标题：${title}` : '生成并落库新草稿中' }
+  }
+  if (tool === 'update_post') {
+    const slug = payload && typeof payload === 'object' && 'slug' in payload ? String((payload as { slug?: unknown }).slug || '').trim() : ''
+    return { title: '正在更新文章', detail: slug || '修改目标文章中' }
+  }
+  if (tool === 'generate_images') {
+    const count = payload && typeof payload === 'object' && 'count' in payload ? Number((payload as { count?: unknown }).count) || 0 : 0
+    return { title: '正在生成图片', detail: count > 0 ? `计划生成 ${count} 张图片` : '图片生成任务已启动' }
+  }
+  return { title: `正在执行 ${tool}`, detail: '' }
+}
+
+function summarizeToolResult(tool: string, payload?: unknown) {
+  if (tool === 'list_posts' || tool === 'search_posts') {
+    const posts = payload && typeof payload === 'object' && 'posts' in payload && Array.isArray((payload as { posts?: unknown[] }).posts)
+      ? (payload as { posts: Array<{ slug?: string; title?: string }> }).posts
+      : []
+    return {
+      title: posts.length > 0 ? `已找到 ${posts.length} 篇文章` : '没有找到相关文章',
+      detail: posts.length > 0 ? formatToolList(posts) : '可以换一个关键词或分类继续检索',
+    }
+  }
+
+  if (tool === 'get_post') {
+    const post = payload && typeof payload === 'object' && 'post' in payload && payload.post && typeof payload.post === 'object'
+      ? payload.post as { slug?: string; title?: string; category?: string | null }
+      : null
+    return {
+      title: post ? `已读取《${String(post.title || '未命名文章')}》` : '已读取文章',
+      detail: post?.slug ? `${post.slug}${post.category ? ` · ${post.category}` : ''}` : '',
+    }
+  }
+
+  if (tool === 'create_post') {
+    const data = payload && typeof payload === 'object' ? payload as {
+      title?: string
+      slug?: string
+      category?: string
+      status?: string
+    } : null
+    return {
+      title: data?.title ? `已创建《${data.title}》` : '已创建新文章',
+      detail: [data?.slug, data?.category, data?.status].filter(Boolean).join(' · '),
+    }
+  }
+
+  if (tool === 'update_post') {
+    const data = payload && typeof payload === 'object' ? payload as {
+      slug?: string
+      title?: string
+      changedFields?: string[]
+    } : null
+    return {
+      title: data?.title ? `已更新《${data.title}》` : `已更新 ${data?.slug || '目标文章'}`,
+      detail: Array.isArray(data?.changedFields) && data.changedFields.length > 0
+        ? `变更字段：${data.changedFields.join('、')}`
+        : '',
+    }
+  }
+
+  if (tool === 'generate_images') {
+    const rawData = payload && typeof payload === 'object'
+      ? payload as {
+        count?: number
+        completedCount?: number
+        failedCount?: number
+        coverCount?: number
+        inlineCount?: number
+        execution?: {
+          count?: number
+          completedCount?: number
+          failedCount?: number
+          coverCount?: number
+          inlineCount?: number
+        }
+      }
+      : null
+    const data = rawData?.execution || rawData
+    const completedCount = Number(data?.completedCount) || 0
+    const failedCount = Number(data?.failedCount) || 0
+    const count = Number(data?.count) || completedCount || failedCount
+    return {
+      title: failedCount > 0 && completedCount === 0
+        ? '图片生成失败'
+        : '图片生成任务已完成',
+      detail: count > 0
+        ? `共 ${count} 张，成功 ${completedCount} 张${failedCount > 0 ? `，失败 ${failedCount} 张` : ''}`
+        : '',
+    }
+  }
+
+  return { title: `已执行 ${tool}`, detail: '' }
+}
+
+function summarizeToolError(tool: string) {
+  if (tool === 'generate_images') {
+    return {
+      title: '图片生成失败',
+      detail: '本轮图片任务没有成功完成，可以重试或缩小生成范围。',
+    }
+  }
+
+  return {
+    title: `${tool} 执行失败`,
+    detail: '这一步没有成功完成，请重试。',
+  }
+}
+
+function resolveToolOpenPostAction(tool: string, payload?: unknown) {
+  if (tool === 'get_post') {
+    const post = payload && typeof payload === 'object' && 'post' in payload && payload.post && typeof payload.post === 'object'
+      ? payload.post as { slug?: string }
+      : null
+    const slug = String(post?.slug || '').trim()
+    if (!slug) return null
+    return {
+      slug,
+      label: '打开文章',
+    }
+  }
+
+  if (tool === 'create_post' || tool === 'update_post') {
+    const data = payload && typeof payload === 'object'
+      ? payload as { slug?: string }
+      : null
+    const slug = String(data?.slug || '').trim()
+    if (!slug) return null
+    return {
+      slug,
+      label: tool === 'create_post' ? '打开新文章' : '打开文章',
+    }
+  }
+
+  return null
 }
 
 function legacyGenerateImagesToolToAction(tool: LegacyEditorAiTool): Extract<EditorAiAction, { type: 'generate_images' }> | null {
@@ -108,6 +343,13 @@ function legacyGenerateImagesToolToAction(tool: LegacyEditorAiTool): Extract<Edi
       prompt: String(item.prompt || ''),
       usage: item.usage === 'cover' ? 'cover' as const : 'inline' as const,
       anchorBlockIndex: typeof item.anchorBlockIndex === 'number' ? item.anchorBlockIndex : undefined,
+      sourceBlockIndex: typeof item.sourceBlockIndex === 'number' ? item.sourceBlockIndex : undefined,
+      sourceHeadingPath: Array.isArray(item.sourceHeadingPath)
+        ? item.sourceHeadingPath.filter((part): part is string => typeof part === 'string').slice(0, 6)
+        : undefined,
+      generationReason: typeof item.generationReason === 'string' ? item.generationReason : undefined,
+      visualRole: typeof item.visualRole === 'string' ? item.visualRole : undefined,
+      styleFingerprint: typeof item.styleFingerprint === 'string' ? item.styleFingerprint : undefined,
       alt: typeof item.alt === 'string' ? item.alt : undefined,
       aspectRatio: typeof item.aspectRatio === 'string' ? item.aspectRatio : undefined,
       resolution: typeof item.resolution === 'string' ? item.resolution : undefined,
@@ -144,6 +386,33 @@ function createImageGenerationMessage(count: number): ImageChatMessage {
     kind: 'image_generation',
     count,
     items: Array.from({ length: count }, () => ({ status: 'pending' as const })),
+  }
+}
+
+function createToolMessage(
+  tool: string,
+  status: ToolChatMessage['status'],
+  payload?: unknown,
+): ToolChatMessage {
+  const summary = status === 'pending'
+    ? summarizeToolPending(tool, payload)
+    : status === 'error'
+      ? summarizeToolError(tool)
+      : summarizeToolResult(tool, payload)
+  const openPostAction = status === 'completed'
+    ? resolveToolOpenPostAction(tool, payload)
+    : null
+
+  return {
+    id: createMessageId(`tool-${tool}`),
+    role: 'assistant',
+    kind: 'tool',
+    tool,
+    title: summary.title,
+    detail: summary.detail,
+    status,
+    openPostSlug: openPostAction?.slug,
+    openPostLabel: openPostAction?.label,
   }
 }
 
@@ -184,6 +453,7 @@ export function AIPanel({
   profilesRefreshKey = 0,
   onTitleApply,
   onCoverImageApply,
+  onOpenPost,
   onOpenSettingsTab,
 }: AIPanelProps) {
   const toast = useToast()
@@ -202,6 +472,7 @@ export function AIPanel({
   const [slashMenuIndex, setSlashMenuIndex] = useState(0)
   const listRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const pendingToolMessageIdsRef = useRef<Record<string, string>>({})
 
   const resizeComposer = useCallback(() => {
     const node = textareaRef.current
@@ -226,6 +497,8 @@ export function AIPanel({
           id: number
           role: 'user' | 'assistant' | 'tool'
           content: string
+          tool_name?: string | null
+          tool_payload?: string | null
         }>
       }
 
@@ -233,17 +506,30 @@ export function AIPanel({
         throw new Error('读取 AI 会话失败')
       }
 
-      const nextMessages = (data.messages || [])
-        .filter((item): item is { id: number; role: 'user' | 'assistant'; content: string } => (
-          item.role === 'user' || item.role === 'assistant'
-        ))
-        .map((item) => ({
-          id: `db-${item.id}`,
-          role: item.role,
-          kind: 'text' as const,
-          content: item.content,
-          pending: item.role === 'assistant' && !item.content.trim(),
-        }))
+      const orderedMessages = reorderHistoryMessagesForReplay(data.messages || [])
+      const nextMessages = orderedMessages.flatMap((item): ChatMessage[] => {
+        if (item.role === 'tool') {
+          const toolName = String(item.tool_name || item.content || '').trim()
+          if (!toolName) return []
+          const payload = safeParseJson(item.tool_payload)
+          return [{
+            ...createToolMessage(toolName, 'completed', payload),
+            id: `db-tool-${item.id}`,
+          }]
+        }
+
+        if (item.role === 'user' || item.role === 'assistant') {
+          return [{
+            id: `db-${item.id}`,
+            role: item.role,
+            kind: 'text',
+            content: item.content,
+            pending: item.role === 'assistant' && !item.content.trim(),
+          }]
+        }
+
+        return []
+      })
 
       setMessages(nextMessages)
       setHydrated(true)
@@ -403,12 +689,32 @@ export function AIPanel({
 
   const runGenerateImagesAction = useCallback(async (
     action: Extract<EditorAiAction, { type: 'generate_images' }>,
-  ) => {
+  ): Promise<GenerateImagesExecutionResult> => {
     const images = action.images.slice(0, 5)
-    if (images.length === 0) return
+    if (images.length === 0) {
+      return {
+        count: 0,
+        completedCount: 0,
+        failedCount: 0,
+        coverCount: 0,
+        inlineCount: 0,
+        results: [],
+      }
+    }
 
     const imageMessage = createImageGenerationMessage(images.length)
     setMessages((current) => [...current, imageMessage])
+    const imageResults: GenerateImagesExecutionResult['results'] = Array.from({ length: images.length }, (_, index) => ({
+      status: 'failed',
+      usage: images[index].usage,
+      anchorBlockIndex: images[index].anchorBlockIndex,
+      sourceBlockIndex: images[index].sourceBlockIndex,
+      sourceHeadingPath: images[index].sourceHeadingPath,
+      generationReason: images[index].generationReason,
+      visualRole: images[index].visualRole,
+      styleFingerprint: images[index].styleFingerprint,
+      alt: images[index].alt || `Generated image ${index + 1}`,
+    }))
 
     const updateImageItem = (
       index: number,
@@ -458,6 +764,18 @@ export function AIPanel({
           imageUrl: payload.image.url,
           alt: item.alt || payload.image.alt,
         })
+        imageResults[index] = {
+          status: 'completed',
+          usage: item.usage,
+          anchorBlockIndex: item.anchorBlockIndex,
+          sourceBlockIndex: item.sourceBlockIndex,
+          sourceHeadingPath: item.sourceHeadingPath,
+          generationReason: item.generationReason,
+          visualRole: item.visualRole,
+          styleFingerprint: item.styleFingerprint,
+          alt: item.alt || payload.image.alt,
+          url: payload.image.url,
+        }
 
         if (item.usage === 'cover') {
           onCoverImageApply?.(payload.image.url)
@@ -483,15 +801,79 @@ export function AIPanel({
           status: 'failed',
           alt: item.alt || `Generated image ${index + 1}`,
         })
+        imageResults[index] = {
+          status: 'failed',
+          usage: item.usage,
+          anchorBlockIndex: item.anchorBlockIndex,
+          sourceBlockIndex: item.sourceBlockIndex,
+          sourceHeadingPath: item.sourceHeadingPath,
+          generationReason: item.generationReason,
+          visualRole: item.visualRole,
+          styleFingerprint: item.styleFingerprint,
+          alt: item.alt || `Generated image ${index + 1}`,
+        }
         throw error
       }
     }))
 
     const failedCount = results.filter((result) => result.status === 'rejected').length
+    const completedCount = images.length - failedCount
+    const coverCount = images.filter((item) => item.usage === 'cover').length
+    const inlineCount = images.length - coverCount
+
     if (failedCount > 0) {
       toast.error(`${failedCount} 张图片生成失败，其余已继续完成`)
     }
+
+    return {
+      count: images.length,
+      completedCount,
+      failedCount,
+      coverCount,
+      inlineCount,
+      results: imageResults,
+    }
   }, [documentText, editor, onCoverImageApply, selectedImageProfileId, title, toast])
+
+  const persistToolResultHistory = useCallback(async (tool: string, payload: unknown) => {
+    try {
+      await fetch('/api/editor/ai-chat/tool-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleKey,
+          postSlug,
+          title,
+          tool,
+          payload,
+        }),
+      })
+    } catch {
+      // Ignore persistence failures so the local chat flow is not blocked.
+    }
+  }, [articleKey, postSlug, title])
+
+  const appendPendingToolMessage = useCallback((tool: string, payload?: unknown) => {
+    const nextMessage = createToolMessage(tool, 'pending', payload)
+    pendingToolMessageIdsRef.current[tool] = nextMessage.id
+    setMessages((current) => [...current, nextMessage])
+  }, [])
+
+  const resolveToolMessage = useCallback((tool: string, payload?: unknown, status: ToolChatMessage['status'] = 'completed') => {
+    const messageId = pendingToolMessageIdsRef.current[tool]
+    const nextMessage = createToolMessage(tool, status, payload)
+    if (!messageId) {
+      setMessages((current) => [...current, nextMessage])
+      return
+    }
+
+    delete pendingToolMessageIdsRef.current[tool]
+    setMessages((current) => current.map((message) => (
+      message.id === messageId && message.kind === 'tool'
+        ? { ...message, ...nextMessage, id: message.id }
+        : message
+    )))
+  }, [])
 
   const sendMessage = useCallback(async (rawInput?: string) => {
     const rawNextInput = rawInput ?? input
@@ -620,10 +1002,12 @@ export function AIPanel({
           }
 
           if (event.type === 'tool_pending') {
+            appendPendingToolMessage(event.tool, event.payload)
             continue
           }
 
           if (event.type === 'tool_result') {
+            resolveToolMessage(event.tool, event.payload, 'completed')
             continue
           }
 
@@ -642,6 +1026,11 @@ export function AIPanel({
               )))
             }
             finalTool = event.tool || { name: 'reply_only', payload: null }
+            if (event.action?.type === 'create_post') {
+              toast.success(`已创建文章：${event.action.title}`)
+            } else if (event.action?.type === 'update_post') {
+              toast.success(`已更新文章：${event.action.slug}`)
+            }
             if (!actionApplied && finalTool.name !== 'generate_images') {
               if (finalTool.name === 'edit_title' && onTitleApply) {
                 onTitleApply(finalTool.payload.title)
@@ -659,6 +1048,15 @@ export function AIPanel({
           }
 
           if (event.type === 'assistant_error') {
+            for (const [tool, messageId] of Object.entries(pendingToolMessageIdsRef.current)) {
+              const nextMessage = createToolMessage(tool, 'error')
+              setMessages((current) => current.map((message) => (
+                message.id === messageId && message.kind === 'tool'
+                  ? { ...message, ...nextMessage, id: message.id }
+                  : message
+              )))
+            }
+            pendingToolMessageIdsRef.current = {}
             toast.error(event.error)
           }
         }
@@ -680,7 +1078,17 @@ export function AIPanel({
           || item.kind !== 'text'
           || item.content.trim().length > 0
         )))
-        await runGenerateImagesAction(imageAction)
+        try {
+          const imageResult = await runGenerateImagesAction(imageAction)
+          resolveToolMessage('generate_images', imageResult, imageResult.failedCount >= imageResult.count && imageResult.count > 0 ? 'error' : 'completed')
+          await persistToolResultHistory('generate_images', {
+            images: imageAction.images,
+            execution: imageResult,
+          })
+        } catch (imageError) {
+          resolveToolMessage('generate_images', null, 'error')
+          throw imageError
+        }
       }
     } catch (error) {
       setMessages((current) => current.map((item) => (
@@ -706,7 +1114,7 @@ export function AIPanel({
       setStreamingId(null)
       setLoading(false)
     }
-  }, [articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, postSlug, selectedImageProfileId, selectedSkillId, selectedSkillSource, selectedTextProfileId, skillCommandEntries, title, toast])
+  }, [appendPendingToolMessage, articleKey, documentJson, documentText, editor, input, loading, onCoverImageApply, onTitleApply, persistToolResultHistory, postSlug, resolveToolMessage, selectedImageProfileId, selectedSkillId, selectedSkillSource, selectedTextProfileId, skillCommandEntries, title, toast])
 
   if (!hydrated) {
     return (
@@ -730,6 +1138,25 @@ export function AIPanel({
             >
               {message.kind === 'image_generation' ? (
                 <ImageGenerationCard count={message.count} items={message.items} />
+              ) : message.kind === 'tool' ? (
+                <div className="max-w-[92%] rounded-[1rem] border border-[color-mix(in_srgb,var(--ui-line)_76%,transparent)] bg-[color-mix(in_srgb,var(--ui-bg)_88%,var(--ui-soft))] px-3.5 py-2.5 text-[13px] leading-6 text-[var(--ui-muted)]">
+                  <div className="font-medium text-[var(--ui-ink)]">{message.title}</div>
+                  {message.detail ? (
+                    <div className="mt-0.5 text-[var(--ui-muted)]">{message.detail}</div>
+                  ) : null}
+                  {message.status === 'completed' && message.openPostSlug && onOpenPost ? (
+                    <div className="mt-2">
+                      <UiButton
+                        size="sm"
+                        tone="quiet"
+                        className="h-7 rounded-full border border-[color-mix(in_srgb,var(--ui-line)_76%,transparent)] px-2.5 text-[12px] text-[var(--ui-ink)]"
+                        onClick={() => onOpenPost(message.openPostSlug as string)}
+                      >
+                        {message.openPostLabel || '打开文章'}
+                      </UiButton>
+                    </div>
+                  ) : null}
+                </div>
               ) : (
                 <div
                   className={`max-w-[90%] text-sm leading-7 ${

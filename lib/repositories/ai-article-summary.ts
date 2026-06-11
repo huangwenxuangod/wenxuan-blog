@@ -95,6 +95,28 @@ function clipText(text: string, max = 220) {
   return normalized.length > max ? `${normalized.slice(0, max - 1)}…` : normalized
 }
 
+function splitSummaryParts(summary: string) {
+  return summary
+    .split(/[；\n]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function mergeSummaryParts(parts: Array<string | null | undefined>, maxItems: number, maxLength: number) {
+  const seen = new Set<string>()
+  const merged: string[] = []
+
+  for (const part of parts) {
+    const normalized = clipText(String(part || ''), maxLength)
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    merged.push(normalized)
+    if (merged.length >= maxItems) break
+  }
+
+  return clipText(merged.join('；'), maxLength)
+}
+
 export async function refreshAiArticleSummaryFromTurn(
   db: Database,
   articleKey: string,
@@ -111,27 +133,49 @@ export async function refreshAiArticleSummaryFromTurn(
   const title = (input.title || '').trim()
   const actionType = (input.actionType || '').trim()
 
-  const nextUserSummary = current?.user_summary
-    ? current.user_summary
-    : /希望|不要|尽量|语气|风格|表达|克制|简洁|口语|专业/i.test(userMessage)
-      ? clipText(userMessage, 180)
-      : ''
-
-  const nextArticleSummary = clipText(
+  const nextUserSummary = mergeSummaryParts(
     [
-      title ? `标题：${title}` : '',
-      userMessage ? `当前诉求：${userMessage}` : '',
-    ].filter(Boolean).join('；'),
-    260,
+      ...splitSummaryParts(current?.user_summary || ''),
+      /希望|不要|尽量|语气|风格|表达|克制|简洁|口语|专业|默认|统一/i.test(userMessage)
+        ? userMessage
+        : '',
+    ],
+    3,
+    220,
   )
 
-  const nextSessionSummary = clipText(
+  const articleSummaryCandidates = [
+    title ? `标题：${title}` : '',
+    /文章|这篇|目标|读者|受众|核心|重点|方向/i.test(userMessage)
+      ? `当前诉求：${userMessage}`
+      : '',
+    actionType === 'create_post'
+      ? '状态：已基于当前上下文创建新文章'
+      : actionType === 'update_post'
+        ? '状态：已完成一次跨文章更新'
+        : actionType === 'generate_images'
+          ? '状态：已执行当前文章配图任务'
+          : '',
+  ]
+
+  const nextArticleSummary = mergeSummaryParts(
     [
+      ...splitSummaryParts(current?.article_summary || ''),
+      ...articleSummaryCandidates,
+    ],
+    4,
+    280,
+  )
+
+  const nextSessionSummary = mergeSummaryParts(
+    [
+      ...splitSummaryParts(current?.session_summary || ''),
       userMessage ? `用户：${userMessage}` : '',
       assistantMessage ? `AI：${assistantMessage}` : '',
       actionType ? `动作：${actionType}` : '',
-    ].filter(Boolean).join('；'),
-    260,
+    ],
+    6,
+    320,
   )
 
   await upsertAiArticleSummary(db, articleKey, {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseStructuredEditorToolCall } from '@/lib/ai-editor/providers/structured-tool'
+import { normalizeAiEditorToolCall } from '@/lib/ai-editor/tool-registry'
 
 describe('parseStructuredEditorToolCall', () => {
   it('parses the current structured { message, tool } shape', () => {
@@ -39,6 +40,16 @@ describe('parseStructuredEditorToolCall', () => {
       toolName: 'reply_only',
       toolPayload: null,
       parsed: false,
+    })
+  })
+
+  it('downgrades unsupported tool names to reply_only during normalization', () => {
+    expect(normalizeAiEditorToolCall({
+      name: 'delete_everything',
+      payload: { now: true },
+    })).toEqual({
+      name: 'reply_only',
+      payload: null,
     })
   })
 })

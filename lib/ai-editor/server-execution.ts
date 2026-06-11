@@ -11,6 +11,10 @@ export interface FinalizedEditorAiResponse {
   tool: Record<string, unknown>
 }
 
+function shouldPersistIntermediateTool(toolName: string) {
+  return toolName === 'list_posts' || toolName === 'search_posts' || toolName === 'get_post'
+}
+
 interface FinalizeEditorAiCompletionOptions {
   articleKey: string
   db: D1Database
@@ -88,6 +92,10 @@ export async function finalizeEditorAiCompletion({
 export async function* buildEditorAiRouteEvents(
   stream: AsyncIterable<EditorAiRuntimeEvent>,
   completion: Promise<FinalizedEditorAiResponse>,
+  options?: {
+    db?: D1Database
+    threadId?: number
+  },
 ) {
   for await (const event of stream) {
     if (event.type === 'action_ready' && event.action.type === 'generate_images') {
@@ -100,6 +108,16 @@ export async function* buildEditorAiRouteEvents(
       }
       yield event
       continue
+    }
+
+    if (event.type === 'tool_result' && shouldPersistIntermediateTool(event.tool) && options?.db && options.threadId) {
+      await appendAiArticleMessage(options.db, {
+        threadId: options.threadId,
+        role: 'tool',
+        content: event.tool,
+        toolName: event.tool,
+        toolPayload: JSON.stringify(event.payload ?? null),
+      })
     }
 
     if (event.type === 'assistant_done') {

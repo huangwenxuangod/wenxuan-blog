@@ -32,7 +32,18 @@ export function buildEditorAgentResponseSchema() {
         properties: {
           name: {
             type: 'string',
-            enum: ['reply_only', 'edit_title', 'edit_selection', 'insert_block', 'generate_images'],
+            enum: [
+              'reply_only',
+              'list_posts',
+              'search_posts',
+              'get_post',
+              'create_post',
+              'update_post',
+              'edit_title',
+              'edit_selection',
+              'insert_block',
+              'generate_images',
+            ],
           },
           payload: {},
         },

@@ -2058,6 +2058,10 @@ export function NovelEditor({ initialData, initialCategory }: NovelEditorProps =
                       setCoverImage(imageUrl)
                       markDirty({ coverImage: imageUrl })
                     }}
+                    onOpenPost={(targetSlug) => {
+                      const nextUrl = `/editor?edit=${encodeURIComponent(targetSlug)}`
+                      window.open(nextUrl, '_blank', 'noopener,noreferrer')
+                    }}
                   />
                 </div>
 

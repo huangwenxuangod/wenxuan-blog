@@ -1,5 +1,6 @@
 import type { AIEnv } from '@/lib/ai'
 import type { AiEditorContext, AiEditorMemoryItem, AiEditorMemoryWrite, AiEditorThreadMessage } from '@/lib/ai-editor/types'
+import type { AiEditorToolCall } from '@/lib/ai-editor/tool-registry'
 import type { ActiveSkillInstructions } from '@/lib/skills/prompt'
 
 export type EditorAiTaskType =
@@ -14,6 +15,8 @@ export type EditorAiTaskType =
 
 export type EditorAiAction =
   | { type: 'reply_only' }
+  | { type: 'create_post'; slug: string; title: string; postId?: number; category?: string; status?: 'draft' | 'published' }
+  | { type: 'update_post'; slug: string; title?: string; changedFields: string[] }
   | { type: 'edit_title'; title: string }
   | { type: 'edit_selection'; markdown: string; blockIndex?: number }
   | { type: 'insert_block'; anchorBlockIndex?: number; position?: 'before' | 'after' | 'end'; markdown: string }
@@ -23,6 +26,11 @@ export type EditorAiAction =
         prompt: string
         usage: 'inline' | 'cover'
         anchorBlockIndex?: number
+        sourceBlockIndex?: number
+        sourceHeadingPath?: string[]
+        generationReason?: string
+        visualRole?: string
+        styleFingerprint?: string
         alt?: string
         aspectRatio?: string
         resolution?: string
@@ -58,6 +66,7 @@ export interface EditorAiRuntimeInput {
   imageProfileId?: number | null
   env?: AIEnv
   db?: D1Database
+  appEnv?: CloudflareEnv | null
 }
 
 export interface EditorAiRuntimeResult {
@@ -69,6 +78,8 @@ export interface EditorAiRuntimeResult {
 
 export interface EditorAiRuntimePreparedInput extends EditorAiRuntimeInput {
   context: AiEditorContext
+  agentState?: WorkspaceAgentState | null
+  toolObservations?: EditorAiToolObservation[]
 }
 
 export interface EditorAiModelPrompt {
@@ -76,15 +87,15 @@ export interface EditorAiModelPrompt {
   userPrompt: string
 }
 
-export interface EditorAiProviderRunResult {
+export interface EditorAiProviderPlanResult {
   message: string
-  action: EditorAiAction
+  toolCall: AiEditorToolCall
   error?: string
 }
 
-export interface EditorAiProviderStreamResult {
-  stream: AsyncIterable<EditorAiRuntimeEvent>
-  completed: Promise<EditorAiProviderRunResult>
+export interface EditorAiProviderPlanExecution {
+  completed: Promise<EditorAiProviderPlanResult>
+  stream?: AsyncIterable<string>
 }
 
 export interface EditorAiRuntimeCompletedResult {
@@ -92,4 +103,36 @@ export interface EditorAiRuntimeCompletedResult {
   action: EditorAiAction
   memoryCandidates: AiEditorMemoryWrite[]
   error?: string
+}
+
+export type WorkspaceAgentIntent =
+  | 'reply'
+  | 'edit_current_post'
+  | 'create_new_post'
+  | 'update_existing_post'
+  | 'research_then_create'
+  | 'research_then_update'
+  | 'generate_images'
+
+export interface WorkspaceAgentState {
+  goal: string
+  intent: WorkspaceAgentIntent
+  iteration: number
+  maxIterations: number
+  currentPostSlug: string | null
+  workingSet: Array<{
+    slug: string
+    title: string
+    reason: string
+  }>
+  observations: string[]
+  pendingAction: string | null
+  completed: boolean
+  completionReason: string | null
+}
+
+export interface EditorAiToolObservation {
+  toolName: string
+  summary: string
+  payload?: Record<string, unknown> | null
 }

@@ -30,6 +30,7 @@
 核心实现文档：
 
 - [DEPLOY.md](DEPLOY.md)
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - [docs/editor-ai-system-design.md](docs/editor-ai-system-design.md)
 - [docs/skills-system.md](docs/skills-system.md)
 - [docs/error-logging.md](docs/error-logging.md)
