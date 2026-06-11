@@ -70,6 +70,7 @@ ENABLE_WORKERS_AI = "true"
 # ENABLE_BACKGROUND_JOBS = "true"
 # ENABLE_VECTOR_SEARCH = "true"
 # ENABLE_CF_IMAGE_PIPELINE = "true"
+# TAVILY_API_KEY = ""
 
 # Secrets（通过 wrangler secret put 设置）：
 # - ADMIN_PASSWORD

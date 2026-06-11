@@ -194,6 +194,11 @@ function summarizeToolPending(tool: string, payload?: unknown) {
     const slug = payload && typeof payload === 'object' && 'slug' in payload ? String((payload as { slug?: unknown }).slug || '').trim() : ''
     return { title: '正在读取文章', detail: slug || '读取指定文章内容中' }
   }
+  if (tool === 'web_search') {
+    const query = payload && typeof payload === 'object' && 'query' in payload ? String((payload as { query?: unknown }).query || '').trim() : ''
+    return { title: '正在搜索互联网', detail: query ? `「${query}」` : '' }
+  }
+
   if (tool === 'create_post') {
     const title = payload && typeof payload === 'object' && 'title' in payload ? String((payload as { title?: unknown }).title || '').trim() : ''
     return { title: '正在创建新文章', detail: title ? `目标标题：${title}` : '生成并落库新草稿中' }
@@ -257,6 +262,18 @@ function summarizeToolResult(tool: string, payload?: unknown) {
     }
   }
 
+  if (tool === 'web_search') {
+    const data = payload && typeof payload === 'object' ? payload as {
+      query?: string
+      answer?: string
+      results?: Array<{ title: string; url: string; score: number }>
+    } : null
+    return {
+      title: `找到 ${data?.results?.length || 0} 条结果`,
+      detail: data?.answer?.slice(0, 120) || '',
+    }
+  }
+
   if (tool === 'generate_images') {
     const rawData = payload && typeof payload === 'object'
       ? payload as {
@@ -292,6 +309,10 @@ function summarizeToolResult(tool: string, payload?: unknown) {
 }
 
 function summarizeToolError(tool: string) {
+  if (tool === 'web_search') {
+    return { title: '互联网搜索暂时不可用', detail: '请稍后重试或直接提问' }
+  }
+
   if (tool === 'generate_images') {
     return {
       title: '图片生成失败',
@@ -483,13 +504,7 @@ export function AIPanel({
 
   const loadHistory = useCallback(async () => {
     try {
-      const search = new URLSearchParams({
-        articleKey,
-        ...(postSlug ? { postSlug } : {}),
-        ...(title.trim() ? { title: title.trim() } : {}),
-      })
-
-      const response = await fetch(`/api/editor/ai-chat/history?${search.toString()}`, {
+      const response = await fetch(`/api/editor/ai-chat/history`, {
         credentials: 'include',
       })
       const data = await response.json().catch(() => ({})) as {
@@ -537,9 +552,12 @@ export function AIPanel({
       setHydrated(true)
       toast.error(error instanceof Error ? error.message : '读取 AI 会话失败')
     }
-  }, [articleKey, postSlug, title, toast])
+  }, [toast])
 
+  const initializedRef = useRef(false)
   useEffect(() => {
+    if (initializedRef.current) return
+    initializedRef.current = true
     void loadHistory()
   }, [loadHistory])
 

@@ -81,6 +81,14 @@ export async function finalizeEditorAiCompletion({
     title: title || null,
   })
 
+  const { refreshWorkspaceSessionSummary } = await import('@/lib/repositories/ai-article-summary')
+  await refreshWorkspaceSessionSummary(db, {
+    userMessage: userMessage || '',
+    assistantMessage: String(responsePayload.message || ''),
+    actionType: completed.action?.type || legacyTool.name || null,
+    currentArticleSlug: articleKey.replace('post:', '') || null,
+  })
+
   return {
     message: String(responsePayload.message || ''),
     action: completed.action,

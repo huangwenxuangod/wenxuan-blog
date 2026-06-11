@@ -559,6 +559,42 @@ export async function runEditorAiRuntime(input: EditorAiRuntimeInput): Promise<E
           break
         }
 
+        if (plannedTool.name === 'web_search') {
+          yield { type: 'tool_pending' as const, tool: 'web_search', payload: plannedTool.payload }
+
+          try {
+            const { executeWebSearch } = await import('@/lib/ai-editor/web-search')
+            const searchResult = await executeWebSearch(
+              plannedTool.payload as { query: string; maxResults?: number },
+              prepared.appEnv,
+            )
+
+            observations = appendObservation(observations, {
+              toolName: 'web_search',
+              summary: `web_search 搜索了 "${searchResult.query}"，找到 ${searchResult.results.length} 条结果`,
+              payload: {
+                answer: searchResult.answer,
+                topResults: searchResult.results.slice(0, 3).map((r) => ({
+                  title: r.title,
+                  url: r.url,
+                  content: r.content,
+                })),
+              },
+            })
+
+            yield { type: 'tool_result' as const, tool: 'web_search', payload: searchResult }
+          } catch (error) {
+            observations = appendObservation(observations, {
+              toolName: 'web_search',
+              summary: 'web_search 暂时不可用（API key 未配置或服务异常），请基于已有知识回复用户',
+              payload: { error: error instanceof Error ? error.message : String(error) },
+            })
+          }
+
+          agentState.observations = observations.map((item) => item.summary)
+          continue
+        }
+
         if (isClientEditorTool(plannedTool.name)) {
           const nextAction = normalizeToolCallToAction(plannedTool)
           const nextActionSignature = buildClientActionSignature(nextAction)

@@ -117,6 +117,34 @@ function mergeSummaryParts(parts: Array<string | null | undefined>, maxItems: nu
   return clipText(merged.join('；'), maxLength)
 }
 
+const WORKSPACE_SUMMARY_KEY = '__workspace__'
+
+export async function refreshWorkspaceSessionSummary(
+  db: Database,
+  input: {
+    userMessage: string
+    assistantMessage: string
+    actionType?: string | null
+    currentArticleSlug?: string | null
+  },
+) {
+  const current = await getAiArticleSummary(db, WORKSPACE_SUMMARY_KEY)
+  const tag = input.currentArticleSlug ? `[${input.currentArticleSlug}]` : '[全局]'
+
+  const newParts = [
+    input.userMessage ? `${tag} 用户：${clipText(input.userMessage)}` : '',
+    input.assistantMessage ? `${tag} AI：${clipText(input.assistantMessage)}` : '',
+    input.actionType ? `${tag} 动作：${input.actionType}` : '',
+  ].filter(Boolean)
+
+  const existingParts = splitSummaryParts(current?.session_summary || '')
+  const merged = mergeSummaryParts([...existingParts, ...newParts], 10, 480)
+
+  await upsertAiArticleSummary(db, WORKSPACE_SUMMARY_KEY, {
+    sessionSummary: merged || current?.session_summary || '',
+  })
+}
+
 export async function refreshAiArticleSummaryFromTurn(
   db: Database,
   articleKey: string,

@@ -83,4 +83,5 @@ declare interface CloudflareEnv {
   ENABLE_WORKERS_AI?: string
   ENABLE_VECTOR_SEARCH?: string
   ENABLE_CF_IMAGE_PIPELINE?: string
+  TAVILY_API_KEY?: string
 }

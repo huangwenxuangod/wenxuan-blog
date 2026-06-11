@@ -11,6 +11,7 @@ export type CanonicalEditorToolName =
   | 'edit_selection'
   | 'insert_block'
   | 'generate_images'
+  | 'web_search'
 
 export type LegacyEditorToolAlias =
   | 'insert_text'
@@ -103,6 +104,11 @@ export interface GenerateImagesToolPayload {
   }>
 }
 
+export interface WebSearchToolPayload {
+  query: string
+  maxResults?: number
+}
+
 export type AiEditorToolPayload =
   | null
   | ListPostsToolPayload
@@ -114,6 +120,7 @@ export type AiEditorToolPayload =
   | EditSelectionToolPayload
   | InsertBlockToolPayload
   | GenerateImagesToolPayload
+  | WebSearchToolPayload
 
 export type AiEditorToolCall =
   | ReplyOnlyToolCall
@@ -126,6 +133,7 @@ export type AiEditorToolCall =
   | { name: 'edit_selection'; payload: EditSelectionToolPayload }
   | { name: 'insert_block'; payload: InsertBlockToolPayload }
   | { name: 'generate_images'; payload: GenerateImagesToolPayload }
+  | { name: 'web_search'; payload: WebSearchToolPayload }
   | { name: LegacyEditorToolAlias; payload: Record<string, unknown> | null }
 
 const LEGACY_EDITOR_TOOL_ALIASES: LegacyEditorToolAlias[] = [
@@ -147,6 +155,7 @@ export const CANONICAL_EDITOR_TOOL_NAMES: CanonicalEditorToolName[] = [
   'edit_selection',
   'insert_block',
   'generate_images',
+  'web_search',
 ]
 
 export function isLookupTool(name: AiEditorToolName): name is 'list_posts' | 'search_posts' | 'get_post' {

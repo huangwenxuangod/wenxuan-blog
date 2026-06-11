@@ -53,3 +53,4 @@ worker-configuration.d.ts
 /data/
 /data/state_store.db
 /tmp/
+nul

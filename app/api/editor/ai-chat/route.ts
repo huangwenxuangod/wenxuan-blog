@@ -7,8 +7,8 @@ import { getAppCloudflareContext } from '@/lib/cloudflare'
 import { normalizeArticleKey } from '@/lib/repositories/ai-article-threads'
 import {
   appendAiArticleMessage,
-  getOrCreateAiArticleThread,
-  listAiArticleMessages,
+  getOrCreateWorkspaceThread,
+  loadWorkspaceHistoryWithCompaction,
   updateAiArticleMessageContent,
 } from '@/lib/repositories/ai-article-threads'
 import { listAiArticleMemoryItems } from '@/lib/repositories/ai-article-memory'
@@ -81,26 +81,31 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
       }
     }
   }
-  const thread = await getOrCreateAiArticleThread(db, {
-    articleKey: body.articleKey,
-    postSlug: body.postSlug,
-    title: body.title,
-  })
 
+  // 始终使用全局工作区线程
+  const workspaceThread = await getOrCreateWorkspaceThread(db)
+
+  // 消息写入工作区线程
   await appendAiArticleMessage(db, {
-    threadId: thread.id,
+    threadId: workspaceThread.id,
     role: 'user',
     content: userMessage,
   })
 
   const pendingAssistantMessage = await appendAiArticleMessage(db, {
-    threadId: thread.id,
+    threadId: workspaceThread.id,
     role: 'assistant',
     content: '',
   })
 
-  const [persistedHistory, memoryRows, articleSummary] = await Promise.all([
-    listAiArticleMessages(db, thread.id, 30),
+  // 注入文章锚点
+  const anchoredMessage = body.postSlug
+    ? `[当前文章: ${body.postSlug}] ${userMessage}`
+    : userMessage
+
+  // 压缩加载历史 + 文章级 memory/summary
+  const [compactedHistory, memoryRows, articleSummary] = await Promise.all([
+    loadWorkspaceHistoryWithCompaction(db, workspaceThread.id),
     listAiArticleMemoryItems(db, articleKey, 40),
     getAiArticleSummary(db, articleKey),
   ])
@@ -112,19 +117,14 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
 
   const result = await runEditorAiRuntime({
     articleKey,
-    userMessage,
+    userMessage: anchoredMessage,
     title: body.title || '',
     postSlug: body.postSlug,
     documentText: body.documentText || '',
     documentJson: (body.documentJson as never) || null,
     activeBlockIndex: Number.isInteger(body.activeBlockIndex) ? body.activeBlockIndex : null,
     selectionText: body.selectionText || null,
-    history: persistedHistory
-      .filter((item): item is typeof item & { role: 'user' | 'assistant' } => item.role === 'user' || item.role === 'assistant')
-      .map((item) => ({
-        role: item.role,
-        content: item.content,
-      })),
+    history: compactedHistory,
     memoryItems: memoryRows.map((item) => ({
       id: item.id,
       articleKey: item.article_key,
@@ -155,7 +155,7 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
     if (pendingAssistantMessage?.id) {
       await updateAiArticleMessageContent(db, {
         id: pendingAssistantMessage.id,
-        threadId: thread.id,
+        threadId: workspaceThread.id,
         content: completed.message,
       })
     }
@@ -163,7 +163,7 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
     return finalizeEditorAiCompletion({
       articleKey,
       db,
-      threadId: thread.id,
+      threadId: workspaceThread.id,
       assistantMessageId: pendingAssistantMessage?.id ?? null,
       title: body.title || '',
       userMessage,
@@ -173,7 +173,7 @@ export const POST = withRouteErrorHandling(async (req: NextRequest) => {
 
   const eventStream = createEditorAiEventStream(buildEditorAiRouteEvents(result.stream, completion, {
     db,
-    threadId: thread.id,
+    threadId: workspaceThread.id,
   }))
 
   return new Response(new ReadableStream({

@@ -28,14 +28,36 @@ export function chunkAssistantMessage(message: string) {
 }
 
 export function buildEditorAiModelPrompt(input: EditorAiRuntimePreparedInput): EditorAiModelPrompt {
+  const hasTavily = !!(input.appEnv?.TAVILY_API_KEY || process.env.TAVILY_API_KEY)
+
+  const baseTools = describeAiEditorTools(input.context.outline)
+  const webToolDescription = hasTavily
+    ? '\n- web_search: 用搜索引擎搜索互联网获取实时信息。payload: { "query": "...", "maxResults"?: 5 }\n  你在需要实时数据、最新新闻、外部知识、事实核查时优先使用'
+    : ''
+  const toolsDescription = `${baseTools}${webToolDescription}`
+  const webToolNameHint = hasTavily ? ' | web_search' : ''
+
   const systemPrompt = appendSkillInstructions(
-    `${describeAiEditorTools(input.context.outline)}
+    `${toolsDescription}
+
+===== 工作区规则 =====
+你是一个全局 AI 工作区助手，可以同时与多篇文章交互。
+
+用户当前正在编辑的文章：
+  标题: 《${input.context.title}》
+  slug: ${input.context.postSlug || '(无)'}
+
+规则：
+1. 用户不指定文章时，默认指"当前正在编辑的文章"
+2. 用户消息前的 [当前文章: xxx] 标记了该消息的上下文文章
+3. 你可以跨文章检索、创建和修改
+4. 历史对话摘要（如有）在消息列表最上方
 
 请始终只返回一个 JSON 对象，格式为：
 {
   "message": "给用户看的简短回复",
   "tool": {
-    "name": "reply_only | list_posts | search_posts | get_post | create_post | update_post | edit_title | edit_selection | insert_block | generate_images",
+    "name": "reply_only | list_posts | search_posts | get_post | create_post | update_post | edit_title | edit_selection | insert_block | generate_images${webToolNameHint}",
     "payload": null 或对象
   }
 }

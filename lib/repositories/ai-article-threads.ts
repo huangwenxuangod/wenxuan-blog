@@ -1,4 +1,5 @@
 import { ensureSchema, type Database } from '@/lib/repositories/schema'
+import { getAiArticleSummary } from '@/lib/repositories/ai-article-summary'
 
 export interface AiArticleThreadRow {
   id: number
@@ -278,6 +279,63 @@ export async function updateLatestAiArticleToolPayload(
   `).bind(input.threadId).run()
 
   return true
+}
+
+const WORKSPACE_ARTICLE_KEY = '__workspace__'
+
+const COMPACTION_THRESHOLD = 50
+const KEEP_RAW_COUNT = 20
+
+export async function getOrCreateWorkspaceThread(db: Database): Promise<AiArticleThreadRow> {
+  await ensureAiArticleThreadTables(db)
+
+  const existing = await db.prepare(`
+    SELECT id, article_key, post_slug, title, created_at, updated_at
+    FROM ai_article_threads WHERE article_key = ? LIMIT 1
+  `).bind(WORKSPACE_ARTICLE_KEY).first<AiArticleThreadRow>()
+
+  if (existing) return existing
+
+  await db.prepare(`
+    INSERT INTO ai_article_threads (article_key, post_slug, title, created_at, updated_at)
+    VALUES (?, NULL, 'AI 工作区', strftime('%s', 'now'), strftime('%s', 'now'))
+  `).bind(WORKSPACE_ARTICLE_KEY).run()
+
+  const created = await db.prepare(`
+    SELECT id, article_key, post_slug, title, created_at, updated_at
+    FROM ai_article_threads WHERE article_key = ? LIMIT 1
+  `).bind(WORKSPACE_ARTICLE_KEY).first<AiArticleThreadRow>()
+
+  if (!created) throw new Error('创建工作区会话失败')
+  return created
+}
+
+export async function loadWorkspaceHistoryWithCompaction(
+  db: Database,
+  threadId: number,
+): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+  await ensureAiArticleThreadTables(db)
+
+  const allMessages = await listAiArticleMessages(db, threadId, 100)
+
+  const chatMessages = allMessages
+    .filter((m): m is AiArticleMessageRow & { role: 'user' | 'assistant' } =>
+      m.role === 'user' || m.role === 'assistant')
+    .map((m) => ({ role: m.role, content: m.content }))
+
+  if (chatMessages.length <= COMPACTION_THRESHOLD) return chatMessages
+
+  const summary = await getAiArticleSummary(db, WORKSPACE_ARTICLE_KEY)
+  const summaryText = summary?.session_summary?.trim()
+
+  const recentMessages = chatMessages.slice(-KEEP_RAW_COUNT)
+
+  if (!summaryText) return recentMessages
+
+  return [
+    { role: 'assistant', content: `📋 历史对话摘要（以下为早期对话压缩）：\n${summaryText}` },
+    ...recentMessages,
+  ]
 }
 
 export async function resetAiArticleThread(
