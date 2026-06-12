@@ -12,15 +12,17 @@
 
 ## 安装
 
-### 手动安装
+### 快速安装（推荐）
 
-1. 下载 `main.js`、`manifest.json` 到你的 Obsidian 插件目录：
+`release/` 目录下已包含预编译好的插件文件，直接复制即可：
+
+1. 将 `release/main.js` 和 `release/manifest.json` 复制到：
    ```
    {你的笔记库}/.obsidian/plugins/qiaomu-blog-publisher/
    ```
 2. 在 Obsidian 设置中启用插件
 
-### 从源码构建
+### 从源码构建（开发者）
 
 ```bash
 cd ecosystem/obsidian-publisher
@@ -28,7 +30,7 @@ npm install
 npm run build
 ```
 
-将生成的 `main.js` 和 `manifest.json` 复制到插件目录。
+构建后 `main.js` 会输出到当前目录，复制到插件目录即可。
 
 ## 配置
 
