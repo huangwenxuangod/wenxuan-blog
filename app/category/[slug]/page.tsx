@@ -88,7 +88,7 @@ export default async function CategoryPage({
         activeCategorySlug={slug}
       />
 
-      <main className="page-main flex-1 mx-auto max-w-3xl w-full px-4 sm:px-6 py-10 sm:py-14">
+      <main className="page-main flex-1 mx-auto w-full px-4 sm:px-6 py-10 sm:py-14">
         <div className="mb-8 border-b border-[var(--editor-line)] pb-6">
           <div className="text-xs uppercase tracking-[0.18em] text-[var(--stone-gray)] mb-3">
             分类

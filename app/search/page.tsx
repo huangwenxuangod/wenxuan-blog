@@ -63,7 +63,7 @@ export default async function SearchPage({
         categories={categories}
       />
 
-      <main className="page-main flex-1 mx-auto max-w-3xl w-full px-4 sm:px-6 py-10 sm:py-14">
+      <main className="page-main flex-1 mx-auto w-full px-4 sm:px-6 py-10 sm:py-14">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[var(--editor-ink)] mb-2">
             搜索结果

@@ -1385,9 +1385,9 @@ select:focus-visible {
   max-width: 860px;
 }
 
-/* 后台亮色：正文宽度放宽 */
+/* 后台亮色：正文宽度 */
 [data-theme="terminal"] .page-main {
-  max-width: 1160px;
+  max-width: 860px;
   padding-left: 24px;
   padding-right: 24px;
 }

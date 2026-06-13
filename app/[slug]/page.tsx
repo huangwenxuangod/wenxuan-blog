@@ -120,7 +120,7 @@ export default async function PostPage({
             activeCategorySlug={activeCategorySlug}
             stickyOnMobile={false}
           />
-          <main className="page-main mx-auto w-full max-w-3xl px-4 sm:px-6 flex-1 py-8 sm:py-12">
+          <main className="page-main mx-auto w-full px-4 sm:px-6 flex-1 py-8 sm:py-12">
             <FrontPostAdminBoundary
               slug={post.slug}
               title={post.title}
@@ -152,7 +152,7 @@ export default async function PostPage({
             activeCategorySlug={activeCategorySlug}
             stickyOnMobile={false}
           />
-          <main className="page-main mx-auto w-full max-w-3xl px-4 sm:px-6 flex-1 py-8 sm:py-12">
+          <main className="page-main mx-auto w-full px-4 sm:px-6 flex-1 py-8 sm:py-12">
             <FrontPostAdminBoundary
               slug={post.slug}
               title={post.title}
@@ -197,7 +197,7 @@ export default async function PostPage({
         stickyOnMobile={false}
       />
 
-      <main className="page-main mx-auto w-full max-w-3xl px-4 sm:px-6 flex-1 py-8 sm:py-12">
+      <main className="page-main mx-auto w-full px-4 sm:px-6 flex-1 py-8 sm:py-12">
         {searchIndexable && (() => {
           const baseUrl = getSiteUrl()
           const ogImage = resolvePostCoverImage(post, { baseUrl })
