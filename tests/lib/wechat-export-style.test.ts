@@ -62,7 +62,33 @@ describe('wechat export helpers', () => {
     expect(css).toContain('padding: 0 8px;')
     expect(css).toContain('padding: 0 !important;')
     expect(css).toContain('background: transparent;')
+    expect(css).toContain('text-align: left;')
+    expect(css).toContain('text-align-last: auto;')
+    expect(css).toContain('text-justify: auto;')
+    expect(css).toContain('word-break: break-all;')
+    expect(css).toContain('overflow-wrap: break-word;')
+    expect(css).not.toContain('overflow-wrap: anywhere;')
     expect(css).not.toContain(TOKENS.background)
     expect(css).not.toContain(TOKENS.codeBackground)
+  })
+
+  it('removes exaggerated paragraph letter-spacing from body presets', () => {
+    const defaultCss = buildWechatExportCss(TOKENS, 'default')
+    const nytCss = buildWechatExportCss(TOKENS, 'nyt')
+    const ftCss = buildWechatExportCss(TOKENS, 'financial-times')
+    const extractParagraphRule = (css: string) => css.match(/\.wechat-export-content p \{[\s\S]*?\n\}/)?.[0] || ''
+
+    const defaultParagraphRule = extractParagraphRule(defaultCss)
+    const nytParagraphRule = extractParagraphRule(nytCss)
+    const ftParagraphRule = extractParagraphRule(ftCss)
+
+    expect(defaultParagraphRule).toContain('letter-spacing: 0;')
+    expect(defaultParagraphRule).not.toContain('letter-spacing: 0.03em;')
+
+    expect(nytParagraphRule).toContain('letter-spacing: 0;')
+    expect(nytParagraphRule).not.toContain('letter-spacing: 0.02em;')
+
+    expect(ftParagraphRule).toContain('letter-spacing: 0;')
+    expect(ftParagraphRule).not.toContain('letter-spacing: 0.015em;')
   })
 })

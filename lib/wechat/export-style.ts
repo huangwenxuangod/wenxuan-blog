@@ -129,7 +129,7 @@ function buildPresetCss(tokens: WechatExportStyleTokens, preset: WechatStylePres
 
 .wechat-export-content p {
   margin: 1.5em 0;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .wechat-export-content blockquote {
@@ -193,7 +193,7 @@ function buildPresetCss(tokens: WechatExportStyleTokens, preset: WechatStylePres
 
 .wechat-export-content p {
   margin: 1.28em 0;
-  letter-spacing: 0.015em;
+  letter-spacing: 0;
 }
 
 .wechat-export-content blockquote {
@@ -323,7 +323,7 @@ function buildPresetCss(tokens: WechatExportStyleTokens, preset: WechatStylePres
 .wechat-export-content p {
   margin: 1.45em 0;
   color: inherit;
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
 }
 
 .wechat-export-content blockquote {
@@ -357,8 +357,8 @@ export function buildWechatExportCss(tokens: WechatExportStyleTokens, preset: We
 }
 
 .wechat-export-content {
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .wechat-export-content > :first-child {
@@ -395,6 +395,12 @@ ${buildPresetCss(tokens, preset)}
   color: inherit;
   orphans: 3;
   widows: 3;
+  text-align: left;
+  text-align-last: auto;
+  text-justify: auto;
+  word-break: normal;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .wechat-export-content p[data-wechat-empty="true"] {
@@ -415,8 +421,8 @@ ${buildPresetCss(tokens, preset)}
 .wechat-export-content a {
   color: #576b95;
   text-decoration: none;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .wechat-export-content ul,
